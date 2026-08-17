@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { pgTable, uuid, text, timestamp, boolean, bigint } from 'drizzle-orm/pg-core';
 
 // Users Table
@@ -13,7 +14,7 @@ export const users = pgTable('users', {
 // Accounts Table (100,000 TL = 10000000n cents)
 export const accounts = pgTable('accounts', {
   userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
-  cashCents: bigint('cash_cents', { mode: 'bigint' }).notNull().default(10000000n),
+  cashCents: bigint('cash_cents', { mode: 'bigint' }).notNull().default(sql`10000000`),
 });
 
 // Refresh Tokens Table

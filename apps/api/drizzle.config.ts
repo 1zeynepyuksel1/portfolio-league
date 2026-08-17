@@ -5,6 +5,6 @@ export default defineConfig({
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'postgresql://postgres:postgrespassword@localhost:5432/portfolio_league',
+    url: process.env.DATABASE_URL || 'postgresql://postgres:postgrespassword@127.0.0.1:5433/portfolio_league',
   },
 });
