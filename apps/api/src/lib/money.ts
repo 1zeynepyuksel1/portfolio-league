@@ -50,7 +50,7 @@ export type Amount = Brand<bigint, "Amount">;
 // ---------------------------------------------------------------------------
 
 
-export const Penny_SCALE = 2;
+export const PENNY_SCALE = 2;
 export const PRICE_SCALE = 8;
 export const AMOUNT_SCALE = 10;
 
@@ -154,7 +154,7 @@ export function parseScaled(text: string, scale: number): bigint {
 }
 
 export const toPenny = (text: string): Penny =>
-  parseScaled(text, Penny_SCALE) as Penny;
+  parseScaled(text, PENNY_SCALE) as Penny;
 
 export const toPrice = (text: string): Price =>
   parseScaled(text, PRICE_SCALE) as Price;
@@ -204,9 +204,9 @@ export function formatTRY(value: Penny): string {
   const isNegative = value < 0n;
   const abs = isNegative ? -value : value;
 
-  const divisor = pow10(Penny_SCALE);
+  const divisor = pow10(PENNY_SCALE);
   const intPart = (abs / divisor).toString();
-  const fracPart = (abs % divisor).toString().padStart(Penny_SCALE, "0");
+  const fracPart = (abs % divisor).toString().padStart(PENNY_SCALE, "0");
 
   const sign = isNegative ? "-" : "";
   return `${sign}${groupThousands(intPart)},${fracPart} ₺`;
@@ -231,7 +231,7 @@ export function formatTRY(value: Penny): string {
  * sadece kuruş kadar sapar ve testin yoksa aylarca fark etmezsin.
  */
 export function calcGross(price: Price, amount: Amount): Penny {
-  const excessScale = PRICE_SCALE + AMOUNT_SCALE - Penny_SCALE; // 8 + 10 - 2 = 16
+  const excessScale = PRICE_SCALE + AMOUNT_SCALE - PENNY_SCALE; // 8 + 10 - 2 = 16
   return divRound(price * amount, pow10(excessScale)) as Penny;
 }
 
@@ -251,10 +251,19 @@ export function calcCommission(gross: Penny, basisPoints: number): Penny {
 
 /** Alışta ödenen toplam: brüt + komisyon */
 export function calcBuyTotal(gross: Penny, commission: Penny): Penny {
-  return (gross + commission) as Penny;
+  return addPenny(gross, commission) ;
 }
 
 /** Satışta ele geçen net: brüt - komisyon */
 export function calcSellNet(gross: Penny, commission: Penny): Penny {
-  return (gross - commission) as Penny;
+  return subPenny(gross, commission) ;
+}
+
+
+export function addPenny(a: Penny, b: Penny): Penny {
+  return (a + b) as Penny;
+}
+
+export function subPenny(a: Penny, b: Penny): Penny {
+  return (a - b) as Penny;
 }
