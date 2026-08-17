@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, uuid, text, timestamp, boolean, bigint } from 'drizzle-orm/pg-core';
+import { pgEnum, pgTable, uuid, text, timestamp, boolean, bigint } from 'drizzle-orm/pg-core';
 
 // Users Table
 export const users = pgTable('users', {
@@ -24,4 +24,23 @@ export const refreshTokens = pgTable('refresh_tokens', {
   tokenHash: text('token_hash').notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   revokedAt: timestamp('revoked_at'),
+});
+
+// Cash Movement Kind Enum
+export const cashMovementKindEnum = pgEnum('cash_movement_kind', [
+  'signup_bonus',
+  'daily_bonus',
+  'buy',
+  'sell',
+  'fee',
+]);
+
+// Cash Movements Table (Account statement / audit trail for all cash flows)
+export const cashMovements = pgTable('cash_movements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  kind: cashMovementKindEnum('kind').notNull(),
+  amountCents: bigint('amount_cents', { mode: 'bigint' }).notNull(),
+  orderId: uuid('order_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });

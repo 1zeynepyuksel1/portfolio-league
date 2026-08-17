@@ -1,6 +1,6 @@
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { accounts, refreshTokens, users } from '../db/schema.js';
+import { accounts, cashMovements, refreshTokens, users } from '../db/schema.js';
 
 export async function findUserByEmail(email: string) {
   const [user] = await db
@@ -128,8 +128,17 @@ export async function createUserWithAccount(input: {
       throw new Error('Kullanıcı oluşturulamadı.');
     }
 
+    // 1. 100,000 TL bakiye tanımla (10000000 kuruş)
     await transaction.insert(accounts).values({ userId: user.id });
 
+    // 2. Cüzdan hareket kaydı (audit trail / ekstre)
+    await transaction.insert(cashMovements).values({
+      userId: user.id,
+      kind: 'signup_bonus',
+      amountCents: 10000000n,
+    });
+
+    // 3. İlk refresh token'ı tanımla
     await transaction.insert(refreshTokens).values({
       userId: user.id,
       tokenHash: input.refreshTokenHash,
