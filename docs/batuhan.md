@@ -31,18 +31,22 @@ Faz 0'ın veri kapısı **kapandı**. Dört kaynağın tamamı gerçek istekle d
 
 ## Faz 0 · kalan görevlerin
 
-### `money.ts` — projenin en çok test edilen dosyası
-*(Monorepo iskeleti kurulduktan sonra başlanır — Zeynep'i bekle)*
+### ✅ `money.ts` — tamamlandı, 17 Ağustos 2026
+*Konum: `apps/api/src/lib/money.ts` · 9 test yeşil · typecheck temiz*
 
 Amaç: hiçbir yerde `number` kullanmadan para hesabı yapmak. `0.1 + 0.2 !== 0.3` olduğu için para asla kayan noktalı sayıyla tutulmaz.
 
-Yazacakların:
-- [ ] Üç ölçek: kuruş (`bigint`), fiyat (1e8 ölçekli), miktar (1e10 ölçekli)
-- [ ] `ROUND_HALF_UP` yapan bölme fonksiyonu — **tek yerde**
-- [ ] Ondalık metni ölçekli `bigint`'e çeviren ayrıştırıcı
-- [ ] Brüt tutar ve komisyon hesabı
-- [ ] Türkçe para biçimlendirme: `1234567n → "12.345,67 ₺"`
-- [ ] Testler
+- [x] Üç ölçek: kuruş (`bigint`), fiyat (1e8 ölçekli), miktar (1e10 ölçekli)
+- [x] `ROUND_HALF_UP` yapan bölme fonksiyonu — **tek yerde** (`divRound`)
+- [x] Ondalık metni ölçekli `bigint`'e çeviren ayrıştırıcı (`parseScaled`)
+- [x] Brüt tutar ve komisyon hesabı (`calcGross`, `calcCommission`)
+- [x] Türkçe para biçimlendirme: `1234567n → "12.345,67 ₺"` (`formatTRY`)
+- [x] Testler — 9 test: yuvarlama, tip koruması, ölçek matematiği, gidiş-dönüş
+
+**Yazarken çıkan iki bulgu:**
+
+1. **Markalı tip aritmetikte korumuyor.** `Penny + Price` derleniyor — `+` operatörü marka etiketini taşımıyor, sonuç düz `bigint` oluyor. Koruma yalnızca *atama* anında devreye giriyor. Çözüm: `addPenny`/`subPenny` fonksiyonları eklendi. **Kural: para üzerinde `+` ve `-` doğrudan kullanılmaz**, tıpkı `/` için `divRound` gibi.
+2. **`@ts-expect-error` vitest'te çalışmaz.** Vitest esbuild ile tipleri sadece siler, kontrol etmez. Tip testleri `npm run typecheck` ile doğrulanır. Yani `npm test` ve `npm run typecheck` **iki farklı şeyi** ölçüyor, biri diğerinin yerini tutmuyor.
 
 **Araştır:**
 - `bigint` bölmesi neden kırpıyor (truncate) ve bu neden kullanıcı aleyhine kuruş kaybettirir
