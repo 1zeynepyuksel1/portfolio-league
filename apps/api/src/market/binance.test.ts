@@ -26,7 +26,10 @@ function klines(startMs: number, count: number, close = "100") {
 /** Her çağrıda sırayla verilen sayfaları döndüren sahte fetch. */
 function mockPages(...pages: unknown[][][]) {
   let call = 0;
-  return vi.fn(async () => {
+  // `_url` parametresi kullanılmıyor ama TİP İÇİN gerekli: vi.fn'in imzası
+  // mock.calls dizisinin tipini belirliyor. Parametresiz yazarsak calls[0][0]
+  // erişimi "boş tuple" hatası verir — testlerde URL'i kontrol edemeyiz.
+  return vi.fn(async (_url: string) => {
     const rows = pages[call] ?? [];
     call++;
     return { ok: true, status: 200, json: async () => rows };
