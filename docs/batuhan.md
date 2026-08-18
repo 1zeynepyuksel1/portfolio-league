@@ -96,7 +96,13 @@ Araştırman gerekenler: transaction izolasyon seviyeleri, `SELECT FOR UPDATE` n
 - [ ] Döviz (TCMB kur XML) ve kıymetli maden (**LBMA**) adapterları
       Altın `gold_pm.json`, gümüş `silver.json` — **tek adapter, metal parametreli**. Tek istekte iner → `price_history`'ye dolum, sonra günlük cron. `gram_TL = ons_USD / 31,1035 × USD_TRY`
       ⚠️ Altında `gold_am.json` ile karıştırma, aralarında ~%1 fark var. Gümüşte tek fixing olduğu için bu risk yok
-- [ ] Fiyat grafiği
+- [ ] **Geri doldurma betiği** — her varlığın tüm geçmişini bir kez çekip `price_history`'ye `granularity='daily'` olarak yazar
+      Grafik ve "ya alsaydın" bu veri olmadan çalışmaz. `getHistory` hazır, onu çağıran yok
+      ⚠️ Yeni kripto eklerken başlangıç tarihini ölç: `startTime=0&limit=1`
+- [ ] **`retention.ts`** — günlük özet (23:55) + 7 günden eski dakikalık satırların temizliği (00:05)
+      Sıra bağlayıcı: özet önce, silme sonra. Ters olursa veri özetlenmeden gider
+- [ ] `PricePoint.currency` alanı — döviz TL geliyor, ikinci kez kurla çarpılmamalı
+- [ ] Fiyat grafiği — `date_trunc` ile kovalama, aralık başına 60-500 nokta (bkz. 01-plan.md §5.2)
 - [ ] `GET /what-if` + reel getiri (TÜFE ile düzeltilmiş)
 - [ ] Varlık detay ekranı + karar notu alanı
 
