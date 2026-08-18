@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   check,
+  index,
   integer,
   numeric,
   pgEnum,
@@ -173,5 +174,67 @@ export const friendships = pgTable(
   },
   (table) => [
     unique('requester_addressee_idx').on(table.requesterId, table.addresseeId),
+  ],
+);
+
+// Portfolio Snapshot Reason Enum
+export const portfolioSnapshotReasonEnum = pgEnum('portfolio_snapshot_reason', [
+  'daily',
+  'pre_flow',
+  'post_flow',
+  'league',
+]);
+
+// Portfolio Snapshots Table (Time-series value history for TWR and charts)
+export const portfolioSnapshots = pgTable(
+  'portfolio_snapshots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    ts: timestamp('ts').defaultNow().notNull(),
+    totalValueCents: bigint('total_value_cents', { mode: 'bigint' }).notNull(),
+    reason: portfolioSnapshotReasonEnum('reason').notNull().default('daily'),
+  },
+  (table) => [
+    index('snapshot_user_ts_idx').on(table.userId, table.ts),
+  ],
+);
+
+// League Status Enum
+export const leagueStatusEnum = pgEnum('league_status', [
+  'open',
+  'closed',
+]);
+
+// League Periods Table (Weekly competitive seasons)
+export const leaguePeriods = pgTable('league_periods', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  startsAt: timestamp('starts_at').notNull(),
+  endsAt: timestamp('ends_at').notNull(),
+  status: leagueStatusEnum('status').notNull().default('open'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// League Entries Table (User participation, computed TWR return, and ranking)
+export const leagueEntries = pgTable(
+  'league_entries',
+  {
+    periodId: uuid('period_id')
+      .notNull()
+      .references(() => leaguePeriods.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    startValueCents: bigint('start_value_cents', { mode: 'bigint' }).notNull(),
+    endValueCents: bigint('end_value_cents', { mode: 'bigint' }).notNull(),
+    twrPct: numeric('twr_pct', { precision: 10, scale: 4 }).notNull().default('0.0000'),
+    rank: integer('rank'),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.periodId, table.userId] }),
   ],
 );
