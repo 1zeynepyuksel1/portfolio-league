@@ -1,5 +1,16 @@
 import { sql } from 'drizzle-orm';
-import { pgEnum, pgTable, uuid, text, timestamp, boolean, bigint } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  integer,
+  numeric,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 // Users Table
 export const users = pgTable('users', {
@@ -44,3 +55,37 @@ export const cashMovements = pgTable('cash_movements', {
   orderId: uuid('order_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Asset Kind Enum
+export const assetKindEnum = pgEnum('asset_kind', [
+  'crypto',
+  'fx',
+  'metal',
+  'bist',
+]);
+
+// Assets Table (Supported tradable instruments: BTC, ETH, USD, EUR, GRAM_ALTIN)
+export const assets = pgTable('assets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  symbol: text('symbol').notNull().unique(),
+  name: text('name').notNull(),
+  kind: assetKindEnum('kind').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Price History Table (Central store for asset prices in TRY)
+export const priceHistory = pgTable(
+  'price_history',
+  {
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => assets.id, { onDelete: 'cascade' }),
+    ts: timestamp('ts').notNull(),
+    priceTry: numeric('price_try', { precision: 24, scale: 8 }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.assetId, table.ts] }),
+  ],
+);
