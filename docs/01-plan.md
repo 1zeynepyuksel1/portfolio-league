@@ -72,14 +72,60 @@ Ayrıntılı rapor: [00-veri-saglayici-dogrulama.md](00-veri-saglayici-dogrulama
 ```
 mobil (Expo)  ──HTTPS──>  API (Express)  ──>  PostgreSQL
                                │
-                               ├── price-fetcher  (cron, 60 sn)  ──> Binance + TCMB
+                               ├── price-fetcher  (cron, 15 sn)  ──> Binance + TCMB
+                               ├── daily-rollup   (cron, 23:55)
+                               ├── retention      (cron, 00:05)
                                ├── league-closer  (cron, haftalık)
                                └── alert-checker  (cron, 5 dk)
 ```
 
 **Kritik karar — fiyatlar kendi veritabanımızda.** Dış sağlayıcı her istekte çağrılmaz. Cron periyodik çeker, `price_history`'ye yazar, API oradan okur. Sonuç: rate limit yemeyiz, sağlayıcı düşse bile uygulama çalışır, tüm kullanıcılar aynı fiyatı görür, geçmiş veri bizde birikir.
 
-Sağlayıcılar `MarketDataProvider` arayüzünün arkasında durur ve **USD** döner. TL çevrimi ayrı bir katmanda (`lib/fx.ts`) yapılır — bu ayrım şart, aksi hâlde iki farklı endişe tek adapter'a karışır.
+Sağlayıcılar `MarketDataProvider` arayüzünün arkasında durur. `PricePoint` hangi para biriminde olduğunu **kendisi söyler**:
+
+```ts
+interface PricePoint { date: string; price: Price; currency: "USD" | "TRY" }
+```
+
+Kripto ve metal **USD**, TCMB dövizi zaten **TL** döndürür. TL çevrimi ayrı bir katmanda (`lib/fx.ts`) yapılır ve **yalnızca USD gelen fiyatlara** uygulanır. Bu ayrım şart, aksi hâlde iki farklı endişe tek adapter'a karışır — ve döviz fiyatı ikinci kez kurla çarpılıp saçmalaşır.
+
+### 5.1 Fiyat verisinin yaşam döngüsü
+
+Dört ayrı iş, farklı ritimlerde:
+
+| İş | Ne zaman | Ne yazar |
+|---|---|---|
+| **Geri doldurma** (backfill) | Bir kez, elle | 2017→bugün, `granularity='daily'` |
+| **Fiyat cron** | **15 sn** | Anlık fiyat, `granularity='minute'` |
+| **Günlük özet** (rollup) | 23:55 | O günün kapanışı, `granularity='daily'` |
+| **Temizlik** (retention) | 00:05 | 7 günden eski `minute` satırlarını siler |
+
+**Sıra bağlayıcı:** özet, temizlikten önce çalışmalı. Ters olursa o günün verisi özetlenmeden silinir ve geri getirilemez. 7 günlük saklama süresi emniyet payıdır — özet işi bir gece patlarsa fark edip elle çalıştıracak vaktin olur.
+
+**15 saniye neden:** emir motoru 120 saniyeden eski fiyatı reddediyor (§8.1). 15 saniyede art arda 7 tur başarısız olsa bile emirler geçmeye devam eder. Binance limitinin (1200 ağırlık/dk) ~%17'si kullanılıyor.
+
+**Denge noktası:** ~1,1M satır ≈ 120 MB. Her gece silinen, her gün eklenene eşit — tablo büyümeyi durdurur.
+
+### 5.2 Grafik çözünürlüğü
+
+Ham veriyi olduğu gibi göndermek hem ağı yorar hem işe yaramaz: telefon ekranı ~400 piksel, 7 günlük dakikalık veri 10.080 nokta. Sorguda `date_trunc` ile kovalanıp **her aralık 60-500 nokta arasına** indiriliyor.
+
+| Aralık | Kaynak | Kova | Nokta |
+|---|---|---|---|
+| `1h` | `minute` | 1 dk | 60 |
+| `1d` | `minute` | 5 dk | 288 |
+| `1w` | `minute` | 30 dk | 336 |
+| `1m` / `3m` / `1y` | `daily` | gün | 30 / 90 / 365 |
+| `max` | `daily` | hafta | ~470 |
+
+Kesim noktası **7 gün** — saklama süresiyle aynı, tesadüf değil.
+
+İki kural:
+
+1. **Çözünürlüğe sunucu karar verir.** İstemci yalnızca `range` gönderir; hangi tablodan, hangi kovayla okunduğunu bilmez. Saklama süresi veya depolama biçimi değişirse mobil taraf etkilenmez.
+2. **`daily` kullanan aralıklarda son nokta canlı fiyattan eklenir.** Bugünün `daily` satırı 23:55'te yazılıyor; eklenmezse aylık grafik bugünü göstermez.
+
+İstemci **10-15 saniyede bir**, yalnızca ekran açıkken sorar. Arka plana geçince durur, dönünce hemen bir kez çeker. Tazelik `asOf` alanıyla dürüstçe bildirilir — WebSocket kapsam dışı (§12).
 
 ---
 
@@ -105,7 +151,9 @@ refresh_tokens       (id, user_id, token_hash, expires_at, revoked_at)
 devices              (id, user_id, expo_push_token, created_at)
 
 assets               (id, symbol, name, kind[crypto|fx|metal], is_active, sort_order)
-price_history        (asset_id, ts, price_try numeric(24,8))     PK(asset_id, ts)
+price_history        (asset_id, ts, price_try numeric(24,8),
+                      granularity[daily|minute])
+                     PK(asset_id, granularity, ts)
 inflation_index      (month, tufe_index)
 
 accounts             (user_id PK, cash_kurus bigint CHECK >= 0)
@@ -133,6 +181,13 @@ price_alerts         (id, user_id, asset_id, direction[above|below],
 **`cash_movements` bu şemanın omurgası.** Her para girişi ve çıkışı değişmez bir kayıt. TWR hesabı, işlem geçmişi ve ileride her rapor buradan türer. Sonradan eklersek geçmiş veri olmaz.
 
 **`accounts.cash_kurus CHECK >= 0`** — bakiyenin eksiye düşmemesini koda değil veritabanına yaptırıyoruz. Kod hatalı yazılsa bile veri bozulmaz.
+⚠️ **Bu kısıt şu an kodda YOK.** `db/schema.ts` içindeki `accounts.cash_cents` tanımında `CHECK` eksik — emir motorundan önce migration ile eklenmeli.
+
+**`price_history.granularity`** — geçmiş günlük, son 7 gün dakikalık saklanıyor (§5.1). Kolon PK'da **ikinci sırada**: grafik sorgusu `WHERE granularity='daily'` ile başladığı için indeksten faydalanır. Temizlik işi de bu kolona bakarak siler; kolon olmasaydı geçmiş grafik verisini ayırt edemezdik.
+
+**Varlık listesi ~25:** 12-15 kripto (hepsi 2019 öncesi Binance geçmişli), 7-8 döviz (tek TCMB XML'inden, ek istek yok), 2 metal (gram altın, gram gümüş). Liste bir **veri kararıdır, kod kararı değil** — `is_active` ve `sort_order` ile yönetilir.
+⚠️ Yeni kripto eklerken Binance'teki **başlangıç tarihi ölçülmeli** (`startTime=0&limit=1`): geçmişi kısa coin "ya alsaydın" özelliğini kırar.
+⚠️ Döviz eklerken TCMB'nin `<Unit>` alanı okunmalı — JPY ve KRW "100 birim" olarak yayımlanıyor, bölünmezse fiyat 100 kat yanlış çıkar.
 
 Faz 3 için şemada yer açılıyor, kullanılmıyor: `purchases` (gerçek parayla bakiye), `bist` varlık türü.
 
@@ -183,6 +238,21 @@ Saf fonksiyon olarak yazılır, veritabanına dokunmaz, girdi olarak snapshot di
 
 Sunucu: o tarihteki fiyat → miktar → bugünkü fiyat → bugünkü değer → **nominal getiri** ve TÜFE ile düzeltilmiş **reel getiri**. Türkiye'de nominal getiri yanıltıcıdır; reel getiriyi göstermek bu özelliğin asıl değeri.
 
+**Miktar hesabı `calcGross`'un tersidir** ve aynı ölçek farkını kullanır:
+
+```
+calcGross:  penny  = divRound(price × amount, 10^16)
+tersi:      amount = divRound(penny × 10^16, price)
+
+16 = AMOUNT_SCALE + PRICE_SCALE − PENNY_SCALE = 10 + 8 − 2
+```
+
+**Ekranda ara adım gösterilir:** doğrudan "7.412 TL olurdu" demek soyut kalıyor. Önce "o gün 0,00243 BTC alabilirdin", sonra bugünkü karşılığı. Kullanıcıyı o güne götüren şey bu.
+
+**Seçilebilir en eski tarih `SELECT MIN(ts) FROM price_history WHERE asset_id = ?` ile türetilir.** Ayrı kolon tutulmaz — geri doldurma bittiğinde veri kendini anlatır. BTC'de 2017, sonradan çıkan coinlerde kendi doğum tarihi. Tarih seçici o aralığa kilitlenir, kullanıcı veri olmayan bir gün seçemez.
+
+⚠️ Geçmiş bir tarih sorulduğunda **o günün kuru** gerekir, bugünkü değil. Hafta sonu/tatil seçilirse TCMB'de kayıt yok — forward-fill kuralı (§3) burada devreye girer.
+
 ---
 
 ## 9. API sözleşmesi
@@ -191,7 +261,7 @@ Sunucu: o tarihteki fiyat → miktar → bugünkü fiyat → bugünkü değer �
 POST   /auth/register       POST /auth/login    POST /auth/refresh   POST /auth/logout
 GET    /me                  PATCH /me
 GET    /assets              GET  /assets/:symbol
-GET    /assets/:symbol/history?range=1d|1w|1m|1y|max
+GET    /assets/:symbol/history?range=1h|1d|1w|1m|3m|1y|max
 GET    /portfolio           GET  /portfolio/history?range=
 POST   /orders  (Idempotency-Key)     GET /orders
 GET    /what-if?assetId&date&amountKurus
