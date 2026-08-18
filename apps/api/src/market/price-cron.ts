@@ -1,7 +1,8 @@
 import { PRICE_SCALE, formatScaled } from "../lib/money.js";
 import { usdToTry } from "../lib/fx.js";
 import { BinanceAdapter } from "./binance.js";
-import { TcmbAdapter } from "./tcmb.js";
+import { TcmbAdapter, type FxRateProvider } from "./tcmb.js";
+import type { MarketDataProvider } from "./provider.js";
 import { insertPrice, listActiveAssets } from "./repository.js";
 
 /**
@@ -23,9 +24,16 @@ export type CronResult = {
   failed: string[];
 };
 
+/**
+ * Parametre tipleri ARAYÜZ, varsayılan değerleri somut sınıf.
+ *
+ * `market = new BinanceAdapter()` yazıp tipi belirtmezsek TypeScript
+ * parametreyi BinanceAdapter sanır ve başka bir uygulama kabul etmez —
+ * arayüz yazmanın amacı boşa gider. Testte sahte bir sağlayıcı veremezdik.
+ */
 export async function fetchAndStorePrices(
-  market = new BinanceAdapter(),
-  fx = new TcmbAdapter(),
+  market: MarketDataProvider = new BinanceAdapter(),
+  fx: FxRateProvider = new TcmbAdapter(),
 ): Promise<CronResult> {
   const assets = await listActiveAssets();
   const result: CronResult = { written: 0, failed: [] };
