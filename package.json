@@ -8,10 +8,10 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "dev:api": "npm run dev --workspace @portfolio-league/api",
     "build": "npm run build --workspaces",
-    "typecheck": "tsc --noEmit -p tsconfig.base.json"
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
