@@ -9,7 +9,7 @@ describe('Time-Weighted Return (TWR) Hesabı', () => {
     ]);
 
     expect(result).toBeCloseTo(0.20, 4);
-    expect(formatTwrPercent(result)).toBe('+20.00%');
+    expect(formatTwrPercent(result)).toBe('+%20,00');
   });
 
   it('Tek bonuslu 2 alt dönemli senaryoda bonusu kazanç saymadan bileşik getiri hesaplamalı', () => {
@@ -23,7 +23,7 @@ describe('Time-Weighted Return (TWR) Hesabı', () => {
     ]);
 
     expect(result).toBeCloseTo(0.21, 4);
-    expect(formatTwrPercent(result)).toBe('+21.00%');
+    expect(formatTwrPercent(result)).toBe('+%21,00');
   });
 
   it("Zeynep'in haftalık hikâyesindeki çok dönemli (kâr ve düşüş içeren) senaryoyu doğrulamalı", () => {
@@ -40,15 +40,15 @@ describe('Time-Weighted Return (TWR) Hesabı', () => {
     ]);
 
     expect(result).toBeCloseTo(0.3962, 3);
-    expect(formatTwrPercent(result)).toBe('+39.62%');
+    expect(formatTwrPercent(result)).toBe('+%39,62');
   });
 
-  it('Sadece günlük bonus toplayıp hiç yatırım yapmayan kullanıcının getirisi %0.00 olmalı (Adaletin Kanıtı)', () => {
+  it('Sadece günlük bonus toplayıp hiç yatırım yapmayan kullanıcının getirisi %0,00 olmalı (Adaletin Kanıtı)', () => {
     // Kullanıcı 100k ile başladı, hiç coin almadı.
     // 1. Gün: 100.000 -> 100.000 (%0)
     // 1k bonus -> 101.000 -> 101.000 (%0)
     // 1k bonus -> 102.000 -> 102.000 (%0)
-    // Toplam TWR: %0.00
+    // Toplam TWR: %0,00
     const result = calculateTwr([
       { startValueKurus: 10000000n, endValueKurus: 10000000n },
       { startValueKurus: 10100000n, endValueKurus: 10100000n },
@@ -56,7 +56,7 @@ describe('Time-Weighted Return (TWR) Hesabı', () => {
     ]);
 
     expect(result).toBeCloseTo(0.00, 6);
-    expect(formatTwrPercent(result)).toBe('%0.00');
+    expect(formatTwrPercent(result)).toBe('%0,00');
   });
 
   it('Zarar edilen dönemlerde negatif TWR doğru hesaplanmalı', () => {
@@ -70,11 +70,11 @@ describe('Time-Weighted Return (TWR) Hesabı', () => {
     ]);
 
     expect(result).toBeCloseTo(-0.28, 4);
-    expect(formatTwrPercent(result)).toBe('-28.00%');
+    expect(formatTwrPercent(result)).toBe('-%28,00');
   });
 
-  it('Boş dönem listesinde %0 getiri dönmeli', () => {
+  it('Boş dönem listesinde %0,00 getiri dönmeli', () => {
     expect(calculateTwr([])).toBe(0);
-    expect(formatTwrPercent(0)).toBe('%0.00');
+    expect(formatTwrPercent(0)).toBe('%0,00');
   });
 });
