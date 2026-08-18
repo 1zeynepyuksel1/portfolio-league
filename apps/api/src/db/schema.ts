@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
+  check,
   integer,
   numeric,
   pgEnum,
@@ -23,11 +24,21 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// Accounts Table (100,000 TL = 10000000n cents)
-export const accounts = pgTable('accounts', {
-  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
-  cashCents: bigint('cash_cents', { mode: 'bigint' }).notNull().default(sql`10000000`),
-});
+// Accounts Table (100,000 TL = 10000000n cents, with non-negative check constraint)
+export const accounts = pgTable(
+  'accounts',
+  {
+    userId: uuid('user_id')
+      .primaryKey()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    cashCents: bigint('cash_cents', { mode: 'bigint' })
+      .notNull()
+      .default(sql`10000000`),
+  },
+  (table) => [
+    check('cash_cents_non_negative', sql`${table.cashCents} >= 0`),
+  ],
+);
 
 // Refresh Tokens Table
 export const refreshTokens = pgTable('refresh_tokens', {
@@ -36,25 +47,6 @@ export const refreshTokens = pgTable('refresh_tokens', {
   tokenHash: text('token_hash').notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   revokedAt: timestamp('revoked_at'),
-});
-
-// Cash Movement Kind Enum
-export const cashMovementKindEnum = pgEnum('cash_movement_kind', [
-  'signup_bonus',
-  'daily_bonus',
-  'buy',
-  'sell',
-  'fee',
-]);
-
-// Cash Movements Table (Account statement / audit trail for all cash flows)
-export const cashMovements = pgTable('cash_movements', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  kind: cashMovementKindEnum('kind').notNull(),
-  amountCents: bigint('amount_cents', { mode: 'bigint' }).notNull(),
-  orderId: uuid('order_id'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // Asset Kind Enum
@@ -90,6 +82,72 @@ export const priceHistory = pgTable(
     primaryKey({ columns: [table.assetId, table.ts] }),
   ],
 );
+
+// Order Side Enum (Buy / Sell)
+export const orderSideEnum = pgEnum('order_side', ['buy', 'sell']);
+
+// Orders Table (Executed trade ledger and idempotency tracking)
+export const orders = pgTable(
+  'orders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => assets.id, { onDelete: 'cascade' }),
+    side: orderSideEnum('side').notNull(),
+    quantity: numeric('quantity', { precision: 28, scale: 10 }).notNull(),
+    priceTry: numeric('price_try', { precision: 24, scale: 8 }).notNull(),
+    grossCents: bigint('gross_cents', { mode: 'bigint' }).notNull(),
+    feeCents: bigint('fee_cents', { mode: 'bigint' }).notNull(),
+    netCents: bigint('net_cents', { mode: 'bigint' }).notNull(),
+    note: text('note'),
+    idempotencyKey: text('idempotency_key').notNull(),
+    executedAt: timestamp('executed_at').defaultNow().notNull(),
+  },
+  (table) => [
+    unique('user_idempotency_idx').on(table.userId, table.idempotencyKey),
+  ],
+);
+
+// Holdings Table (User portfolio positions)
+export const holdings = pgTable(
+  'holdings',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => assets.id, { onDelete: 'cascade' }),
+    quantity: numeric('quantity', { precision: 28, scale: 10 }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.assetId] }),
+    check('quantity_non_negative', sql`${table.quantity} >= 0`),
+  ],
+);
+
+// Cash Movement Kind Enum
+export const cashMovementKindEnum = pgEnum('cash_movement_kind', [
+  'signup_bonus',
+  'daily_bonus',
+  'buy',
+  'sell',
+  'fee',
+]);
+
+// Cash Movements Table (Account statement / audit trail for all cash flows)
+export const cashMovements = pgTable('cash_movements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  kind: cashMovementKindEnum('kind').notNull(),
+  amountCents: bigint('amount_cents', { mode: 'bigint' }).notNull(),
+  orderId: uuid('order_id').references(() => orders.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 
 // Friendship Status Enum
 export const friendshipStatusEnum = pgEnum('friendship_status', [
