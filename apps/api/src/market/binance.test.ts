@@ -76,7 +76,7 @@ describe("BinanceAdapter", () => {
     await new BinanceAdapter().getHistory("BTC", "2020-03-12", "2020-03-12");
 
     // Yerel saat kullanılsaydı Türkiye'de 3 saat kayardı.
-    expect(String(f.mock.calls[0]?.[0])).toContain(`startTime=${MAR12}`);
+    expect(String((f.mock.calls as unknown[][])[0]?.[0])).toContain(`startTime=${MAR12}`);
   });
 
   it("1000 kayıt dolduğunda ikinci sayfayı ister", async () => {

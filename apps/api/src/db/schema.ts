@@ -9,6 +9,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -87,5 +88,32 @@ export const priceHistory = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.assetId, table.ts] }),
+  ],
+);
+
+// Friendship Status Enum
+export const friendshipStatusEnum = pgEnum('friendship_status', [
+  'pending',
+  'accepted',
+  'blocked',
+]);
+
+// Friendships Table
+export const friendships = pgTable(
+  'friendships',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    requesterId: uuid('requester_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    addresseeId: uuid('addressee_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: friendshipStatusEnum('status').notNull().default('pending'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    unique('requester_addressee_idx').on(table.requesterId, table.addresseeId),
   ],
 );

@@ -14,6 +14,16 @@ export type TwrSubPeriod = {
  * 
  * @param subPeriods Nakit akışlarıyla bölünmüş alt dönemlerin listesi
  * @returns Ondalık getiri oranı (Örn: +%21.50 getiri için 0.215, -%5 için -0.05)
+ * 
+ * @note **Neden Number(bigint) dönüşümü yapılıyor?**
+ * 1. TWR bir para tutarı değil, bir orandır (ratio/percentage). 0.215 gibi ondalıklı bir
+ *    çarpanı tamsayı (bigint) ile saklayamayız.
+ * 2. Hassasiyet & Güvenlik: JavaScript Number tipi (IEEE 754 çift duyarlıklı float) 
+ *    Number.MAX_SAFE_INTEGER = 2^53 - 1 değerine kadar tam sayıyı kayıpsız tutar. 
+ *    Kuruş cinsinden bu ~90.07 trilyon TL'ye tekabül eder. Ligdeki 100.000 TL = 10^7 kuruş
+ *    olup bu sınırın çok altındadır.
+ * 3. Hata Birikimi: Haftalık ligde yaklaşık 7 alt dönem bulunur; bu dönemlerin bileşik
+ *    çarpımında float yuvarlama hatası birikimi ihmal edilebilir düzeydedir (< 1e-14).
  */
 export function calculateTwr(subPeriods: TwrSubPeriod[]): number {
   if (!subPeriods || subPeriods.length === 0) {
@@ -29,6 +39,7 @@ export function calculateTwr(subPeriods: TwrSubPeriod[]): number {
     }
 
     // Alt dönem getiri oranı: r_i = (V_son - V_ilk) / V_ilk
+    // Para tutarları kuruş (bigint) olarak gelir, oran hesabı için Number'a dönüştürülür.
     const start = Number(period.startValueKurus);
     const end = Number(period.endValueKurus);
     const subPeriodReturn = (end - start) / start;
@@ -42,25 +53,36 @@ export function calculateTwr(subPeriods: TwrSubPeriod[]): number {
 }
 
 /**
- * TWR getiri oranını ekranda gösterilecek kullanıcı dostu yüzde metnine dönüştürür.
+ * TWR getiri oranını Türkçe finans standardına uygun kullanıcı dostu yüzde metnine dönüştürür.
+ * 
+ * Standart:
+ * - Pozitif: "+%39,63"
+ * - Negatif: "-%4,13"
+ * - Nötr / Sıfır: "%0,00"
+ * 
+ * Ondalık ayırıcı olarak Türkçe standardı olan virgül (',') kullanılır (money.ts ile uyumlu).
  * 
  * @param twr Ondalık getiri oranı (Örn: 0.39634)
  * @param decimals Ondalık basamak sayısı (Varsayılan: 2)
- * @returns Biçimlendirilmiş metin (Örn: "+%39.63", "-%4.13", "%0.00")
+ * @returns Biçimlendirilmiş Türkçe yüzde metni (Örn: "+%39,63", "-%4,13", "%0,00")
  */
 export function formatTwrPercent(twr: number, decimals = 2): string {
   if (isNaN(twr) || !isFinite(twr)) {
-    return '%0.00';
+    const zeroDecimals = (0).toFixed(decimals).replace('.', ',');
+    return `%${zeroDecimals}`;
   }
 
   const percentage = twr * 100;
-  const formattedNumber = Math.abs(percentage).toFixed(decimals);
+  // Türkçe format: Noktayı virgüle çeviriyoruz (Örn: "39.63" -> "39,63")
+  const formattedNumber = Math.abs(percentage)
+    .toFixed(decimals)
+    .replace('.', ',');
 
   if (percentage > 0) {
-    return `+${formattedNumber}%`;
+    return `+%${formattedNumber}`;
   }
   if (percentage < 0) {
-    return `-${formattedNumber}%`;
+    return `-%${formattedNumber}`;
   }
 
   return `%${formattedNumber}`;
