@@ -43,6 +43,13 @@
       "when": 1787054386082,
       "tag": "0005_normal_black_tom",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787129706913,
+      "tag": "0006_bitter_zaran",
+      "breakpoints": true
     }
   ]
 }
