@@ -201,19 +201,17 @@ Faz 3 için şemada yer açılıyor, kullanılmıyor: `purchases` (gerçek paray
 
 **`assetId` değil `symbol`:** `GET /assets` varlık id'lerini dışarı vermiyor, istemcinin elinde hiç olmuyor. `symbol` zaten dış kod ("BTC"), `assetId` iç detay — istemciyi iç kimliklerimize bağlamıyoruz. `quantity` da **string** gönderilir; JSON sayısı float'a düşer ve zincir daha doğrulamaya gelmeden kırılır.
 
-**`portfolio_snapshots` yazılır — ama transaction'ın DIŞINDA, `COMMIT`'ten sonra.**
+**`portfolio_snapshots` emirde YAZILMAZ.** Portföy değeri geçmişi için gece çalışan `daily` cron'u yeterli — grafiğin ihtiyacı olan çözünürlük bu.
 
-Karar iki soruyu ayırmayı gerektiriyor:
+İki gerekçe:
 
-- *Kayıt tutulsun mu?* **Evet.** Kullanıcı portföy değerinin geçmişini görmeli; `daily` cron'un yanında her işlemde de bir nokta olması grafiği anlamlı kılıyor.
-- *Nerede yazılsın?* **Transaction dışında.** İçeride yazmak, satır kilidi tutulurken tüm holdings × tüm fiyatlar hesabı yapmak demek — kilit gereğinden uzun kalır, eşzamanlılık düşer.
+1. **Maliyet.** Emirde yazmak, satır kilidi tutulurken tüm holdings × tüm fiyatlar hesabı yapmak demek. Kilit gereğinden uzun kalır, eşzamanlılık düşer.
+2. **Gereksizlik.** Snapshot **türetilmiş** veridir; `orders` + `cash_movements` + `price_history` elde olduğu sürece herhangi bir an geriye dönük hesaplanabilir. Emir ise kaynak kayıttır.
 
-Snapshot **türetilmiş** veridir; `orders` + `cash_movements` + `price_history` elde olduğu sürece geriye dönük hesaplanabilir. Emir ise kaynak kayıttır. Bu yüzden snapshot yazımı başarısız olursa emir yine de geçerlidir — öncelik doğru yerde.
+⚠️ TWR açısından [DOĞRULANMALI]: alt dönemler **dış** para akışlarında bölünür (bonus gibi); emir iç bir dönüşümdür — nakit varlığa döner, toplam değer komisyon dışında değişmez. Zeynep'e teyit ettirilecek, TWR'yi o yazdı.
 
-⚠️ TWR açısından gerekliliği [DOĞRULANMALI]: alt dönemler **dış** para akışlarında bölünür (bonus gibi); emir iç bir dönüşümdür, toplam değer komisyon dışında değişmez. Zeynep'e teyit ettirilecek — TWR'yi o yazdı.
-
-**Ortak hesap:** `daily` cron, emir sonrası `post_flow`, `league` sınırları ve `GET /portfolio` — dördü de aynı sayıyı istiyor:
-`toplam değer = nakit + Σ(miktar × güncel fiyat)`. Tek fonksiyonda toplanır, dört yerden çağrılır.
+**Ortak hesap:** `daily` cron, `league` sınırları ve `GET /portfolio` — üçü de aynı sayıyı istiyor:
+`toplam değer = nakit + Σ(miktar × güncel fiyat)`. Tek fonksiyonda toplanır, üç yerden çağrılır.
 
 ```
 BEGIN

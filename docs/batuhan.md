@@ -79,8 +79,8 @@ Varlık, fiyat, emir, portföy tipleri. Bu paket iki şeridin sözleşmesi — t
       ⚠️ **Eşzamanlılık testi YOK** — gerçek PostgreSQL gerektiriyor, mock'la yazılamaz
 - [ ] `GET /portfolio`
       Çekirdeği ortak hesap: `toplam değer = nakit + Σ(miktar × güncel fiyat)`.
-      Aynı fonksiyon `portfolio_snapshots`'ı da besleyecek — emir sonrası (`post_flow`,
-      **transaction dışında**) ve gece cron'u (`daily`). Bkz. 01-plan.md 8.1
+      Aynı fonksiyon gece cron'unu da besleyecek (`portfolio_snapshots`, `reason='daily'`).
+      Emirde snapshot yazılmıyor — bkz. 01-plan.md 8.1
 - [ ] Piyasa ve Portföy ekranları
 
 ### Emir motoru hakkında şimdiden bilmen gerekenler
