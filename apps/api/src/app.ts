@@ -6,6 +6,7 @@ import { friendsRouter } from './friends/router.js';
 import { leaguesRouter } from './leagues/router.js';
 import { marketRouter } from './market/router.js';
 import { ordersRouter } from './orders/router.js';
+import { portfolioRouter } from './portfolio/router.js';
 import { whatIfRouter } from './what-if/router.js';
 
 export const app = express();
@@ -19,6 +20,7 @@ app.use('/friends', friendsRouter);
 app.use('/leagues', leaguesRouter);
 app.use('/assets', marketRouter);
 app.use('/orders', ordersRouter);
+app.use('/portfolio', portfolioRouter);
 app.use('/what-if', whatIfRouter);
 
 app.get('/health', (_request, response) => {
