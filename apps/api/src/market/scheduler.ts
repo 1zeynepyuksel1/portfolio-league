@@ -18,13 +18,13 @@ import { fetchAndStorePrices } from "./price-cron.js";
  * Maliyeti yok: 25 varlık x 4 tur/dk = 100 istek/dk, Binance limitinin
  * (1200 ağırlık/dk) ~%17'si. Depolama da gece temizliğiyle sınırlı.
  *
- * ⚠️ ALTI ALAN — standart cron BEŞ alandır (dk sa gün ay haftagünü).
- * node-cron başa bir SANİYE alanı ekliyor. Yani bu ifade standart cron'da
- * çalışmaz; kopyalayıp başka bir sisteme taşırsan bozulur.
+ * ⚠️ ALTI ALAN — standart cron BEŞ alandır (dakika saat gün ay haftagünü).
+ * node-cron başa fazladan bir SANİYE alanı ekliyor, yani alanlar sırasıyla:
  *
- *   */15  *  *  *  *  *
- *    ↑    ↑  ↑  ↑  ↑  ↑
- *    sn   dk sa gün ay haftagünü
+ *     saniye · dakika · saat · gün · ay · haftagünü
+ *
+ * İlk alandaki bölme ifadesi "her 15 saniyede bir" demek. Bu ifade standart
+ * cron'da çalışmaz; kopyalayıp başka bir sisteme taşırsan bozulur.
  */
 const EVERY_15_SECONDS = "*/15 * * * * *";
 

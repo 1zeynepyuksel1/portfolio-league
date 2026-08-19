@@ -78,6 +78,9 @@ Varlık, fiyat, emir, portföy tipleri. Bu paket iki şeridin sözleşmesi — t
       3 katman: `calculate.ts` (saf hesap) · `repository.ts` (transaction + `FOR UPDATE`) · `router.ts` (`POST /orders`)
       ⚠️ **Eşzamanlılık testi YOK** — gerçek PostgreSQL gerektiriyor, mock'la yazılamaz
 - [ ] `GET /portfolio`
+      Çekirdeği ortak hesap: `toplam değer = nakit + Σ(miktar × güncel fiyat)`.
+      Aynı fonksiyon `portfolio_snapshots`'ı da besleyecek — emir sonrası (`post_flow`,
+      **transaction dışında**) ve gece cron'u (`daily`). Bkz. 01-plan.md 8.1
 - [ ] Piyasa ve Portföy ekranları
 
 ### Emir motoru hakkında şimdiden bilmen gerekenler
@@ -105,7 +108,12 @@ Araştırman gerekenler: transaction izolasyon seviyeleri, `SELECT FOR UPDATE` n
       Sıra bağlayıcı: özet önce, silme sonra. Ters olursa veri özetlenmeden gider
 - [ ] `PricePoint.currency` alanı — döviz TL geliyor, ikinci kez kurla çarpılmamalı
 - [ ] Fiyat grafiği — `date_trunc` ile kovalama, aralık başına 60-500 nokta (bkz. 01-plan.md §5.2)
-- [ ] `GET /what-if` + reel getiri (TÜFE ile düzeltilmiş)
+- [x] ~~`GET /what-if` + reel getiri~~ — **Zeynep yazdı** (PR #9, 19 Ağu 2026)
+      Şerit sınırı aşıldı ama kod çalışıyor ve testli; silmek israf olurdu. Karar: kabul edildi.
+      ⚠️ **OKUNACAK — henüz okumadın.** `apps/api/src/what-if/` (service, repository, schema, test).
+      Özellikle: reel getiri formülü `(1+nominal)/(1+enflasyon)−1`, TÜFE endeksi kullanımı,
+      tutar → miktar çevriminde ölçek matematiği (`calcGross`'un tersi). Kendi şeridinin devamı orası.
+      Faz 2'nin kalanı (geri doldurma, grafik, `retention.ts`, varlık detay ekranı) **sende kalıyor**.
 - [ ] Varlık detay ekranı + karar notu alanı
 
 ---
