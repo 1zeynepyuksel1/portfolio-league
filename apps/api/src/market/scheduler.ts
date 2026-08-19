@@ -4,35 +4,52 @@ import { fetchAndStorePrices } from "./price-cron.js";
 /**
  * Fiyat çekme zamanlayıcısı.
  *
- * ARALIK NEDEN 1 DAKİKA?
+ * ARALIK NEDEN 15 SANİYE? (docs/01-plan.md 5.1)
  *
- * docs/01-plan.md: emir motoru, fiyat 120 saniyeden eskiyse 503 döndürecek.
- * 2 dakikadan seyrek çekersek emirler reddedilmeye başlar. 1 dakika güvenli
- * pay bırakıyor: bir tur kaçsa bile fiyat hâlâ taze sayılır.
+ * İki gerekçe:
  *
- * Daha sık çekmenin faydası yok — lig haftalık ve TWR ile hesaplanıyor,
- * saniyelik hareketin sıralamaya etkisi yok.
+ * 1. HATA PAYI. Emir motoru fiyat 120 saniyeden eskiyse 503 döndürüyor
+ *    (orders/repository.ts). 15 saniyede çekerken üst üste 7 tur başarısız
+ *    olsa bile emirler geçmeye devam eder. 60 saniyede sadece 1 tur payın
+ *    olurdu — tek bir ağ kesintisi bütün emirleri durdururdu.
+ *
+ * 2. EKRAN. Kullanıcı fiyat izlerken 60 saniye "donmuş" hissettiriyor.
+ *
+ * Maliyeti yok: 25 varlık x 4 tur/dk = 100 istek/dk, Binance limitinin
+ * (1200 ağırlık/dk) ~%17'si. Depolama da gece temizliğiyle sınırlı.
+ *
+ * ⚠️ ALTI ALAN — standart cron BEŞ alandır (dk sa gün ay haftagünü).
+ * node-cron başa bir SANİYE alanı ekliyor. Yani bu ifade standart cron'da
+ * çalışmaz; kopyalayıp başka bir sisteme taşırsan bozulur.
+ *
+ *   */15  *  *  *  *  *
+ *    ↑    ↑  ↑  ↑  ↑  ↑
+ *    sn   dk sa gün ay haftagünü
  */
-const EVERY_MINUTE = "* * * * *";
+const EVERY_15_SECONDS = "*/15 * * * * *";
 
 /**
  * Önceki tur bitmeden yenisinin başlamasını engelleyen bayrak.
  *
- * Neden gerekli: bir tur 60 saniyeden uzun sürerse (ağ yavaşladı, varlık
+ * Neden gerekli: bir tur 15 saniyeden uzun sürerse (ağ yavaşladı, varlık
  * sayısı arttı) cron yeni turu yine de başlatır. İki tur aynı anda çalışırsa
  * aynı `ts` değerini yazmaya kalkarlar; PK(asset_id, ts) bunu veritabanı
  * seviyesinde engeller ama boşuna istek atılmış olur.
+ *
+ * ⚠️ Aralık 15 saniyeye indiği için bu bayrak artık GERÇEKTEN iş görüyor.
+ * 25 varlık sıralı çekilirken bir tur ~5 saniye sürüyor; ağ yavaşlarsa
+ * 15 saniyeyi aşmak zor değil.
  */
 let running = false;
 
 export function startPriceCron(): void {
-  cron.schedule(EVERY_MINUTE, () => void runOnce());
+  cron.schedule(EVERY_15_SECONDS, () => void runOnce());
 
   // İlk turu beklemeden çalıştır — sunucu açılır açılmaz fiyat olsun,
-  // yoksa ilk dakika boyunca price_history boş kalır.
+  // yoksa ilk tura kadar price_history boş kalır.
   void runOnce();
 
-  console.log("[price-cron] başladı, aralık: 1 dakika");
+  console.log("[price-cron] başladı, aralık: 15 saniye");
 }
 
 async function runOnce(): Promise<void> {
