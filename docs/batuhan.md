@@ -69,12 +69,14 @@ Varlık, fiyat, emir, portföy tipleri. Bu paket iki şeridin sözleşmesi — t
 
 ## Faz 1 · yol haritan
 
-- [ ] `MarketDataProvider` arayüzü — `getLatest`, `getHistory`, **USD döner**
-- [ ] Binance adapter (`/api/v3/klines`, anahtarsız, 1000 mum limiti, sayfalama)
-- [ ] TCMB FX adapter + **hafta sonu forward-fill** kuralı ve testi
-- [ ] Fiyat çekme cron'u → `price_history`
-- [ ] `GET /assets`
-- [ ] **Emir motoru** ← şeridin kalbi
+- [x] `MarketDataProvider` arayüzü — `getLatest`, `getHistory`, **USD döner**
+- [x] Binance adapter (`/api/v3/klines`, anahtarsız, 1000 mum limiti, sayfalama)
+- [x] TCMB FX adapter + **hafta sonu forward-fill** kuralı ve testi
+- [x] Fiyat çekme cron'u → `price_history` (15 sn aralık)
+- [x] `GET /assets`
+- [x] **Emir motoru** ← şeridin kalbi
+      3 katman: `calculate.ts` (saf hesap) · `repository.ts` (transaction + `FOR UPDATE`) · `router.ts` (`POST /orders`)
+      ⚠️ **Eşzamanlılık testi YOK** — gerçek PostgreSQL gerektiriyor, mock'la yazılamaz
 - [ ] `GET /portfolio`
 - [ ] Piyasa ve Portföy ekranları
 
