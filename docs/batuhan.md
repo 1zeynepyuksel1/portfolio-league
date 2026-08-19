@@ -76,7 +76,11 @@ Varlık, fiyat, emir, portföy tipleri. Bu paket iki şeridin sözleşmesi — t
 - [x] `GET /assets`
 - [x] **Emir motoru** ← şeridin kalbi
       3 katman: `calculate.ts` (saf hesap) · `repository.ts` (transaction + `FOR UPDATE`) · `router.ts` (`POST /orders`)
-      ⚠️ **Eşzamanlılık testi YOK** — gerçek PostgreSQL gerektiriyor, mock'la yazılamaz
+      **Eşzamanlılık kanıtlandı** — `concurrency-check.ts`, elle çalıştırılır:
+      `npx tsx apps/api/src/orders/concurrency-check.ts`
+      İki senaryo geçiyor: (1) paralel iki alımda biri reddediliyor, bakiye eksiye düşmüyor
+      (2) aynı `Idempotency-Key` ile paralel iki istekte tek emir yaratılıyor.
+      Vitest'e alınmadı: gerçek PostgreSQL gerektiriyor, mock kilitlemez
 - [ ] `GET /portfolio`
       Çekirdeği ortak hesap: `toplam değer = nakit + Σ(miktar × güncel fiyat)`.
       Aynı fonksiyon gece cron'unu da besleyecek (`portfolio_snapshots`, `reason='daily'`).
