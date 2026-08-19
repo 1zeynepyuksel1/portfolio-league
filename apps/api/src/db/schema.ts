@@ -238,3 +238,10 @@ export const leagueEntries = pgTable(
     primaryKey({ columns: [table.periodId, table.userId] }),
   ],
 );
+
+// Inflation Index Table (Monthly Consumer Price Index - TÜFE for real return calculations)
+export const inflationIndex = pgTable('inflation_index', {
+  month: text('month').primaryKey(), // Format: "YYYY-MM" (Örn: "2020-03")
+  tufeIndex: numeric('tufe_index', { precision: 12, scale: 4 }).notNull(), // Örn: 450.5000
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
