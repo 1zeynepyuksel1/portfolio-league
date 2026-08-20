@@ -111,17 +111,29 @@ export async function createUserWithAccount(input: {
   email: string;
   passwordHash: string;
   displayName: string;
+  username?: string | undefined;
   refreshTokenHash: string;
   refreshTokenExpiresAt: Date;
 }) {
   return db.transaction(async (transaction) => {
+    const userValues: typeof users.$inferInsert = {
+      email: input.email,
+      passwordHash: input.passwordHash,
+      displayName: input.displayName,
+    };
+
+    if (input.username) {
+      userValues.username = input.username;
+    }
+
     const [user] = await transaction
       .insert(users)
-      .values(input)
+      .values(userValues)
       .returning({
         id: users.id,
         email: users.email,
         displayName: users.displayName,
+        username: users.username,
       });
 
     if (!user) {

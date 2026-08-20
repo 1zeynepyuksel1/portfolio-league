@@ -58,6 +58,7 @@ export async function registerUser(input: RegisterBody) {
       email: input.email,
       passwordHash,
       displayName: input.displayName,
+      username: input.username,
       refreshTokenHash: refreshToken.tokenHash,
       refreshTokenExpiresAt: refreshToken.expiresAt,
     });

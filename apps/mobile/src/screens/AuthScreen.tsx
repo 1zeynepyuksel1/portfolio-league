@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +15,7 @@ type AuthResponse = {
     id: string;
     email: string;
     displayName: string;
+    username?: string;
   };
   accessToken: string;
 };
@@ -29,7 +31,13 @@ export function AuthScreen({ onLoginSuccess }: Props) {
   // Form Alanları
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
+
+  // Şifre Göster/Gizle Şalterleri (Show / Hide Password)
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Yükleniyor ve Hata Durumları
   const [loading, setLoading] = useState(false);
@@ -38,6 +46,23 @@ export function AuthScreen({ onLoginSuccess }: Props) {
   // Form Gönderme Fonksiyonu
   async function handleSubmit() {
     setErrorMessage(null);
+
+    // İSTEMCİ TARAFI PRE-VALIDATION (İSTEMCİ DOĞRULAMASI)
+    if (!isLogin) {
+      if (password.length < 8) {
+        setErrorMessage('Şifre en az 8 karakter olmalıdır.');
+        return;
+      }
+      if (password.length > 64) {
+        setErrorMessage('Şifre en fazla 64 karakter olabilir.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMessage('Şifreler birbiriyle eşleşmiyor. Lütfen kontrol edin.');
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
@@ -54,7 +79,13 @@ export function AuthScreen({ onLoginSuccess }: Props) {
         // 2. KAYIT OL İSTEĞİ (100.000 TL Kasa otomatik açılır)
         const res = await apiFetch<AuthResponse>('/auth/register', {
           method: 'POST',
-          body: JSON.stringify({ email, password, displayName }),
+          body: JSON.stringify({
+            email,
+            password,
+            confirmPassword,
+            displayName,
+            username: username.trim() ? username.trim() : undefined,
+          }),
         });
 
         setAccessToken(res.accessToken);
@@ -68,7 +99,7 @@ export function AuthScreen({ onLoginSuccess }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* Üst Logo ve Başlık */}
       <View style={styles.header}>
         <Text style={styles.title}>🏆 Portföy Ligi</Text>
@@ -121,21 +152,35 @@ export function AuthScreen({ onLoginSuccess }: Props) {
       {/* Form Alanları */}
       <View style={styles.form}>
         {!isLogin && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>İsim / Takma Ad</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Örn: Zeynep"
-              placeholderTextColor="#64748B"
-              value={displayName}
-              onChangeText={setDisplayName}
-              autoCapitalize="words"
-            />
-          </View>
+          <>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>İsim Soyisim *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Örn: Zeynep Yılmaz"
+                placeholderTextColor="#64748B"
+                value={displayName}
+                onChangeText={setDisplayName}
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Kullanıcı Adı</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Örn: zeynep_2026"
+                placeholderTextColor="#64748B"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+              />
+            </View>
+          </>
         )}
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>E-posta Adresi</Text>
+          <Text style={styles.label}>E-posta Adresi *</Text>
           <TextInput
             style={styles.input}
             placeholder="ornek@gmail.com"
@@ -147,17 +192,51 @@ export function AuthScreen({ onLoginSuccess }: Props) {
           />
         </View>
 
+        {/* Şifre Alanı (Göster/Gizle Butonlu) */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Şifre</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor="#64748B"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <Text style={styles.label}>
+            Şifre * {!isLogin && <Text style={styles.hint}>(8 - 64 karakter)</Text>}
+          </Text>
+          <View style={styles.passwordWrapper}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="••••••••"
+              placeholderTextColor="#64748B"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {/* Şifre Tekrarı Alanı (Sadece Kayıt Olurken) */}
+        {!isLogin && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Şifre Tekrarı *</Text>
+            <View style={styles.passwordWrapper}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="••••••••"
+                placeholderTextColor="#64748B"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                <Text style={styles.eyeIcon}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Ana İşlem Butonu */}
         <TouchableOpacity
@@ -174,7 +253,7 @@ export function AuthScreen({ onLoginSuccess }: Props) {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -183,12 +262,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0B132B',
+  },
+  scrollContent: {
     paddingHorizontal: 24,
+    paddingVertical: 30,
     justifyContent: 'center',
   },
   header: {
     alignItems: 'center',
     marginBottom: 20,
+    marginTop: 10,
   },
   title: {
     fontSize: 28,
@@ -199,6 +282,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     marginTop: 4,
+    textAlign: 'center',
   },
   bonusBadge: {
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
@@ -262,6 +346,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
+  hint: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: 'normal',
+  },
   input: {
     backgroundColor: '#1C2541',
     borderColor: '#334155',
@@ -271,6 +360,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: '#FFFFFF',
     fontSize: 15,
+  },
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1C2541',
+    borderColor: '#334155',
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: '#FFFFFF',
+    fontSize: 15,
+  },
+  eyeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  eyeIcon: {
+    fontSize: 18,
   },
   primaryButton: {
     backgroundColor: '#10B981',

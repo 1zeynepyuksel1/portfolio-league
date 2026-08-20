@@ -1,5 +1,5 @@
 import { db } from "../db/client.js";
-import { assets, inflationIndex, priceHistory } from "../db/schema.js";
+import { assets, inflationIndex } from "../db/schema.js";
 
 const SEED_ASSETS = [
   { symbol: "BTC", name: "Bitcoin", kind: "crypto" as const, sortOrder: 1 },
@@ -67,65 +67,14 @@ export async function seedAssets(): Promise<void> {
   // 1. Varlıkları ekle
   await db.insert(assets).values(SEED_ASSETS).onConflictDoNothing();
 
-  const allAssets = await db.select().from(assets);
-  const assetMap = new Map(allAssets.map((a) => [a.symbol, a.id]));
-
-  // 2. Geçmiş ve Canlı Fiyat Tohumları
-  const btcId = assetMap.get('BTC');
-  const ethId = assetMap.get('ETH');
-  const goldId = assetMap.get('GRAM_ALTIN');
-  const usdId = assetMap.get('USD');
-
-  const pricesToInsert: { assetId: string; ts: Date; priceTry: string }[] = [];
-
-  if (btcId) {
-    pricesToInsert.push(
-      { assetId: btcId, ts: new Date('2020-03-12T12:00:00Z'), priceTry: '45200.00000000' },
-      { assetId: btcId, ts: new Date('2021-11-10T12:00:00Z'), priceTry: '650000.00000000' },
-      { assetId: btcId, ts: new Date('2023-01-01T12:00:00Z'), priceTry: '310000.00000000' },
-      { assetId: btcId, ts: new Date(), priceTry: '2650120.45000000' },
-    );
-  }
-
-  if (ethId) {
-    pricesToInsert.push(
-      { assetId: ethId, ts: new Date('2020-03-12T12:00:00Z'), priceTry: '1250.00000000' },
-      { assetId: ethId, ts: new Date('2021-11-10T12:00:00Z'), priceTry: '45000.00000000' },
-      { assetId: ethId, ts: new Date('2023-01-01T12:00:00Z'), priceTry: '22500.00000000' },
-      { assetId: ethId, ts: new Date(), priceTry: '135400.80000000' },
-    );
-  }
-
-  if (goldId) {
-    pricesToInsert.push(
-      { assetId: goldId, ts: new Date('2020-03-12T12:00:00Z'), priceTry: '320.50000000' },
-      { assetId: goldId, ts: new Date('2021-11-10T12:00:00Z'), priceTry: '575.00000000' },
-      { assetId: goldId, ts: new Date('2023-01-01T12:00:00Z'), priceTry: '1100.00000000' },
-      { assetId: goldId, ts: new Date(), priceTry: '2840.50000000' },
-    );
-  }
-
-  if (usdId) {
-    pricesToInsert.push(
-      { assetId: usdId, ts: new Date('2020-03-12T12:00:00Z'), priceTry: '6.20000000' },
-      { assetId: usdId, ts: new Date('2021-11-10T12:00:00Z'), priceTry: '9.80000000' },
-      { assetId: usdId, ts: new Date('2023-01-01T12:00:00Z'), priceTry: '18.70000000' },
-      { assetId: usdId, ts: new Date(), priceTry: '40.15000000' },
-    );
-  }
-
-  if (pricesToInsert.length > 0) {
-    await db.insert(priceHistory).values(pricesToInsert).onConflictDoNothing();
-  }
-
-  // 3. TÜFE Endeks Tablosunu doldur
+  // 2. TÜFE Endeks Tablosunu doldur
   await seedInflationIndex();
 }
 
 // Doğrudan çalıştırıldığında tohumla ve çık
 seedAssets()
   .then(() => {
-    console.log(`Varlıklar, fiyatlar ve 115 aylık TÜFE tablosu başarıyla tohumlandı!`);
+    console.log(`Varlıklar ve 115 aylık TÜFE tablosu başarıyla tohumlandı! (price_history Batuhan'ın backfill görevidir).`);
     process.exit(0);
   })
   .catch((error: unknown) => {
