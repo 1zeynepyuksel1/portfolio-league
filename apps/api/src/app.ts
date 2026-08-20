@@ -1,3 +1,4 @@
+import cors from 'cors';
 import express from 'express';
 import { authRouter } from './auth/router.js';
 import { meRouter } from './auth/me.router.js';
@@ -9,6 +10,8 @@ import { whatIfRouter } from './what-if/router.js';
 
 export const app = express();
 
+// Web tarayıcısından (localhost:8081) gelen isteklere izin ver (CORS)
+app.use(cors());
 app.use(express.json());
 
 app.use('/auth', authRouter);

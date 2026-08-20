@@ -4,8 +4,8 @@ import * as repo from './repository.js';
 import {
   AssetNotFoundError,
   calculateWhatIf,
-  getTufeValue,
   HistoricalPriceNotFoundError,
+  InflationIndexNotFoundError,
   LatestPriceNotFoundError,
 } from './service.js';
 
@@ -47,19 +47,8 @@ describe('What-If Module Tests', () => {
     });
   });
 
-  describe('TÜFE Helper', () => {
-    it('bilinen aylar için doğru TÜFE endeksini döner', () => {
-      expect(getTufeValue('2020-03')).toBe(453.47);
-      expect(getTufeValue('2017-01')).toBe(299.74);
-    });
-
-    it('bilinmeyen eski tarihler için alt sınırı döner', () => {
-      expect(getTufeValue('2015-01')).toBe(299.74);
-    });
-  });
-
   describe('calculateWhatIf Engine', () => {
-    it('nominal ve reel getiriyi, miktarı ve Türkçe formatları hatasız hesaplar', async () => {
+    it('nominal ve reel getiriyi doğrudan veritabanı kayıtlarından hesaplar', async () => {
       const mockAsset = {
         id: 'asset-btc-uuid',
         symbol: 'BTC',
@@ -167,6 +156,35 @@ describe('What-If Module Tests', () => {
           amountKurus: 1000000n,
         }),
       ).rejects.toThrow(LatestPriceNotFoundError);
+    });
+
+    it('veritabanında TÜFE kaydı yoksa InflationIndexNotFoundError fırlatır', async () => {
+      vi.spyOn(repo, 'findAssetBySymbol').mockResolvedValue({
+        id: 'asset-btc-uuid',
+        symbol: 'BTC',
+        name: 'Bitcoin',
+        kind: 'crypto' as const,
+        isActive: true,
+        sortOrder: 1,
+        createdAt: new Date(),
+      });
+      vi.spyOn(repo, 'findHistoricalPrice').mockResolvedValue({
+        ts: new Date('2020-03-12'),
+        priceTry: '45000.00',
+      });
+      vi.spyOn(repo, 'findLatestPrice').mockResolvedValue({
+        ts: new Date(),
+        priceTry: '2250000.00',
+      });
+      vi.spyOn(repo, 'findTufeIndex').mockResolvedValue(undefined);
+
+      await expect(
+        calculateWhatIf({
+          symbol: 'BTC',
+          date: '2020-03-12',
+          amountKurus: 1000000n,
+        }),
+      ).rejects.toThrow(InflationIndexNotFoundError);
     });
   });
 });

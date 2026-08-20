@@ -4,6 +4,7 @@ import {
   AssetNotFoundError,
   calculateWhatIf,
   HistoricalPriceNotFoundError,
+  InflationIndexNotFoundError,
   LatestPriceNotFoundError,
 } from './service.js';
 
@@ -28,7 +29,8 @@ whatIfRouter.get('/', async (req, res) => {
     if (
       error instanceof AssetNotFoundError ||
       error instanceof HistoricalPriceNotFoundError ||
-      error instanceof LatestPriceNotFoundError
+      error instanceof LatestPriceNotFoundError ||
+      error instanceof InflationIndexNotFoundError
     ) {
       res.status(404).json({
         error: error.message,
