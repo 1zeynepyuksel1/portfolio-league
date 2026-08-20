@@ -197,7 +197,21 @@ Faz 3 için şemada yer açılıyor, kullanılmıyor: `purchases` (gerçek paray
 
 ### 8.1 Emir gerçekleştirme — race condition
 
-`POST /orders` · gövde `{ assetId, side, quantity, note? }` · başlık `Idempotency-Key`
+`POST /orders` · gövde `{ symbol, side, quantity, note? }` · başlık `Idempotency-Key`
+
+**`assetId` değil `symbol`:** `GET /assets` varlık id'lerini dışarı vermiyor, istemcinin elinde hiç olmuyor. `symbol` zaten dış kod ("BTC"), `assetId` iç detay — istemciyi iç kimliklerimize bağlamıyoruz. `quantity` da **string** gönderilir; JSON sayısı float'a düşer ve zincir daha doğrulamaya gelmeden kırılır.
+
+**`portfolio_snapshots` emirde YAZILMAZ.** Portföy değeri geçmişi için gece çalışan `daily` cron'u yeterli — grafiğin ihtiyacı olan çözünürlük bu.
+
+İki gerekçe:
+
+1. **Maliyet.** Emirde yazmak, satır kilidi tutulurken tüm holdings × tüm fiyatlar hesabı yapmak demek. Kilit gereğinden uzun kalır, eşzamanlılık düşer.
+2. **Gereksizlik.** Snapshot **türetilmiş** veridir; `orders` + `cash_movements` + `price_history` elde olduğu sürece herhangi bir an geriye dönük hesaplanabilir. Emir ise kaynak kayıttır.
+
+⚠️ TWR açısından [DOĞRULANMALI]: alt dönemler **dış** para akışlarında bölünür (bonus gibi); emir iç bir dönüşümdür — nakit varlığa döner, toplam değer komisyon dışında değişmez. Zeynep'e teyit ettirilecek, TWR'yi o yazdı.
+
+**Ortak hesap:** `daily` cron, `league` sınırları ve `GET /portfolio` — üçü de aynı sayıyı istiyor:
+`toplam değer = nakit + Σ(miktar × güncel fiyat)`. Tek fonksiyonda toplanır, üç yerden çağrılır.
 
 ```
 BEGIN
