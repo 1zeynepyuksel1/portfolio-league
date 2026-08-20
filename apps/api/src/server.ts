@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { app } from './app.js';
+import { startLeagueClosingCron } from './leagues/cron.js';
 import { startPriceCron } from './market/scheduler.js';
 import { startTufeCron } from './market/tufe-cron.js';
 
@@ -11,4 +12,6 @@ app.listen(port, () => {
   startPriceCron();
   // Aylık TÜFE çekme robotu (her ayın 3'ünde saat 10:05)
   startTufeCron();
+  // Haftalık lig kapanış robotu (her Pazar 23:59:59)
+  startLeagueClosingCron();
 });
