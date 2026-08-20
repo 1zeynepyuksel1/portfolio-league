@@ -30,31 +30,17 @@ export class LatestPriceNotFoundError extends Error {
   }
 }
 
-// TÜİK Resmi TÜFE Endeks Referans Tablosu (2017 - 2026)
-const TUFE_REFERENCE_MAP: Record<string, number> = {
-  '2017-01': 299.74, '2017-06': 314.92, '2017-12': 335.50,
-  '2018-01': 338.93, '2018-06': 370.28, '2018-12': 393.88,
-  '2019-01': 398.07, '2019-06': 420.24, '2019-12': 440.50,
-  '2020-01': 446.45, '2020-03': 453.47, '2020-06': 468.20, '2020-12': 504.81,
-  '2021-01': 513.30, '2021-06': 549.44, '2021-12': 686.95,
-  '2022-01': 763.23, '2022-06': 977.78, '2022-12': 1128.45,
-  '2023-01': 1203.48, '2023-06': 1351.59, '2023-12': 1859.38,
-  '2024-01': 1984.34, '2024-06': 2345.12, '2024-12': 2680.50,
-  '2025-01': 2820.00, '2025-06': 3150.00, '2025-12': 3480.00,
-  '2026-01': 3650.00, '2026-08': 4120.00,
-};
-
-export function getTufeValue(month: string): number {
-  if (TUFE_REFERENCE_MAP[month]) {
-    return TUFE_REFERENCE_MAP[month];
+export class InflationIndexNotFoundError extends Error {
+  constructor(month: string) {
+    super(`"${month}" ayı için TÜFE enflasyon verisi veritabanında bulunamadı.`);
+    this.name = 'InflationIndexNotFoundError';
   }
-  // En yakın ayı bul
-  const year = parseInt(month.slice(0, 4), 10);
-  if (year <= 2017) return 299.74;
-  if (year >= 2026) return 4120.00;
-  return 1500.00;
 }
 
+/**
+ * "Ya Alsaydın" Geçmiş Yatırım ve Enflasyon Hesaplama Motoru
+ * Doğrudan PostgreSQL veritabanındaki price_history ve inflation_index tablolarından beslenir.
+ */
 export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfResultDto> {
   // 1. Varlığı bul
   const asset = await findAssetBySymbol(input.symbol);
@@ -68,7 +54,7 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
     throw new HistoricalPriceNotFoundError(input.symbol, input.date);
   }
 
-  // 3. Güncel fiyatı bul
+  // 3. Güncel canlı fiyatı bul
   const currentPriceRecord = await findLatestPrice(asset.id);
   if (!currentPriceRecord) {
     throw new LatestPriceNotFoundError(input.symbol);
@@ -87,18 +73,25 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
   const currentValueTry = purchasedQuantity * currentPriceFloat;
   const nominalProfitTry = currentValueTry - initialInvestmentTry;
 
-  // 5. Nominal Getiri Oranı
+  // 5. Nominal Getiri Oranı: (Fiyat_son - Fiyat_ilk) / Fiyat_ilk
   const nominalReturn = (currentPriceFloat - startPriceFloat) / startPriceFloat;
 
-  // 6. Enflasyon (TÜFE) ve Reel Getiri Hesabı
+  // 6. Enflasyon (TÜFE) ve Reel Getiri Hesabı (Doğrudan Veritabanından)
   const startMonth = input.date.slice(0, 7); // "YYYY-MM"
   const currentMonth = currentPriceRecord.ts.toISOString().slice(0, 7);
 
   const startTufeRecord = await findTufeIndex(startMonth);
-  const currentTufeRecord = await findTufeIndex(currentMonth);
+  if (!startTufeRecord) {
+    throw new InflationIndexNotFoundError(startMonth);
+  }
 
-  const tufeStart = startTufeRecord ? parseFloat(startTufeRecord.tufeIndex) : getTufeValue(startMonth);
-  const tufeEnd = currentTufeRecord ? parseFloat(currentTufeRecord.tufeIndex) : getTufeValue(currentMonth);
+  const currentTufeRecord = await findTufeIndex(currentMonth);
+  if (!currentTufeRecord) {
+    throw new InflationIndexNotFoundError(currentMonth);
+  }
+
+  const tufeStart = parseFloat(startTufeRecord.tufeIndex);
+  const tufeEnd = parseFloat(currentTufeRecord.tufeIndex);
 
   // Kümülatif Enflasyon: (TÜFE_son - TÜFE_ilk) / TÜFE_ilk
   const inflationRate = tufeStart > 0 ? (tufeEnd - tufeStart) / tufeStart : 0;
