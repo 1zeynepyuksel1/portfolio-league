@@ -52,6 +52,26 @@ const SEED_TUFE: Record<string, number> = {
   '2026-05': 3910.00, '2026-06': 3990.00, '2026-07': 4060.00, '2026-08': 4120.00,
 };
 
+/**
+ * ⚠️ BU TABLO YAKLAŞIKTIR — resmî kaynak değildir.
+ *
+ * Yukarıdaki değerler elle girilmiş ve ileri tarihlere doğru gerçek veriden
+ * sapıyor. Ölçüldü (21 Ağustos 2026):
+ *
+ *     2025-01   burada 2820,00   EVDS 2819,65    fark   0,35
+ *     2025-06   burada 3150,00   EVDS 3132,17    fark  17,83
+ *     2026-07   burada 4060,00   EVDS 4211,58    fark 151,58  (%3,6)
+ *
+ * Reel getiri hesabı bu sayıları kullanıyor. %3,6'lık sapma, özelliğin
+ * anlattığı hikâyeyi doğrudan değiştirir.
+ *
+ * GERÇEK VERİ İÇİN:
+ *     npx tsx apps/api/src/market/tufe-backfill.ts
+ *
+ * O betik EVDS'den 2003'ten bugüne tüm seriyi çekiyor ve çakışmada
+ * ÜZERİNE YAZIYOR. Buradaki tablo yalnızca EVDS anahtarı olmayan bir
+ * ortamda uygulamanın çökmemesi için duruyor.
+ */
 export async function seedInflationIndex(): Promise<void> {
   const records = Object.entries(SEED_TUFE).map(([month, val]) => ({
     month,

@@ -104,6 +104,13 @@ Araştırman gerekenler: transaction izolasyon seviyeleri, `SELECT FOR UPDATE` n
 - [ ] **Geri doldurma betiği** — her varlığın tüm geçmişini bir kez çekip `price_history`'ye `granularity='daily'` olarak yazar
       Grafik ve "ya alsaydın" bu veri olmadan çalışmaz. `getHistory` hazır, onu çağıran yok
       ⚠️ Yeni kripto eklerken başlangıç tarihini ölç: `startTime=0&limit=1`
+- [x] **TÜFE geri doldurma** — `market/tufe-backfill.ts`, 21 Ağu 2026
+      EVDS'den 2003-01 → 2026-07, **283 aylık gözlem** yazıldı.
+      Yol boyunca `evds.ts`'te iki hata düzeltildi (ikisini de Faz 0 araştırman yakaladı):
+      base URL `evds2.../service/evds` → **`evds3.../igmevdsms-dis`** (eskisi HTML döndürüyordu),
+      seri kodu `TP.FG.J0` (arşiv) → **`TP.GENENDEKS.T1`**. Yanıt alanı artık seri kodundan türetiliyor.
+      ⚠️ `seed.ts`'teki elle yazılmış TÜFE tablosu yaklaşıktır — 2026-07'de gerçek veriden %3,6 sapıyor.
+      Yalnızca EVDS anahtarı olmayan ortam için yedek; gerçek veri backfill'den gelir
 - [ ] **`retention.ts`** — günlük özet (23:55) + 7 günden eski dakikalık satırların temizliği (00:05)
       Sıra bağlayıcı: özet önce, silme sonra. Ters olursa veri özetlenmeden gider
 - [ ] `PricePoint.currency` alanı — döviz TL geliyor, ikinci kez kurla çarpılmamalı
