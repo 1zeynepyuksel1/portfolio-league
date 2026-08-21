@@ -12,16 +12,21 @@ describe('EVDS Inflation Integration Tests', () => {
   });
 
   it('EVDS API yanıtını başarıyla parse eder', async () => {
+    // Alan adı SERİ KODUNDAN türüyor: TP.GENENDEKS.T1 -> TP_GENENDEKS_T1
+    // (Eski TP.FG.J0 serisi Ocak 2026'da arşive kalktı.)
     const mockApiResponse = {
       totalCount: 2,
       items: [
-        { Tarih: '2020-1', TP_FG_J0: '446.45' },
-        { Tarih: '2020-2', TP_FG_J0: 448.01 },
+        { Tarih: '2020-1', TP_GENENDEKS_T1: '446.45' },
+        { Tarih: '2020-2', TP_GENENDEKS_T1: 448.01 },
       ],
     };
 
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
+      // Gerçek yanıtta olduğu gibi content-type de veriyoruz: adapter
+      // yanlış base URL'den gelen HTML'i bu başlıkla ayırt ediyor.
+      headers: new Headers({ 'content-type': 'application/json' }),
       json: async () => mockApiResponse,
     } as unknown as Response);
 
