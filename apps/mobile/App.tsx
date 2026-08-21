@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { FriendsScreen } from './src/screens/FriendsScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
+import { MarketScreen } from './src/screens/MarketScreen';
 import { WhatIfScreen } from './src/screens/WhatIfScreen';
-import { setAccessToken } from './src/api/client';
+import { clearSession, restoreSession } from './src/api/client';
+import { PortfolioScreen } from './src/screens/PortfolioScreen';
 
 type User = {
   id: string;
@@ -13,7 +15,7 @@ type User = {
   displayName: string;
 };
 
-type Tab = 'wallet' | 'leaderboard' | 'friends' | 'whatif';
+type Tab = 'market' | 'wallet' | 'leaderboard' | 'friends' | 'whatif';
 
 export default function App() {
   // Giriş yapmış kullanıcı bilgisi (null ise giriş ekranı görünür)
@@ -22,9 +24,23 @@ export default function App() {
   // Aktif Sekme (Cüzdanım, Haftalık Lig, Arkadaşlar, Ya Alsaydın)
   const [activeTab, setActiveTab] = useState<Tab>('leaderboard');
 
-  // Çıkış yap fonksiyonu
-  function handleLogout() {
-    setAccessToken(null);
+  // Saklanan oturum kontrol edilirken açılış ekranı gösterilir. Bu bayrak
+  // olmasaydı uygulama bir an giriş ekranını gösterip sonra ana ekrana
+  // atlardı — kullanıcı "çıkış yapmışım" sanır.
+  const [restoring, setRestoring] = useState(true);
+
+  // Açılışta diskteki token'la oturumu geri yükle.
+  // Gerekçe: token sadece bellekte tutulursa sayfa yenilenince kaybolur.
+  // Faz 1 bitiş kriteri: "uygulamayı kapat aç -> duruyor".
+  useEffect(() => {
+    void restoreSession()
+      .then((user) => setCurrentUser(user))
+      .finally(() => setRestoring(false));
+  }, []);
+
+  // Çıkış yap fonksiyonu — token'ı diskten de siliyor
+  async function handleLogout() {
+    await clearSession();
     setCurrentUser(null);
   }
 
@@ -32,7 +48,12 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
 
-      {!currentUser ? (
+      {restoring ? (
+        // 0. SAKLANAN OTURUM KONTROL EDİLİYOR
+        <View style={styles.splash}>
+          <ActivityIndicator size="large" color="#10B981" />
+        </View>
+      ) : !currentUser ? (
         // 1. GİRİŞ YAPILMAMIŞSA: Giriş/Kayıt Ekranı Gösterilir
         <AuthScreen onLoginSuccess={(user) => setCurrentUser(user)} />
       ) : (
@@ -40,6 +61,15 @@ export default function App() {
         <View style={styles.mainContainer}>
           {/* Üst Navigasyon Sekme Çubuğu */}
           <View style={styles.topTabBar}>
+            <TouchableOpacity
+              style={[styles.tabButton, activeTab === 'market' && styles.tabButtonActive]}
+              onPress={() => setActiveTab('market')}
+            >
+              <Text style={[styles.tabButtonText, activeTab === 'market' && styles.tabButtonTextActive]}>
+                📈 Piyasa
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.tabButton, activeTab === 'wallet' && styles.tabButtonActive]}
               onPress={() => setActiveTab('wallet')}
@@ -78,24 +108,12 @@ export default function App() {
           </View>
 
           {/* Aktif Ekran İçeriği */}
-          {activeTab === 'wallet' ? (
-            <View style={styles.walletContainer}>
-              <Text style={styles.welcomeEmoji}>🎉</Text>
-              <Text style={styles.welcomeTitle}>Hoş Geldin, {currentUser.displayName}!</Text>
-              <Text style={styles.welcomeSubtitle}>{currentUser.email}</Text>
-
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>💰 Sanal Kasanız</Text>
-                <Text style={styles.cardAmount}>100.000,00 ₺</Text>
-                <Text style={styles.cardInfo}>
-                  Tebrikler! Backend API'ye başarıyla bağlandınız ve JWT oturumunuz aktif.
-                </Text>
-              </View>
-
-              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={styles.logoutButtonText}>Çıkış Yap</Text>
-              </TouchableOpacity>
-            </View>
+          {activeTab === 'market' ? (
+            <MarketScreen />
+          ) : activeTab === 'wallet' ? (
+            // Sabit "100.000,00 ₺" yerine GET /portfolio'dan gelen gerçek
+            // veri: nakit, pozisyonlar, toplam değer, kâr/zarar.
+            <PortfolioScreen onLogout={() => void handleLogout()} />
           ) : activeTab === 'leaderboard' ? (
             <LeaderboardScreen />
           ) : activeTab === 'friends' ? (
@@ -116,6 +134,11 @@ const styles = StyleSheet.create({
   },
   mainContainer: {
     flex: 1,
+  },
+  splash: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   topTabBar: {
     flexDirection: 'row',

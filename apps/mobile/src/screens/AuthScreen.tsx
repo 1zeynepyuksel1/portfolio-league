@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { apiFetch, setAccessToken } from '../api/client';
+import { apiFetch, saveSession } from '../api/client';
 
 type AuthResponse = {
   user: {
@@ -16,6 +16,9 @@ type AuthResponse = {
     displayName: string;
   };
   accessToken: string;
+  // Access token ~15 dk sonra ölüyor. Refresh token uzun ömürlü ve
+  // saklanması şart — yoksa kullanıcı 15 dakikada bir giriş yapar.
+  refreshToken: string;
 };
 
 type Props = {
@@ -48,7 +51,8 @@ export function AuthScreen({ onLoginSuccess }: Props) {
           body: JSON.stringify({ email, password }),
         });
 
-        setAccessToken(res.accessToken);
+        // Kalıcı depoya da yazılıyor — sayfa yenilenince oturum kaybolmasın.
+        await saveSession(res.accessToken, res.refreshToken);
         onLoginSuccess(res.user);
       } else {
         // 2. KAYIT OL İSTEĞİ (100.000 TL Kasa otomatik açılır)
@@ -57,7 +61,8 @@ export function AuthScreen({ onLoginSuccess }: Props) {
           body: JSON.stringify({ email, password, displayName }),
         });
 
-        setAccessToken(res.accessToken);
+        // Kalıcı depoya da yazılıyor — sayfa yenilenince oturum kaybolmasın.
+        await saveSession(res.accessToken, res.refreshToken);
         onLoginSuccess(res.user);
       }
     } catch (err) {
