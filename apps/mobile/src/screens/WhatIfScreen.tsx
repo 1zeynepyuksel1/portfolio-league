@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -27,13 +27,33 @@ type WhatIfResult = {
   summary: string;
 };
 
-const ASSETS = [
-  { symbol: 'BTC', name: 'Bitcoin', icon: '🟡' },
-  { symbol: 'ETH', name: 'Ethereum', icon: '🔷' },
-  { symbol: 'GRAM_ALTIN', name: 'Gram Altın', icon: '🪙' },
-  { symbol: 'USD', name: 'Amerikan Doları', icon: '💵' },
-  { symbol: 'EUR', name: 'Euro', icon: '💶' },
-];
+type Asset = { symbol: string; name: string };
+
+/**
+ * Sembole göre simge.
+ *
+ * ⚠️ VARLIK LİSTESİ ARTIK BURADA DEĞİL — API'den geliyor.
+ * Eskiden bu dosyada beş varlıklık sabit bir dizi vardı. Sunucuya on üç
+ * varlık daha eklendiğinde bu ekran hâlâ beş tanesini gösteriyordu; kimse
+ * hata almadı, liste sessizce eskidi.
+ *
+ * Simge tablosu kalabilir çünkü yalnızca görsel: bilinmeyen bir sembol
+ * gelirse aşağıdaki varsayılan kullanılır, liste yine de eksiksiz görünür.
+ * Kural: veri sunucudan, süs istemciden.
+ */
+const ICONS: Record<string, string> = {
+  BTC: '🟡', ETH: '🔷', BNB: '🟨', SOL: '🟣', XRP: '⚫',
+  ADA: '🔵', DOGE: '🐕', AVAX: '🔺', LINK: '🔗', LTC: '⚪',
+  USD: '💵', EUR: '💶', GBP: '💷', CHF: '🇨🇭',
+  CAD: '🍁', AUD: '🇦🇺', SEK: '🇸🇪', JPY: '💴',
+  GRAM_ALTIN: '🪙',
+};
+
+const DEFAULT_ICON = '📈';
+
+function iconOf(symbol: string): string {
+  return ICONS[symbol] ?? DEFAULT_ICON;
+}
 
 const YEARS = ['2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
 
@@ -63,6 +83,18 @@ export function WhatIfScreen() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+  // Varlıklar sunucudan geliyor — bkz. ICONS üstündeki not.
+  const [assets, setAssets] = useState<Asset[]>([]);
+
+  useEffect(() => {
+    // Liste bir kez çekiliyor: varlıklar fiyat gibi saniyede değişmiyor.
+    // Hata durumunda ekranı kilitlemiyoruz — dizi boş kalır, kullanıcı
+    // yine de seçili varlıkla hesap yapabilir.
+    apiFetch<Array<{ symbol: string; name: string }>>('/assets')
+      .then((rows) => setAssets(rows.map((r) => ({ symbol: r.symbol, name: r.name }))))
+      .catch(() => setAssets([]));
+  }, []);
+
   // 2. Kaydırmalı Tarih Seçimi (Yıl, Ay, Gün)
   const [selectedYear, setSelectedYear] = useState('2020');
   const [selectedMonth, setSelectedMonth] = useState('03');
@@ -77,7 +109,10 @@ export function WhatIfScreen() {
   const [error, setError] = useState<string | null>(null);
 
   // Seçilen Varlık Bilgisi
-  const currentAsset = ASSETS.find((a) => a.symbol === selectedSymbol) || ASSETS[0]!;
+  // Liste henüz gelmediyse seçili sembolü yine de göster — ekran boş kalmasın.
+  const currentAsset =
+    assets.find((a) => a.symbol === selectedSymbol) ??
+    { symbol: selectedSymbol, name: selectedSymbol };
 
   // Birleşik Tarih Stringi (YYYY-MM-DD)
   const dateString = `${selectedYear}-${selectedMonth}-${selectedDay.padStart(2, '0')}`;
@@ -127,7 +162,7 @@ export function WhatIfScreen() {
           onPress={() => setDropdownOpen(!dropdownOpen)}
         >
           <View style={styles.selectedAssetRow}>
-            <Text style={styles.assetIcon}>{currentAsset.icon}</Text>
+            <Text style={styles.assetIcon}>{iconOf(currentAsset.symbol)}</Text>
             <Text style={styles.selectedAssetText}>
               {currentAsset.name} ({currentAsset.symbol})
             </Text>
@@ -137,7 +172,7 @@ export function WhatIfScreen() {
 
         {dropdownOpen && (
           <View style={styles.dropdownList}>
-            {ASSETS.map((item) => (
+            {assets.map((item) => (
               <TouchableOpacity
                 key={item.symbol}
                 style={[
@@ -149,7 +184,7 @@ export function WhatIfScreen() {
                   setDropdownOpen(false);
                 }}
               >
-                <Text style={styles.assetIcon}>{item.icon}</Text>
+                <Text style={styles.assetIcon}>{iconOf(item.symbol)}</Text>
                 <Text
                   style={[
                     styles.dropdownItemText,

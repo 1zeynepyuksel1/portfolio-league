@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   AppState,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -49,7 +50,18 @@ function isStale(asOf: string | null): boolean {
   return Date.now() - new Date(asOf).getTime() > STALE_AFTER_MS;
 }
 
-export function MarketScreen() {
+type Props = {
+  /**
+   * Satıra dokununca çağrılır — Al/Sat ekranını açar.
+   *
+   * İSTEĞE BAĞLI: verilmezse satırlar dokunulamaz kalır ve sağdaki ok
+   * çıkmaz. Böylece bu ekran ileride emir vermenin anlamsız olduğu bir
+   * yerde (örneğin salt görüntüleme kipinde) de kullanılabilir.
+   */
+  onSelectAsset?: (symbol: string, name: string) => void;
+};
+
+export function MarketScreen({ onSelectAsset }: Props = {}) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -160,7 +172,10 @@ export function MarketScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.row}>
+          <Pressable
+            onPress={() => onSelectAsset?.(item.symbol, item.name)}
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          >
             <View style={styles.symbolCircle}>
               <Text style={styles.symbolText}>{item.symbol.slice(0, 3)}</Text>
             </View>
@@ -187,7 +202,13 @@ export function MarketScreen() {
                 </Text>
               )}
             </View>
-          </View>
+
+            {/* Dokunulabilir olduğunu gösteren işaret. Olmasaydı satırın
+                bir şey yaptığı hiçbir yerden anlaşılmazdı. */}
+            {onSelectAsset !== undefined && (
+              <Text style={styles.chevron}>›</Text>
+            )}
+          </Pressable>
         )}
       />
     </View>
@@ -247,6 +268,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginVertical: 4,
+  },
+  rowPressed: {
+    backgroundColor: '#243154',
+  },
+  chevron: {
+    color: '#64748B',
+    fontSize: 22,
+    marginLeft: 10,
   },
   symbolCircle: {
     width: 40,
