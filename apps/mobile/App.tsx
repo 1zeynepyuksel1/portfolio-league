@@ -12,6 +12,7 @@ import { FriendsScreen } from './src/screens/FriendsScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { MarketScreen } from './src/screens/MarketScreen';
 import { TradeScreen } from './src/screens/TradeScreen';
+import { AssetDetailScreen } from './src/screens/AssetDetailScreen';
 import { WhatIfScreen } from './src/screens/WhatIfScreen';
 import { clearSession, restoreSession } from './src/api/client';
 import { PortfolioScreen } from './src/screens/PortfolioScreen';
@@ -55,6 +56,18 @@ export default function App() {
    * geri dönünce aynı listeye düşüyor.
    */
   const [tradeAsset, setTradeAsset] = useState<{
+    symbol: string;
+    name: string;
+  } | null>(null);
+
+  /**
+   * Varlık detayı (grafik) açıksa hangi varlık için.
+   *
+   * Akış: liste -> detay -> emir. Detaydan Al/Sat'a geçilince detay
+   * KAPANMIYOR, üstüne emir katmanı açılıyor; emirden geri dönünce
+   * kullanıcı grafiğe düşüyor, listeye değil.
+   */
+  const [detailAsset, setDetailAsset] = useState<{
     symbol: string;
     name: string;
   } | null>(null);
@@ -204,7 +217,7 @@ export default function App() {
           {/* Aktif Ekran İçeriği */}
           {activeTab === 'market' ? (
             <MarketScreen
-              onSelectAsset={(symbol, name) => setTradeAsset({ symbol, name })}
+              onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })}
             />
           ) : activeTab === 'wallet' ? (
             // Sabit "100.000,00 ₺" yerine GET /portfolio'dan gelen gerçek
@@ -227,6 +240,18 @@ export default function App() {
             Sekme çubuğunu da kapatıyor: emir verirken kullanıcı yanlışlıkla
             başka sekmeye geçip yarım kalmış bir formu kaybetmesin.
           */}
+          {detailAsset !== null && (
+            <View style={StyleSheet.absoluteFill}>
+              <AssetDetailScreen
+                symbol={detailAsset.symbol}
+                name={detailAsset.name}
+                onClose={() => setDetailAsset(null)}
+                onTrade={() => setTradeAsset(detailAsset)}
+              />
+            </View>
+          )}
+
+          {/* Emir katmanı EN ÜSTTE — detayın da üstünde. */}
           {tradeAsset !== null && (
             <View style={StyleSheet.absoluteFill}>
               <TradeScreen

@@ -27,7 +27,12 @@ type WhatIfResult = {
   summary: string;
 };
 
-type Asset = { symbol: string; name: string };
+type Asset = {
+  symbol: string;
+  name: string;
+  /** Bu varlığın en eski fiyat kaydı. Tarih seçici buradan sınırlanıyor. */
+  firstAvailable: string | null;
+};
 
 /**
  * Sembole göre simge.
@@ -55,7 +60,34 @@ function iconOf(symbol: string): string {
   return ICONS[symbol] ?? DEFAULT_ICON;
 }
 
-const YEARS = ['2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
+/**
+ * Seçilebilir yıllar — varlığın ilk kaydından bu yıla kadar.
+ *
+ * ⚠️ BU FONKSİYON BİR HATA MESAJINI ORTADAN KALDIRIYOR.
+ *
+ * Eskiden liste sabitti: 2017-2026. SOL 11 Ağustos 2020'de listelendiği
+ * için kullanıcı SOL + 2017 seçebiliyor ve "o tarihli kayıt bulunamadı"
+ * hatası alıyordu. Hata mesajı DOĞRUYDU — ama asıl sorun o seçeneğin en
+ * baştan sunulmuş olmasıydı.
+ *
+ * Doğru çözüm hatayı güzelleştirmek değil, imkânsız seçimi kaldırmak.
+ */
+function yearsFor(firstAvailable: string | null): string[] {
+  const currentYear = new Date().getFullYear();
+
+  // Varlığın ilk kaydı bilinmiyorsa elimizdeki en geniş aralığı ver.
+  const startYear =
+    firstAvailable === null
+      ? 2017
+      : new Date(firstAvailable).getFullYear();
+
+  const years: string[] = [];
+  for (let y = startYear; y <= currentYear; y++) {
+    years.push(String(y));
+  }
+
+  return years;
+}
 
 const MONTHS = [
   { num: '01', label: 'Oca' },
@@ -90,8 +122,8 @@ export function WhatIfScreen() {
     // Liste bir kez çekiliyor: varlıklar fiyat gibi saniyede değişmiyor.
     // Hata durumunda ekranı kilitlemiyoruz — dizi boş kalır, kullanıcı
     // yine de seçili varlıkla hesap yapabilir.
-    apiFetch<Array<{ symbol: string; name: string }>>('/assets')
-      .then((rows) => setAssets(rows.map((r) => ({ symbol: r.symbol, name: r.name }))))
+    apiFetch<Asset[]>('/assets')
+      .then(setAssets)
       .catch(() => setAssets([]));
   }, []);
 
@@ -112,10 +144,33 @@ export function WhatIfScreen() {
   // Liste henüz gelmediyse seçili sembolü yine de göster — ekran boş kalmasın.
   const currentAsset =
     assets.find((a) => a.symbol === selectedSymbol) ??
-    { symbol: selectedSymbol, name: selectedSymbol };
+    { symbol: selectedSymbol, name: selectedSymbol, firstAvailable: null };
+
+  // Seçilebilir yıllar seçili varlığa göre değişiyor.
+  const years = yearsFor(currentAsset.firstAvailable);
+
+  /** Varlığın işlem görmeye başladığı gün, "YYYY-MM-DD". */
+  const earliest =
+    currentAsset.firstAvailable !== null
+      ? currentAsset.firstAvailable.slice(0, 10)
+      : null;
+
 
   // Birleşik Tarih Stringi (YYYY-MM-DD)
   const dateString = `${selectedYear}-${selectedMonth}-${selectedDay.padStart(2, '0')}`;
+
+  /**
+   * Seçilen tarih varlığın başlangıcından önce mi?
+   *
+   * ⚠️ `dateString` TANIMLANDIKTAN SONRA hesaplanıyor. JS'te `const`
+   * bildirimleri yukarı taşınır ama DEĞERLERİ taşınmaz — önce kullanılırsa
+   * "used before being assigned" hatası alınır. TypeScript bunu derlemede
+   * yakaladı; JavaScript'te çalışma anında ReferenceError olurdu.
+   *
+   * Metin karşılaştırması yeterli: "YYYY-MM-DD" biçiminde sözlük sırası
+   * takvim sırasıyla aynı. Date nesnesi kurmaya gerek yok.
+   */
+  const tooEarly = earliest !== null && dateString < earliest;
 
   // Hesapla Butonuna Basıldığında
   async function handleCalculate() {
@@ -182,6 +237,17 @@ export function WhatIfScreen() {
                 onPress={() => {
                   setSelectedSymbol(item.symbol);
                   setDropdownOpen(false);
+                  setResult(null);
+                  setError(null);
+
+                  // ⚠️ Varlık değişince seçili yıl geçersiz kalabilir:
+                  // BTC'de 2017 seçiliyken SOL'a geçilirse o yıl artık
+                  // listede yok. Sessizce bırakırsak seçici boş bir
+                  // seçeneği "seçili" gösterir. Sınırın içine çekiyoruz.
+                  const validYears = yearsFor(item.firstAvailable);
+                  if (!validYears.includes(selectedYear)) {
+                    setSelectedYear(validYears[0] as string);
+                  }
                 }}
               >
                 <Text style={styles.assetIcon}>{iconOf(item.symbol)}</Text>
@@ -232,7 +298,7 @@ export function WhatIfScreen() {
       {/* Yıl Kaydırma Çubuğu */}
       <Text style={styles.subLabel}>🗓️ Yıl Seçin:</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-        {YEARS.map((y) => (
+        {years.map((y) => (
           <TouchableOpacity
             key={y}
             style={[styles.yearChip, selectedYear === y && styles.yearChipActive]}
@@ -261,11 +327,47 @@ export function WhatIfScreen() {
         ))}
       </ScrollView>
 
+      {/* Elle Tarih Girişi */}
+      <Text style={styles.subLabel}>✍️ Ya da tarihi elle yazın:</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="YYYY-AA-GG (örn: 2020-03-12)"
+        placeholderTextColor="#64748B"
+        value={dateString}
+        onChangeText={(text) => {
+          // Girilen metni parçalara ayırıp state'e dağıtıyoruz; böylece
+          // kaydırmalı seçici ile elle giriş TEK kaynaktan besleniyor ve
+          // biri değişince diğeri de güncelleniyor.
+          const m = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if (m) {
+            setSelectedYear(m[1] as string);
+            setSelectedMonth(m[2] as string);
+            setSelectedDay(m[3] as string);
+            setError(null);
+          }
+        }}
+        autoCapitalize="none"
+      />
+
       {/* Seçilen Tarih Özeti Kartı */}
       <View style={styles.datePreviewCard}>
         <Text style={styles.datePreviewLabel}>🎯 Seçilen Simülasyon Tarihi:</Text>
         <Text style={styles.datePreviewValue}>{dateString}</Text>
       </View>
+
+      {/*
+        ⚠️ SINIR UYARISI — hatayı sunucudan beklemek yerine önden söylüyoruz.
+        Sunucu zaten "kayıt bulunamadı" derdi ama kullanıcı o noktaya kadar
+        formu doldurup düğmeye basmış olurdu.
+      */}
+      {tooEarly && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>
+            ⚠️ {currentAsset.symbol} verisi {earliest} tarihinde başlıyor.
+            Daha eski bir tarih seçilemez.
+          </Text>
+        </View>
+      )}
 
       {/* 3. Tutar Girişi */}
       <Text style={styles.sectionLabel}>3. Ne Kadar Yatırsaydınız? (TL)</Text>
@@ -280,9 +382,12 @@ export function WhatIfScreen() {
 
       {/* Hesapla Butonu */}
       <TouchableOpacity
-        style={[styles.calculateButton, loading && styles.buttonDisabled]}
+        style={[
+          styles.calculateButton,
+          (loading || tooEarly) && styles.buttonDisabled,
+        ]}
         onPress={handleCalculate}
-        disabled={loading}
+        disabled={loading || tooEarly}
       >
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
