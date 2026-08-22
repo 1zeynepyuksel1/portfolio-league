@@ -16,6 +16,7 @@ Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi biti
 ### 1. Döviz ve varlık listesi genişlemesi — 21 Ağu 2026
 | Dosya | Ne sorulacak |
 |---|---|
+| `market/binance.ts` | `PAIRS` neden kural (`symbol + "USDT"`) değil elle tablo? Coin'lerin başlangıç tarihleri neden koda YAZILMADI? |
 | `market/tcmb.ts` | `FX_UNITS` neden var? JPY neden 100'e bölünüyor? Önbellek neden kuru değil **belgeyi** tutuyor? `parseRate` neden önce `<Currency>` bloğunu izole ediyor? |
 | `market/tcmb.test.ts` | "kur boşsa sonraki para biriminin kuruna sızmaz" testi hangi hatayı kilitliyor? |
 | `market/evds.ts` | `fetchFxHistory` neden `Price` döndürüyor, ham metin değil? Seri kalıbı `TP.DK.{KOD}.A`'daki `.A` ne demek? |
@@ -33,6 +34,7 @@ Bu ikisi **gerçek bir hata ayıklama oturumunun bedeliydi**: kayıt ve giriş
 |---|---|
 | `lib/env.ts` | `.env` neden `import.meta.url`'den bulunuyor, `dotenv/config`'ten değil? `npm run dev:api` ile `npx tsx apps/api/src/server.ts` arasındaki fark neydi? `requireEnv` neden yedek değer kabul etmiyor? |
 | `auth/router.ts` | `logUnexpected` neden eklendi? İstemciye giden mesaj neden **değişmedi**? |
+| `server.ts` · `market/tufe-backfill.ts` | Tek satır: `dotenv/config` → `lib/env.js`. Neden hepsinin değişmesi gerekti? |
 
 **Hikâye:** `.env` yalnızca repo kökünde. `import 'dotenv/config'` dosyayı
 çalışma dizinine göre arıyor. `apps/api`'den başlatınca bulamıyor →
@@ -55,9 +57,53 @@ Bu ikisi **gerçek bir hata ayıklama oturumunun bedeliydi**: kayıt ve giriş
 metinleri **kaldırıldı** — üçü de ürün için gerçek dışıydı. Gerekçeler
 WelcomeScreen.tsx'in başındaki yorumda.
 
-### 4. `apps/api/src/what-if/` — Zeynep yazdı, sen hâlâ okumadın
-Reel getiri formülü `(1+nominal)/(1+enflasyon)−1`, TÜFE endeksi kullanımı,
-tutar → miktar çevriminde ölçek matematiği (`calcGross`'un tersi).
+### 4. Al/Sat ekranı — 21 Ağu 2026 (Faz 1'i kapatan iş)
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/lib/order-math.ts` | Sunucunun ölçek matematiği neden **tekrarlandı**? `16` nereden geliyor? `divRound` neden düz bölme değil? `maxBuyableQuantity` neden komisyonu hesaba katıyor ve neden **aşağı** yuvarlıyor? |
+| `mobile/src/screens/TradeScreen.tsx` | Idempotency anahtarı neden `useState` değil **`useRef`**? Hangi durumda sıfırlanıyor, hangisinde korunuyor — ve korunmasaydı ne olurdu? Ekrandaki tutar neden "tahmini" diye işaretli? |
+| `mobile/src/screens/MarketScreen.tsx` | `onSelectAsset` neden **isteğe bağlı** bir prop? |
+| `market/price-cron.test.ts` | "döviz varlığını Binance'e değil TCMB'ye sorar" testi hangi hatayı kilitliyor? |
+
+**Ölçülen sonuç:** istemci tahmini ile sunucu sonucu birebir aynı çıktı —
+`gross 369393 · fee 369 · net 369762`. İkisi ayrışsaydı kullanıcı ekranda
+bir tutar görüp başka bir tutar öderdi.
+
+### 5. Fiyat grafiği — 22 Ağu 2026
+| Dosya | Ne sorulacak |
+|---|---|
+| `market/ranges.ts` | Kova boyutları neden bu sayılar? Hedef nokta aralığı neden 90-500? `max` için `lookbackSeconds` neden `null`, 0 değil? `startOf` neden `now`'u parametre alıyor? |
+| `market/ranges.test.ts` | Test "kod çalışıyor mu"yu değil neyi sınıyor? |
+| `market/repository.ts` (`getPriceSeries`) | `DISTINCT ON (bucket)` + `ORDER BY bucket, ts DESC` birlikte ne yapıyor? Neden `date_trunc` kullanılmadı? Neden ortalama değil **son** fiyat alınıyor? Tarih neden `Date` değil ISO metin + `::timestamp`? Neden `::timestamptz` değil? |
+| `market/router.ts` | Seyreltme neden sunucuda, istemcide değil? `range` neden kapalı liste, serbest tarih aralığı değil? |
+| `mobile/src/components/PriceChart.tsx` | `Number()` burada neden serbest, `format.ts`'te neden yasak? `y` neden ters çevriliyor? `max === min` olduğunda ne oluyor ve neden **sessiz** bir hata? |
+| `mobile/src/screens/AssetDetailScreen.tsx` | Yüzde değişimde float neden kabul edilebilir? Seyrek veri uyarısı neden var? |
+| `mobile/src/screens/WhatIfScreen.tsx` | `yearsFor` hangi hata mesajını ortadan kaldırıyor? Varlık değişince seçili yıl neden sınıra çekiliyor? `tooEarly` neden `dateString`'den SONRA tanımlanmak zorunda? |
+
+**Yol boyunca çıkan hata:** iç içe `sql` parçasında JS `Date` bağlamak
+`ERR_INVALID_ARG_TYPE` veriyor — düz sorguda çalışıyor, iç içe kullanımda
+patlıyor. Beş aralık 0 nokta döndürüyordu ve **benim test betiğim bunu
+gizledi** (`d.get('points', [])` yazdığım için 500 yanıtı "0 nokta" gibi
+göründü). Ders: testin hatayı yutmadığından emin ol.
+
+**Ölçülen sonuç:** `1y` 365 nokta · `max` 471 nokta (BTC) · SOL `max`
+316 nokta, 2020-08-12'den başlıyor — varlık başına gerçek başlangıç.
+
+### 6. `apps/api/src/what-if/` — sen hâlâ okumadın
+`service.ts` · `repository.ts` · `what-if.test.ts`
+
+**Zeynep'in yazdığı kısım:** reel getiri formülü `(1+nominal)/(1+enflasyon)−1`,
+TÜFE endeksi kullanımı, tutar → miktar çevriminde ölçek matematiği
+(`calcGross`'un tersi).
+
+**Sonradan eklenen kısım:** `findTufeIndexOnOrBefore`.
+**Ne sorulacak:** enflasyon verisi neden HER ZAMAN gecikmeli? Tam eşleşme
+arasaydık ne olurdu? Yanıt neden istenen ayı değil **kullanılan** ayı
+bildiriyor?
+
+⚠️ Bu dosyalarda hesabın tamamı `parseFloat` ile yapılıyor — projenin
+"para `bigint`, `float` yasak" kuralına aykırı. Gösterim için zararsız
+olduğu için şimdilik bırakıldı ama **bilinçli bir borç**, kaza değil.
 
 ### Küçük değişiklikler
 - `mobile/src/screens/WhatIfScreen.tsx` — sabit 5 varlıklık liste kaldırıldı,
