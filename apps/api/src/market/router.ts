@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { listAssetsWithLatestPrice } from "./repository.js";
+import {
+  findAssetIdBySymbol,
+  getPriceSeries,
+  listAssetsWithLatestPrice,
+} from "./repository.js";
+import { isRange, RANGES, specOf, startOf } from "./ranges.js";
 
 export const marketRouter = Router();
 
@@ -36,10 +41,77 @@ marketRouter.get("/", async (_request, response) => {
         // Fiyatı hiç çekilmemiş varlık olabilir — null geçilir, uydurulmaz.
         priceTry: asset.priceTry,
         asOf: asset.asOf?.toISOString() ?? null,
+        // Her varlık aynı tarihe gitmiyor: BTC 2017, SOL 2020.
+        // Ekran tarih seçicisini buradan sınırlıyor.
+        firstAvailable: asset.firstAvailable?.toISOString() ?? null,
       })),
     );
   } catch (error) {
     console.error("[GET /assets] başarısız:", error);
     return response.status(500).json({ error: "Varlıklar okunamadı" });
+  }
+});
+
+/**
+ * GET /assets/:symbol/prices?range=1d|1w|1m|3m|1y|max — grafik serisi.
+ *
+ * KARAR: SEYRELTMEYİ SUNUCU YAPIYOR, İSTEMCİ DEĞİL.
+ *
+ * Ham veriyi gönderip istemcide seyreltmek de mümkündü. Yapmadık çünkü
+ * bir aylık aralık ~170.000 satır demek: sorgu, ağ ve telefonun belleği
+ * sırayla zorlanır — hem de sonunda 120 nokta çizmek için. Kova mantığı
+ * veritabanında, indeksin üstünde çalışıyor.
+ *
+ * KARAR: `range` KAPALI BİR LİSTE, serbest tarih aralığı değil.
+ *
+ * `?from=...&to=...` daha esnek olurdu ama her istek farklı bir kova
+ * boyutu gerektirir ve önbelleklemesi imkânsızdır. Altı sabit aralık
+ * hem ekrandaki altı düğmeye birebir karşılık geliyor hem de ileride
+ * önbelleğe alınabilir.
+ */
+marketRouter.get("/:symbol/prices", async (request, response) => {
+  const { symbol } = request.params;
+  const range = request.query.range ?? "1m";
+
+  if (!isRange(range)) {
+    return response.status(400).json({
+      error: {
+        code: "INVALID_RANGE",
+        message: `Geçersiz aralık. Beklenen: ${RANGES.join(", ")}`,
+      },
+    });
+  }
+
+  try {
+    const asset = await findAssetIdBySymbol(symbol);
+
+    if (asset === null) {
+      return response.status(404).json({
+        error: { code: "ASSET_NOT_FOUND", message: "Varlık bulunamadı." },
+      });
+    }
+
+    const { bucketSeconds } = specOf(range);
+    const since = startOf(range, new Date());
+
+    const points = await getPriceSeries(asset.id, bucketSeconds, since);
+
+    return response.json({
+      symbol: symbol.toUpperCase(),
+      name: asset.name,
+      range,
+      bucketSeconds,
+      // ⚠️ Fiyat STRING. Sayı olarak gönderseydik istemcide float'a düşerdi
+      // ve money.ts'ten beri taşıdığımız bigint zinciri son adımda kırılırdı.
+      points: points.map((p) => ({
+        ts: p.ts.toISOString(),
+        priceTry: p.priceTry,
+      })),
+    });
+  } catch (error) {
+    console.error(`[GET /assets/${symbol}/prices] başarısız:`, error);
+    return response.status(500).json({
+      error: { code: "INTERNAL_ERROR", message: "Fiyat geçmişi okunamadı." },
+    });
   }
 });

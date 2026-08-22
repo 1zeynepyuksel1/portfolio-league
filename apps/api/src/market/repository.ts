@@ -109,6 +109,18 @@ export type AssetWithPrice = {
   name: string;
   priceTry: string | null;
   asOf: Date | null;
+  /**
+   * Bu varlığın EN ESKİ fiyat kaydı.
+   *
+   * ⚠️ NEDEN GEREKLİ: her varlık aynı tarihe gitmiyor. BTC 17 Ağustos
+   * 2017'de başlıyor, SOL 11 Ağustos 2020'de. Ekran bunu bilmezse
+   * kullanıcıya SOL için 2017'yi seçtirir ve "kayıt bulunamadı" hatası
+   * alır — hata mesajı doğru ama seçenek en baştan sunulmamalıydı.
+   *
+   * "Ya alsaydın" ekranındaki tarih seçici ve grafiğin "Tümü" aralığı
+   * bu değerden besleniyor.
+   */
+  firstAvailable: Date | null;
 };
 
 /**
@@ -132,8 +144,9 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
     // Ham SQL sonucunda sürücü timestamp'i STRING olarak veriyor
     // ("2026-08-18 09:19:00.17"), Date olarak değil.
     ts: string | Date | null;
+    first_ts: string | Date | null;
   }>(sql`
-    SELECT a.symbol, a.name, p.price_try, p.ts
+    SELECT a.symbol, a.name, p.price_try, p.ts, f.first_ts
     FROM assets a
     LEFT JOIN LATERAL (
       SELECT price_try, ts
@@ -142,6 +155,18 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
       ORDER BY ts DESC
       LIMIT 1
     ) p ON true
+    LEFT JOIN LATERAL (
+      -- ⚠️ MIN(ts) yerine ORDER BY ts ASC LIMIT 1.
+      -- İkisi de aynı sonucu verir ama planları farklı: MIN() toplama
+      -- fonksiyonu, LIMIT 1 ise birincil anahtarın (asset_id, ts) indeksinden
+      -- İLK SATIRI okuyup durur. 3.500 satırlık varlıkta fark küçük,
+      -- ama satır sayısı büyüdükçe ikincisi sabit maliyette kalır.
+      SELECT ts AS first_ts
+      FROM price_history
+      WHERE asset_id = a.id
+      ORDER BY ts ASC
+      LIMIT 1
+    ) f ON true
     WHERE a.is_active = true
     ORDER BY a.sort_order
   `);
@@ -151,7 +176,104 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
     name: row.name,
     priceTry: row.price_try,
     asOf: toUtcDate(row.ts),
+    firstAvailable: toUtcDate(row.first_ts),
   }));
+}
+
+/**
+ * Bir aralık için grafik noktaları — SEYRELTİLMİŞ.
+ *
+ * ⚠️ SEYRELTME NEDEN ŞART.
+ * Cron 15 saniyede bir yazıyor: varlık başına günde 5.760 satır. Bir aylık
+ * aralık ~170.000 satır demek. Hepsini göndermek üç yeri birden boğar —
+ * sorgu, ağ, ve çizim. Üstelik 390 piksel genişliğinde bir ekrana 170.000
+ * nokta çizmenin görsel karşılığı da yok; her piksele 400 nokta düşer.
+ *
+ * ÇÖZÜM: zamanı kovalara böl, her kovadan SON fiyatı al. Bu tam olarak bir
+ * mum grafiğinin "kapanış" mantığı — ortalama almak yerine son değeri
+ * almak, fiyatın gerçekten olduğu bir değeri gösterir. Ortalama alsaydık
+ * hiçbir an var olmamış bir fiyat çizerdik.
+ *
+ * ⚠️ NEDEN `date_trunc` DEĞİL.
+ * `date_trunc` yalnızca sabit birimlerle çalışıyor (hour, day, week...).
+ * Bize 5 dakikalık ve 6 saatlik kova da lazım. Epoch saniyesine çevirip
+ * kova boyutuna bölerek tabana yuvarlamak her ölçüde çalışıyor.
+ *
+ * ⚠️ BU, EKSİK `granularity` KOLONUNA OLAN İHTİYACI GRAFİK İÇİN KALDIRIYOR.
+ * Satır ister günlük geri doldurmadan ister 15 saniyelik cron'dan gelsin,
+ * kova mantığı ikisini de aynı şekilde seyreltiyor. Kolon yine gerekli —
+ * ama temizlik/özetleme işi için (docs/01-plan.md §5.1), grafik için değil.
+ */
+export type PricePoint = { ts: Date; priceTry: string };
+
+export async function getPriceSeries(
+  assetId: string,
+  bucketSeconds: number,
+  since: Date | null,
+): Promise<PricePoint[]> {
+  /**
+   * `since === null` -> "Tümü": alt sınır yok, varlığın ilk kaydından başlar.
+   *
+   * ⚠️ TARİH METİN OLARAK GEÇİLİYOR VE AÇIKÇA `::timestamp`'e ÇEVRİLİYOR.
+   *
+   * `sql\`ts >= ${since}\`` yazmak — yani JS `Date` nesnesini doğrudan
+   * bağlamak — DÜZ bir sorguda çalışıyor ama İÇ İÇE bir `sql` parçasında
+   * `ERR_INVALID_ARG_TYPE` ile patlıyor. Parça dışarıda kurulup `${...}`
+   * ile gömüldüğü için sürücü değerin tipini kaybediyor.
+   *
+   * Ölçüldü: aynı sorgu `Date` ile patlıyor, ISO metin + cast ile 365 nokta
+   * döndürüyor.
+   *
+   * ⚠️ `::timestamp` ŞART, `::timestamptz` DEĞİL. Kolon saat dilimsiz
+   * (`timestamp`) ve cron UTC yazıyor. `timestamptz`'e çevirseydik sürücü
+   * sunucunun yerel saat dilimini uygular ve Türkiye'de 3 saat kayardı —
+   * sorgu yine çalışır, sonuç sessizce yanlış olurdu.
+   */
+  const lowerBound =
+    since === null
+      ? sql`TRUE`
+      : sql`ts >= ${since.toISOString()}::timestamp`;
+
+  const result = await db.execute<{
+    ts: string | Date;
+    price_try: string;
+  }>(sql`
+    SELECT DISTINCT ON (bucket) ts, price_try
+    FROM (
+      SELECT
+        ts,
+        price_try,
+        floor(extract(epoch FROM ts) / ${bucketSeconds}) AS bucket
+      FROM price_history
+      WHERE asset_id = ${assetId} AND ${lowerBound}
+    ) s
+    -- DISTINCT ON (bucket) + ORDER BY bucket, ts DESC = her kovanın EN YENİ
+    -- satırı. Sıralamanın ilk alanı DISTINCT ON ile aynı olmak ZORUNDA;
+    -- olmazsa PostgreSQL hata veriyor.
+    --
+    -- Sonuç kova sırasına göre artan geliyor, yani grafiğin soldan sağa
+    -- çizim sırası. Ayrıca sıralamaya gerek yok.
+    ORDER BY bucket, ts DESC
+  `);
+
+  return result.map((row) => ({
+    // toUtcDate null dönmez çünkü ts NOT NULL — ama tip öyle demiyor.
+    ts: toUtcDate(row.ts) as Date,
+    priceTry: row.price_try,
+  }));
+}
+
+/** Sembolden varlık kimliği. Grafik ucu sembolle çağrılıyor. */
+export async function findAssetIdBySymbol(
+  symbol: string,
+): Promise<{ id: string; name: string } | null> {
+  const rows = await db
+    .select({ id: assets.id, name: assets.name })
+    .from(assets)
+    .where(eq(assets.symbol, symbol.toUpperCase()))
+    .limit(1);
+
+  return rows[0] ?? null;
 }
 
 /**
