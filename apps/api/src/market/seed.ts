@@ -1,13 +1,57 @@
+import { eq } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { assets, inflationIndex, priceHistory } from "../db/schema.js";
+import { assets, inflationIndex } from "../db/schema.js";
 
+/**
+ * İşlem görebilir varlıklar.
+ *
+ * ⚠️ BU LİSTE TEK BAŞINA YETMİYOR. Bir varlığın fiyatının gelmesi için
+ * kaynağının da tanımlı olması gerekiyor:
+ *   - `crypto` -> binance.ts içindeki PAIRS tablosu
+ *   - `fx`     -> tcmb.ts içindeki FX_UNITS tablosu
+ * Buraya ekleyip oraya eklemezsen cron her turda o varlık için hata basar.
+ */
 const SEED_ASSETS = [
+  // --- Kripto (Binance USDT paritesi) ---
   { symbol: "BTC", name: "Bitcoin", kind: "crypto" as const, sortOrder: 1 },
   { symbol: "ETH", name: "Ethereum", kind: "crypto" as const, sortOrder: 2 },
-  { symbol: "GRAM_ALTIN", name: "Gram Altın", kind: "metal" as const, sortOrder: 3 },
-  { symbol: "USD", name: "Amerikan Doları", kind: "fx" as const, sortOrder: 4 },
-  { symbol: "EUR", name: "Euro", kind: "fx" as const, sortOrder: 5 },
+  { symbol: "BNB", name: "BNB", kind: "crypto" as const, sortOrder: 3 },
+  { symbol: "SOL", name: "Solana", kind: "crypto" as const, sortOrder: 4 },
+  { symbol: "XRP", name: "XRP", kind: "crypto" as const, sortOrder: 5 },
+  { symbol: "ADA", name: "Cardano", kind: "crypto" as const, sortOrder: 6 },
+  { symbol: "DOGE", name: "Dogecoin", kind: "crypto" as const, sortOrder: 7 },
+  { symbol: "AVAX", name: "Avalanche", kind: "crypto" as const, sortOrder: 8 },
+  { symbol: "LINK", name: "Chainlink", kind: "crypto" as const, sortOrder: 9 },
+  { symbol: "LTC", name: "Litecoin", kind: "crypto" as const, sortOrder: 10 },
+
+  // --- Döviz (TCMB) ---
+  { symbol: "USD", name: "Amerikan Doları", kind: "fx" as const, sortOrder: 11 },
+  { symbol: "EUR", name: "Euro", kind: "fx" as const, sortOrder: 12 },
+  { symbol: "GBP", name: "İngiliz Sterlini", kind: "fx" as const, sortOrder: 13 },
+  { symbol: "CHF", name: "İsviçre Frangı", kind: "fx" as const, sortOrder: 14 },
+  { symbol: "CAD", name: "Kanada Doları", kind: "fx" as const, sortOrder: 15 },
+  { symbol: "AUD", name: "Avustralya Doları", kind: "fx" as const, sortOrder: 16 },
+  { symbol: "SEK", name: "İsveç Kronu", kind: "fx" as const, sortOrder: 17 },
+  { symbol: "JPY", name: "Japon Yeni", kind: "fx" as const, sortOrder: 18 },
+
+  // --- Maden ---
+  // Fiyat kaynağı henüz yok (Binance'te yok, TCMB XML'inde yok, EVDS'de
+  // ayrı seri). Aşağıda is_active=false yapılıyor.
+  { symbol: "GRAM_ALTIN", name: "Gram Altın", kind: "metal" as const, sortOrder: 90 },
 ];
+
+/**
+ * Fiyat kaynağı olmayan varlıklar.
+ *
+ * NEDEN LİSTEDEN SİLMİYORUZ: `price_history` yabancı anahtarla varlığa
+ * bağlı ve `onDelete: cascade`. Varlığı silmek geçmişini de siler. Kaynağı
+ * yazdığımızda `is_active`'i true'ya çevirmek yeterli olacak.
+ *
+ * NEDEN LİSTEDE BIRAKIP AKTİF TUTMUYORUZ: fiyatı olmayan varlık ekranda ya
+ * boş satır olur ya da — daha kötüsü — eski bir fiyat donmuş hâlde gerçek
+ * gibi görünür.
+ */
+const INACTIVE_SYMBOLS = ["GRAM_ALTIN"];
 
 // TÜİK Resmi Tarihsel TÜFE Endeks Tohumları (2017 - 2026)
 const SEED_TUFE: Record<string, number> = {
@@ -83,59 +127,37 @@ export async function seedInflationIndex(): Promise<void> {
   }
 }
 
+/**
+ * ⚠️ BURADA ARTIK FİYAT TOHUMLANMIYOR — ve bu bilinçli bir düzeltme.
+ *
+ * Eskiden bu fonksiyon BTC/ETH/GRAM_ALTIN/USD için elle yazılmış fiyatları
+ * `12:00:00Z` damgasıyla yazıyordu. Geri doldurma ise gerçek fiyatları
+ * `00:00:00Z` ile yazıyor.
+ *
+ * what-if/repository.ts `ORDER BY ts DESC LIMIT 1` yaptığı için aynı günde
+ * 12:00 olan satır 00:00 olanı YENİYOR — yani uydurma fiyat gerçeğini
+ * eziyordu. 12 Mart 2020 BTC için tohum 45.200 TL diyordu; o günün gerçeği
+ * ~4.970 USD × ~6,28 kur ≈ 31.200 TL. "Ya alsaydın" ekranındaki üç hazır
+ * düğmenin üçü de uydurma sayı döndürüyordu.
+ *
+ * KURAL: fiyatın tek kaynağı price-backfill.ts (geçmiş) ve price-cron.ts
+ * (canlı). Tohum dosyası fiyata dokunmaz.
+ */
 export async function seedAssets(): Promise<void> {
-  // 1. Varlıkları ekle
+  // 1. Varlıkları ekle.
+  // onConflictDoNothing: mevcut satırlar korunur, yenileri eklenir.
   await db.insert(assets).values(SEED_ASSETS).onConflictDoNothing();
 
-  const allAssets = await db.select().from(assets);
-  const assetMap = new Map(allAssets.map((a) => [a.symbol, a.id]));
-
-  // 2. Geçmiş ve Canlı Fiyat Tohumları
-  const btcId = assetMap.get('BTC');
-  const ethId = assetMap.get('ETH');
-  const goldId = assetMap.get('GRAM_ALTIN');
-  const usdId = assetMap.get('USD');
-
-  const pricesToInsert: { assetId: string; ts: Date; priceTry: string }[] = [];
-
-  if (btcId) {
-    pricesToInsert.push(
-      { assetId: btcId, ts: new Date('2020-03-12T12:00:00Z'), priceTry: '45200.00000000' },
-      { assetId: btcId, ts: new Date('2021-11-10T12:00:00Z'), priceTry: '650000.00000000' },
-      { assetId: btcId, ts: new Date('2023-01-01T12:00:00Z'), priceTry: '310000.00000000' },
-      { assetId: btcId, ts: new Date(), priceTry: '2650120.45000000' },
-    );
-  }
-
-  if (ethId) {
-    pricesToInsert.push(
-      { assetId: ethId, ts: new Date('2020-03-12T12:00:00Z'), priceTry: '1250.00000000' },
-      { assetId: ethId, ts: new Date('2021-11-10T12:00:00Z'), priceTry: '45000.00000000' },
-      { assetId: ethId, ts: new Date('2023-01-01T12:00:00Z'), priceTry: '22500.00000000' },
-      { assetId: ethId, ts: new Date(), priceTry: '135400.80000000' },
-    );
-  }
-
-  if (goldId) {
-    pricesToInsert.push(
-      { assetId: goldId, ts: new Date('2020-03-12T12:00:00Z'), priceTry: '320.50000000' },
-      { assetId: goldId, ts: new Date('2021-11-10T12:00:00Z'), priceTry: '575.00000000' },
-      { assetId: goldId, ts: new Date('2023-01-01T12:00:00Z'), priceTry: '1100.00000000' },
-      { assetId: goldId, ts: new Date(), priceTry: '2840.50000000' },
-    );
-  }
-
-  if (usdId) {
-    pricesToInsert.push(
-      { assetId: usdId, ts: new Date('2020-03-12T12:00:00Z'), priceTry: '6.20000000' },
-      { assetId: usdId, ts: new Date('2021-11-10T12:00:00Z'), priceTry: '9.80000000' },
-      { assetId: usdId, ts: new Date('2023-01-01T12:00:00Z'), priceTry: '18.70000000' },
-      { assetId: usdId, ts: new Date(), priceTry: '40.15000000' },
-    );
-  }
-
-  if (pricesToInsert.length > 0) {
-    await db.insert(priceHistory).values(pricesToInsert).onConflictDoNothing();
+  // 2. Kaynağı olmayan varlıkları kapat.
+  //
+  // ⚠️ Bu neden ayrı bir UPDATE: yukarıdaki insert `onConflictDoNothing`
+  // olduğu için GRAM_ALTIN zaten kayıtlıysa hiçbir alanı güncellenmez —
+  // is_active dahil. Açık UPDATE olmadan eski kayıt aktif kalırdı.
+  for (const symbol of INACTIVE_SYMBOLS) {
+    await db
+      .update(assets)
+      .set({ isActive: false })
+      .where(eq(assets.symbol, symbol));
   }
 
   // 3. TÜFE Endeks Tablosunu doldur
@@ -145,7 +167,11 @@ export async function seedAssets(): Promise<void> {
 // Doğrudan çalıştırıldığında tohumla ve çık
 seedAssets()
   .then(() => {
-    console.log(`Varlıklar, fiyatlar ve 115 aylık TÜFE tablosu başarıyla tohumlandı!`);
+    const active = SEED_ASSETS.length - INACTIVE_SYMBOLS.length;
+    console.log(
+      `${active} aktif varlık (+${INACTIVE_SYMBOLS.length} pasif) ve TÜFE tablosu tohumlandı.`,
+    );
+    console.log('Fiyatlar için: npx tsx apps/api/src/market/price-backfill.ts');
     process.exit(0);
   })
   .catch((error: unknown) => {

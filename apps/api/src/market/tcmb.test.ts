@@ -2,16 +2,35 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { TcmbAdapter } from "./tcmb.js";
 import { toPrice } from "../lib/money.js";
 
-/** TCMB yanıtının sadeleştirilmiş hâli — testin ihtiyacı olan alanlar. */
-function xmlWith(rate: string): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<Tarih_Date Tarih="12.03.2020">
-  <Currency CrossOrder="0" Kod="USD" CurrencyCode="USD">
-    <Unit>1</Unit>
-    <ForexBuying>${rate}</ForexBuying>
+type FakeCurrency = {
+  code: string;
+  unit: number;
+  /** null -> `<ForexBuying/>`, yani o gün o kur boş yayımlanmış. */
+  buying: string | null;
+};
+
+/** Çok para birimli TCMB yanıtı üretir. */
+function xmlOf(currencies: FakeCurrency[]): string {
+  const body = currencies
+    .map(
+      (c) => `
+  <Currency CrossOrder="0" Kod="${c.code}" CurrencyCode="${c.code}">
+    <Unit>${c.unit}</Unit>
+    <Isim>TEST</Isim>
+    ${c.buying === null ? "<ForexBuying/>" : `<ForexBuying>${c.buying}</ForexBuying>`}
     <ForexSelling>9.9999</ForexSelling>
-  </Currency>
+  </Currency>`,
+    )
+    .join("");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Tarih_Date Tarih="12.03.2020">${body}
 </Tarih_Date>`;
+}
+
+/** Tek USD'li kısayol — eski testler bunu kullanıyor. */
+function xmlWith(rate: string): string {
+  return xmlOf([{ code: "USD", unit: 1, buying: rate }]);
 }
 
 /**
@@ -121,7 +140,7 @@ describe("TcmbAdapter", () => {
     );
 
     await expect(new TcmbAdapter().getUsdTry("2020-03-12")).rejects.toThrow(
-      /okunamadı/,
+      /USD bulunamadı/,
     );
   });
 
@@ -134,5 +153,109 @@ describe("TcmbAdapter", () => {
     await expect(new TcmbAdapter().getUsdTry("2020-03-12")).rejects.toThrow(
       /500/,
     );
+  });
+});
+
+describe("TcmbAdapter — çok para birimi", () => {
+  const DOC = xmlOf([
+    { code: "USD", unit: 1, buying: "29.4382" },
+    { code: "EUR", unit: 1, buying: "32.5739" },
+    { code: "JPY", unit: 100, buying: "20.7467" },
+  ]);
+
+  function serve(xml: string) {
+    return vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => xml,
+    }));
+  }
+
+  it("her para birimi için kendi kurunu döndürür", async () => {
+    vi.stubGlobal("fetch", serve(DOC));
+    const adapter = new TcmbAdapter();
+
+    expect((await adapter.getRate("USD", "2024-01-02")).rate).toBe(
+      toPrice("29.4382"),
+    );
+    expect((await adapter.getRate("EUR", "2024-01-02")).rate).toBe(
+      toPrice("32.5739"),
+    );
+  });
+
+  /**
+   * ⚠️ PROJEDEKİ EN SİNSİ TUZAKLARDAN BİRİ.
+   * TCMB yeni 100 birim üzerinden yayımlıyor. Bölmezsek yen 100 kat
+   * pahalı görünür — ve 20 TL "makul" durduğu için kimse fark etmez.
+   */
+  it("JPY'yi 100'e bölerek bir birime indirir", async () => {
+    vi.stubGlobal("fetch", serve(DOC));
+
+    const r = await new TcmbAdapter().getRate("JPY", "2024-01-02");
+
+    // 20,7467 / 100 = 0,207467
+    expect(r.rate).toBe(toPrice("0.207467"));
+  });
+
+  /**
+   * TCMB bir gün birimi değiştirirse sessizce yanlış hesaplamaktansa
+   * patlamayı seçiyoruz. Sessiz kalsaydı kur 100 kat kayardı.
+   */
+  it("belgedeki birim tablomuzla uyuşmazsa hata fırlatır", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serve(xmlOf([{ code: "JPY", unit: 1, buying: "0.2074" }])),
+    );
+
+    await expect(
+      new TcmbAdapter().getRate("JPY", "2024-01-02"),
+    ).rejects.toThrow(/birimi değişmiş/);
+  });
+
+  /**
+   * ⚠️ ESKİ AYRIŞTIRICININ GERÇEK HATASI.
+   * `CurrencyCode="USD"[\s\S]*?<ForexBuying>` deseni belge sonuna kadar
+   * gidebiliyordu. USD'nin kuru o gün boşsa desen SONRAKİ para biriminin
+   * kurunu yakalar, hata vermez, yanlış sayı döndürürdü.
+   */
+  it("kur boşsa sonraki para biriminin kuruna sızmaz", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serve(
+        xmlOf([
+          { code: "USD", unit: 1, buying: null }, // boş
+          { code: "EUR", unit: 1, buying: "32.5739" },
+        ]),
+      ),
+    );
+
+    await expect(
+      new TcmbAdapter().getRate("USD", "2024-01-02"),
+    ).rejects.toThrow(/alış kuru boş/);
+  });
+
+  /**
+   * TCMB bütün kurları TEK dosyada yayımlıyor. Önbellek kura göre değil
+   * belgeye göre tutuluyor; 8 döviz 8 istek değil 1 istek etmeli.
+   * Cron 15 saniyede bir çalıştığı için bu fark günde ~46.000 istek.
+   */
+  it("aynı günün üç kuru için tek istek atar", async () => {
+    const f = serve(DOC);
+    vi.stubGlobal("fetch", f);
+
+    const adapter = new TcmbAdapter();
+    await adapter.getRate("USD", "2024-01-02");
+    await adapter.getRate("EUR", "2024-01-02");
+    await adapter.getRate("JPY", "2024-01-02");
+
+    expect(f.mock.calls.length).toBe(1);
+  });
+
+  it("tanımsız para birimini reddeder", async () => {
+    vi.stubGlobal("fetch", serve(DOC));
+
+    await expect(
+      new TcmbAdapter().getRate("XYZ", "2024-01-02"),
+    ).rejects.toThrow(/Desteklenmeyen/);
   });
 });
