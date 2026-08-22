@@ -1,9 +1,9 @@
 /**
- * PriceChart — fiyat serisini çizen SVG bileşeni.
+ * PriceChart — fiyat serisini çizen ve dokunarak okunabilen SVG bileşeni.
  *
- * Hazır grafik kütüphanesi yerine elle yazıldı. Kütüphane dokunma ve
- * yakınlaştırmayı bedava verirdi ama ölçekleme matematiği kutu içinde
- * kalırdı; burada iş görünür durumda ve toplam ~40 satır.
+ * Hazır grafik kütüphanesi yerine elle yazıldı. Kütüphane dokunmayı bedava
+ * verirdi ama ölçekleme matematiği kutu içinde kalırdı; burada iş görünür
+ * durumda.
  *
  * ⚠️ BU DOSYADAKİ EN ÖNEMLİ AYRIM: FLOAT NEREDE SERBEST.
  *
@@ -19,9 +19,23 @@
  * "3.688.083,84 ₺" yazması gereken yerde "3688083.8400000003" çıkar.
  */
 
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Defs, LinearGradient, Path, Polyline, Stop } from 'react-native-svg';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  PanResponder,
+  StyleSheet,
+  Text,
+  View,
+  type GestureResponderEvent,
+} from 'react-native';
+import Svg, {
+  Circle,
+  Defs,
+  LinearGradient,
+  Line,
+  Path,
+  Polyline,
+  Stop,
+} from 'react-native-svg';
 import { formatPrice } from '../lib/format';
 
 export type ChartPoint = { ts: string; priceTry: string };
@@ -30,8 +44,13 @@ type Props = {
   points: ChartPoint[];
   width: number;
   height: number;
-  /** Yükselişte yeşil, düşüşte kırmızı. */
+  /** Yükselişte yeşil, düşüşte kırmızı. Verilmezse yönden seçilir. */
   color?: string;
+  /**
+   * Kullanıcı grafiğe dokunduğunda seçilen nokta; parmağını kaldırınca
+   * `null`. Üst ekran bunu kullanarak başlıktaki fiyatı değiştiriyor.
+   */
+  onScrub?: (point: ChartPoint | null) => void;
 };
 
 /** Çizginin kenarlara yapışmaması için üstte ve altta bırakılan boşluk. */
@@ -49,23 +68,52 @@ function toPlot(decimal: string): number {
   return Number(decimal);
 }
 
-export function PriceChart({ points, width, height, color }: Props) {
-  if (points.length < 2) {
-    return (
-      <View style={[styles.empty, { width, height }]}>
-        <Text style={styles.emptyText}>
-          {points.length === 0
-            ? 'Bu aralıkta veri yok'
-            : 'Çizgi için en az iki nokta gerekiyor'}
-        </Text>
-      </View>
-    );
-  }
+/** "2026-08-22T09:52:00.000Z" -> "22 Ağu 2026 12:52" (yerel saat) */
+const MONTHS_SHORT = [
+  'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
+  'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara',
+];
+
+export function formatChartDate(iso: string): string {
+  const d = new Date(iso);
+
+  const day = d.getDate();
+  const month = MONTHS_SHORT[d.getMonth()];
+  const year = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+
+  return `${day} ${month} ${year} ${hh}:${mm}`;
+}
+
+export function PriceChart({
+  points,
+  width,
+  height,
+  color,
+  onScrub,
+}: Props) {
+  /** Dokunulan noktanın dizideki sırası. `null` = dokunulmuyor. */
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  /**
+   * ⚠️ `onScrub` BİR REF'TE TUTULUYOR.
+   *
+   * PanResponder yalnızca BİR KEZ kuruluyor (useMemo). İçindeki fonksiyon
+   * o anki `onScrub`'ı yakalar ve üst bileşen yeniden çizildiğinde eski
+   * sürüm kapalı kalır — "stale closure" denen klasik hata. Ref her zaman
+   * güncel değeri tuttuğu için sorun ortadan kalkıyor.
+   */
+  const scrubRef = useRef(onScrub);
+  scrubRef.current = onScrub;
+
+  const pointsRef = useRef(points);
+  pointsRef.current = points;
 
   const values = points.map((p) => toPlot(p.priceTry));
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = values.length > 0 ? Math.min(...values) : 0;
+  const max = values.length > 0 ? Math.max(...values) : 0;
 
   /**
    * ⚠️ SIFIRA BÖLME KORUMASI — VE NEDEN SESSİZ BİR HATA.
@@ -73,16 +121,13 @@ export function PriceChart({ points, width, height, color }: Props) {
    * Bütün fiyatlar aynıysa (düz çizgi: hafta sonu döviz, ya da tek kovalık
    * veri) `max - min` sıfır olur. `(v - min) / 0` -> NaN -> SVG hiçbir şey
    * çizmez VE HATA DA VERMEZ. Ekranda boş bir kutu kalır, sebebi görünmez.
-   *
-   * Böyle durumda çizgiyi tam ortadan geçiriyoruz — ki "fiyat değişmemiş"
-   * bilgisi de bir bilgi.
    */
   const span = max - min;
   const flat = span === 0;
-
   const plotHeight = height - PADDING_Y * 2;
 
   function xOf(index: number): number {
+    if (points.length < 2) return width / 2;
     return (index / (points.length - 1)) * width;
   }
 
@@ -102,18 +147,82 @@ export function PriceChart({ points, width, height, color }: Props) {
     return PADDING_Y + (1 - ratio) * plotHeight;
   }
 
+  /**
+   * Dokunulan yatay konumu en yakın veri noktasına çevirir.
+   *
+   * ⚠️ `Math.round`, `Math.floor` DEĞİL. Floor kullansaydık parmak bir
+   * noktanın hemen sağındayken hâlâ soldakini seçerdi; imleç parmaktan
+   * geride kalır ve "takılıyor" hissi verir. Round en yakına atlar.
+   */
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        // Dokunuşu bu bileşen üstlensin — aksi hâlde ScrollView kapar.
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+
+        onPanResponderGrant: (e) => pick(e),
+        onPanResponderMove: (e) => pick(e),
+
+        onPanResponderRelease: () => clear(),
+        onPanResponderTerminate: () => clear(),
+      }),
+    // Boş bağımlılık: responder bir kez kurulup ömür boyu yaşıyor.
+    // Güncel veriye ref'ler üzerinden erişiliyor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  function pick(event: GestureResponderEvent): void {
+    const list = pointsRef.current;
+    if (list.length === 0) return;
+
+    // locationX = bileşenin SOL KENARINA göre konum. pageX olsaydı
+    // ekranın soluna göre olurdu ve grafiğin sayfadaki yerine bağlı
+    // bir kayma çıkardı.
+    const x = event.nativeEvent.locationX;
+
+    const ratio = list.length < 2 ? 0 : x / width;
+    const index = Math.round(ratio * (list.length - 1));
+
+    // Parmak grafiğin dışına taşabilir; sınırların içine çekiyoruz.
+    const clamped = Math.max(0, Math.min(list.length - 1, index));
+
+    setActiveIndex(clamped);
+    scrubRef.current?.(list[clamped] as ChartPoint);
+  }
+
+  function clear(): void {
+    setActiveIndex(null);
+    scrubRef.current?.(null);
+  }
+
+  if (points.length < 2) {
+    return (
+      <View style={[styles.empty, { width, height }]}>
+        <Text style={styles.emptyText}>
+          {points.length === 0
+            ? 'Bu aralıkta veri yok'
+            : 'Çizgi için en az iki nokta gerekiyor'}
+        </Text>
+      </View>
+    );
+  }
+
   const coords = points.map((_, i) => `${xOf(i)},${yOf(values[i] as number)}`);
   const line = coords.join(' ');
-
-  // Çizginin altını dolduran alan: aynı noktalar + iki köşe ile kapatılıyor.
   const area = `M ${coords.join(' L ')} L ${width},${height} L 0,${height} Z`;
 
-  // Yön: ilk noktaya göre son nokta. Renk verilmemişse buradan seçiliyor.
   const rising = (values[values.length - 1] as number) >= (values[0] as number);
   const stroke = color ?? (rising ? '#43b56f' : '#ec3013');
 
+  const active = activeIndex !== null ? points[activeIndex] : undefined;
+  const activeX = activeIndex !== null ? xOf(activeIndex) : 0;
+  const activeY =
+    activeIndex !== null ? yOf(values[activeIndex] as number) : 0;
+
   return (
-    <View style={{ width, height }}>
+    <View style={{ width, height }} {...panResponder.panHandlers}>
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
@@ -129,15 +238,31 @@ export function PriceChart({ points, width, height, color }: Props) {
           fill="none"
           stroke={stroke}
           strokeWidth={2}
-          // Köşeleri yuvarlatmak, seyrek veride çizginin kırık kırık
-          // görünmesini engelliyor.
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+
+        {/* İmleç: dikey çizgi + nokta */}
+        {active !== undefined && (
+          <>
+            <Line
+              x1={activeX}
+              y1={0}
+              x2={activeX}
+              y2={height}
+              stroke="#94A3B8"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+            />
+            {/* İki daire: dış halka koyu zeminde noktayı çizgiden ayırıyor */}
+            <Circle cx={activeX} cy={activeY} r={6} fill="#0B132B" />
+            <Circle cx={activeX} cy={activeY} r={4} fill={stroke} />
+          </>
+        )}
       </Svg>
 
-      {/* En yüksek ve en düşük fiyat — bigint yolundan biçimlendiriliyor */}
-      {!flat && (
+      {/* En yüksek / en düşük — yalnızca dokunulmuyorken */}
+      {!flat && active === undefined && (
         <>
           <Text style={[styles.bound, styles.boundTop]}>
             {formatPrice(points[values.indexOf(max)]?.priceTry ?? '0')}
@@ -146,6 +271,26 @@ export function PriceChart({ points, width, height, color }: Props) {
             {formatPrice(points[values.indexOf(min)]?.priceTry ?? '0')}
           </Text>
         </>
+      )}
+
+      {/*
+        Okuma kutusu — dokunulan noktanın fiyatı ve tarihi.
+
+        ⚠️ Kutu parmağın KARŞI TARAFINA yerleşiyor: parmak sol yarıdaysa
+        sağa, sağ yarıdaysa sola. Sabit bir yere koysaydık kullanıcının
+        parmağı yarı zaman okumak istediği yazının üstünde olurdu.
+      */}
+      {active !== undefined && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.readout,
+            activeX < width / 2 ? { right: 0 } : { left: 0 },
+          ]}
+        >
+          <Text style={styles.readoutPrice}>{formatPrice(active.priceTry)}</Text>
+          <Text style={styles.readoutDate}>{formatChartDate(active.ts)}</Text>
+        </View>
       )}
     </View>
   );
@@ -168,4 +313,25 @@ const styles = StyleSheet.create({
   },
   boundTop: { top: 0 },
   boundBottom: { bottom: 0 },
+
+  readout: {
+    position: 'absolute',
+    top: 0,
+    backgroundColor: 'rgba(11, 19, 43, 0.92)',
+    borderColor: '#334155',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  readoutPrice: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  readoutDate: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 1,
+  },
 });

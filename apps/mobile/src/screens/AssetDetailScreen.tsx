@@ -16,7 +16,11 @@ import {
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
-import { PriceChart, type ChartPoint } from '../components/PriceChart';
+import {
+  formatChartDate,
+  PriceChart,
+  type ChartPoint,
+} from '../components/PriceChart';
 import { formatPrice, formatRelativeTime } from '../lib/format';
 
 type Props = {
@@ -61,6 +65,16 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
   const [data, setData] = useState<SeriesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  /**
+   * Grafikte dokunulan nokta. `null` = dokunulmuyor.
+   *
+   * Başlıktaki büyük fiyat bunu takip ediyor: parmak grafiğin üstündeyken
+   * o anın fiyatını, bırakınca güncel fiyatı gösteriyor. Okuma kutusu
+   * grafiğin içinde zaten var; başlığın da değişmesi "hangi ana bakıyorum"
+   * sorusunu tek yerde cevaplıyor.
+   */
+  const [scrubbed, setScrubbed] = useState<ChartPoint | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,7 +133,11 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
         {/* Güncel fiyat ve değişim */}
         <View style={styles.priceBlock}>
           <Text style={styles.price}>
-            {last !== undefined ? formatPrice(last.priceTry) : '—'}
+            {scrubbed !== null
+              ? formatPrice(scrubbed.priceTry)
+              : last !== undefined
+                ? formatPrice(last.priceTry)
+                : '—'}
           </Text>
           {changePercent !== null && (
             <Text
@@ -137,9 +155,11 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
               </Text>
             </Text>
           )}
-          {last !== undefined && (
+          {scrubbed !== null ? (
+            <Text style={styles.asOf}>{formatChartDate(scrubbed.ts)}</Text>
+          ) : last !== undefined ? (
             <Text style={styles.asOf}>{formatRelativeTime(last.ts)}</Text>
-          )}
+          ) : null}
         </View>
 
         {/* Grafik */}
@@ -157,9 +177,14 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
               points={points}
               width={CHART_WIDTH}
               height={CHART_HEIGHT}
+              onScrub={setScrubbed}
             />
           )}
         </View>
+
+        <Text style={styles.hint}>
+          Grafiğe dokunup parmağınızı kaydırarak o andaki fiyatı görebilirsiniz.
+        </Text>
 
         {/* Aralık seçici */}
         <View style={styles.rangeRow}>
@@ -244,6 +269,12 @@ const styles = StyleSheet.create({
   rangeText: { color: '#94A3B8', fontSize: 12, fontWeight: '600' },
   rangeTextActive: { color: '#FFFFFF' },
 
+  hint: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 6,
+    textAlign: 'center',
+  },
   sparse: {
     color: '#64748B',
     fontSize: 12,
