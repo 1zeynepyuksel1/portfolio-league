@@ -44,6 +44,14 @@ portfolioRouter.get('/', requireAccessToken, async (_request, response) => {
         valueCents: p.valueCents === null ? null : p.valueCents.toString(),
         sharePercent: p.sharePercent,
         asOf: p.asOf?.toISOString() ?? null,
+
+        // Aldığından beri kâr/zarar. Maliyet emir defterinden hesaplanıyor
+        // (bkz. cost-basis.ts) — `holdings` tablosunda tutulmuyor.
+        costCents: p.costCents.toString(),
+        profitCents: p.profitCents.toString(),
+        // Fiyatı okunamayan ya da maliyeti sıfır olan pozisyonda null.
+        // Sıfır göndermek "kâr yok" demek olurdu; oysa bilmiyoruz.
+        profitPercent: p.profitPercent,
       })),
     });
   } catch (error) {

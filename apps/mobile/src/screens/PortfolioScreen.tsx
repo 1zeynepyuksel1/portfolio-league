@@ -37,6 +37,19 @@ type Position = {
   valueCents: string | null;
   sharePercent: string | null;
   asOf: string | null;
+
+  /** Bu pozisyona ödenen toplam para (komisyon dahil), kuruş. */
+  costCents: string;
+  /** Güncel değer − maliyet. Negatif olabilir. */
+  profitCents: string;
+  /**
+   * Yüzde getiri, iki ondalıklı metin ("12.34" / "-5.10").
+   *
+   * ⚠️ `null` OLABİLİR ve bu "sıfır" demek DEĞİL: fiyat okunamamış ya da
+   * maliyet sıfır olduğu için hesaplanamamış demek. Sıfır göstermek
+   * "kâr yok" derdi; oysa bilmiyoruz.
+   */
+  profitPercent: string | null;
 };
 
 type Portfolio = {
@@ -243,8 +256,37 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
                   ? '—'
                   : formatCentsString(item.valueCents)}
               </Text>
+
+              {/*
+                Aldığından beri kâr/zarar.
+
+                ⚠️ KARŞILAŞTIRMA `BigInt` İLE.
+                `Number(item.profitCents) >= 0` yazmak çalışırdı ama
+                projenin kuralını kırardı ve büyük tutarlarda hassasiyet
+                kaybederdi. Metin doğrudan bigint'e çevriliyor.
+              */}
+              {item.profitPercent !== null && (
+                <Text
+                  style={[
+                    styles.positionProfit,
+                    {
+                      color:
+                        BigInt(item.profitCents) >= 0n ? '#10B981' : '#EF4444',
+                    },
+                  ]}
+                >
+                  {BigInt(item.profitCents) >= 0n ? '+' : ''}
+                  {formatCentsString(item.profitCents)}
+                  {'  '}
+                  ({BigInt(item.profitCents) >= 0n ? '+' : ''}
+                  %{item.profitPercent.replace('.', ',').replace('-', '')})
+                </Text>
+              )}
+
               {item.sharePercent !== null && (
-                <Text style={styles.positionShare}>%{item.sharePercent}</Text>
+                <Text style={styles.positionShare}>
+                  Portföyün %{item.sharePercent}'i
+                </Text>
               )}
             </View>
           </View>
@@ -414,6 +456,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  positionProfit: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
   },
   positionShare: {
     color: '#94A3B8',

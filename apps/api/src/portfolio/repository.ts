@@ -1,6 +1,12 @@
 import { and, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { accounts, assets, cashMovements, holdings } from '../db/schema.js';
+import {
+  accounts,
+  assets,
+  cashMovements,
+  holdings,
+  orders,
+} from '../db/schema.js';
 
 /**
  * Portföy sorguları.
@@ -51,6 +57,38 @@ export async function getHoldings(userId: string): Promise<HoldingRow[]> {
     .innerJoin(assets, eq(assets.id, holdings.assetId))
     .where(and(eq(holdings.userId, userId), gt(holdings.quantity, '0')))
     .orderBy(assets.sortOrder);
+}
+
+export type LedgerRow = {
+  symbol: string;
+  side: 'buy' | 'sell';
+  quantity: string;
+  netCents: bigint;
+};
+
+/**
+ * Kullanıcının bütün emirleri — maliyet hesabı için.
+ *
+ * ⚠️ SIRALAMA ŞART, SÜS DEĞİL.
+ * `calculateCostBasis` defteri baştan sona yürüyor: alımda maliyet ekliyor,
+ * satışta oransal azaltıyor. Sıra bozuksa satış kendinden önceki alımı
+ * göremez ve maliyet yanlış çıkar — hata vermez, sadece yanlış sayı üretir.
+ *
+ * `executed_at` eşit olabilir (aynı saniyede iki emir); `id` ikinci ölçüt
+ * olarak sırayı deterministik yapıyor.
+ */
+export async function getOrderLedger(userId: string): Promise<LedgerRow[]> {
+  return db
+    .select({
+      symbol: assets.symbol,
+      side: orders.side,
+      quantity: orders.quantity,
+      netCents: orders.netCents,
+    })
+    .from(orders)
+    .innerJoin(assets, eq(assets.id, orders.assetId))
+    .where(eq(orders.userId, userId))
+    .orderBy(orders.executedAt, orders.id);
 }
 
 /**
