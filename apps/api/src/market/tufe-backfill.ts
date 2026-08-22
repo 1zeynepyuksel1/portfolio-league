@@ -18,7 +18,7 @@
  * .env gitignore'da, koda gömülmeyecek.
  */
 
-import 'dotenv/config';
+import '../lib/env.js';
 import { sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { inflationIndex } from '../db/schema.js';

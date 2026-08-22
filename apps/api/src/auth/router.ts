@@ -14,6 +14,36 @@ import {
 
 export const authRouter = Router();
 
+/**
+ * Beklenmeyen bir hatayı SUNUCU LOG'UNA yazar.
+ *
+ * ⚠️ BU FONKSİYON BİR HATA AYIKLAMA OTURUMUNUN BEDELİYDİ.
+ * `catch` blokları 500 döndürüyor ama hatayı hiçbir yere yazmıyordu.
+ * Sonuç: kayıt ve giriş 500 verirken ne tarayıcı konsolunda ne sunucu
+ * terminalinde tek bir ipucu yoktu. Sebebi bulmak, aynı kodu ayrı bir
+ * portta çalıştırıp karşılaştırmayı gerektirdi.
+ *
+ * KURAL: 500 dönen her yer hatayı log'lamalı. 500 zaten "bilmiyorum"
+ * demek; onu sessizce demek, sorunu görünmez kılıyor.
+ *
+ * ⚠️ İSTEMCİYE GİDEN MESAJ DEĞİŞMİYOR — bilerek.
+ * Yığın izi (stack trace) ve veritabanı kısıt adları saldırgana şemayı
+ * anlatır. Ayrıntı sunucuda kalır, istemci genel mesajı görür.
+ */
+function logUnexpected(scope: string, error: unknown): void {
+  console.error(
+    `[auth/${scope}] beklenmeyen hata:`,
+    error instanceof Error ? (error.stack ?? error.message) : error,
+  );
+
+  // Postgres hataları `cause` altında ayrıntı taşıyor (kısıt adı, kolon).
+  // `instanceof Error` bunları yakalamıyor, ayrıca basıyoruz.
+  const cause = (error as { cause?: unknown })?.cause;
+  if (cause !== undefined) {
+    console.error(`[auth/${scope}] sebep:`, cause);
+  }
+}
+
 authRouter.post('/register', async (request, response) => {
   const parsedBody = registerBodySchema.safeParse(request.body);
 
@@ -45,6 +75,8 @@ authRouter.post('/register', async (request, response) => {
         },
       });
     }
+
+    logUnexpected('register', error);
 
     return response.status(500).json({
       error: {
@@ -85,6 +117,8 @@ authRouter.post('/login', async (request, response) => {
       });
     }
 
+    logUnexpected('login', error);
+
     return response.status(500).json({
       error: {
         code: 'INTERNAL_ERROR',
@@ -120,6 +154,8 @@ authRouter.post('/refresh', async (request, response) => {
         },
       });
     }
+
+    logUnexpected('refresh', error);
 
     return response.status(500).json({
       error: {
