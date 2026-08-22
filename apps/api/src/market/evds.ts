@@ -30,6 +30,9 @@
  * olarak DEĞİL.
  */
 
+import { divRound, toPrice, type Price } from '../lib/money.js';
+import { FX_UNITS } from './tcmb.js';
+
 export type EvdsTufeItem = {
   month: string; // Format: "YYYY-MM" (Örn: "2020-03")
   tufeIndex: number; // Örn: 450.58
@@ -37,15 +40,6 @@ export type EvdsTufeItem = {
 
 export const EVDS_SERIES_CODE = 'TP.GENENDEKS.T1';
 export const EVDS_BASE_URL = 'https://evds3.tcmb.gov.tr/igmevdsms-dis';
-
-/**
- * Yanıttaki alan adı seri kodundan türetiliyor: noktalar alt çizgi olur.
- *   TP.GENENDEKS.T1 -> TP_GENENDEKS_T1
- *
- * Elle yazsaydık seri kodu değiştiğinde biri güncellenir diğeri unutulur
- * ve ayrıştırıcı sessizce boş liste döndürürdü — en kötü hata türü.
- */
-const EVDS_FIELD = EVDS_SERIES_CODE.replace(/\./g, '_');
 
 type EvdsApiResponse = {
   totalCount?: number;
@@ -63,18 +57,26 @@ type EvdsApiResponse = {
  * sınırın çok altında, tek istek yeterli. Günlük bir seride bu geçerli
  * olmazdı.
  */
-export async function fetchTufeFromEvds(
-  startDate = '01-01-2017',
-  endDate = '31-12-2026',
+/**
+ * Ortak alt katman: EVDS'den bir seriyi çeker, ham satırları döndürür.
+ *
+ * TÜFE de kur da aynı boruyu kullanıyor — URL biçimi, header'daki anahtar,
+ * content-type kontrolü tek yerde. İki kez yazsaydık biri düzeltilir,
+ * diğeri eski hâliyle kalırdı.
+ */
+async function fetchEvdsItems(
+  seriesCode: string,
+  startDate: string,
+  endDate: string,
   apiKey?: string,
-): Promise<EvdsTufeItem[]> {
+): Promise<Array<{ date: string; value: string | number }>> {
   const key = apiKey || process.env.EVDS_API_KEY;
 
   if (!key) {
     throw new Error('EVDS_API_KEY tanımlı değil.');
   }
 
-  const url = `${EVDS_BASE_URL}/series=${EVDS_SERIES_CODE}&startDate=${startDate}&endDate=${endDate}&type=json`;
+  const url = `${EVDS_BASE_URL}/series=${seriesCode}&startDate=${startDate}&endDate=${endDate}&type=json`;
 
   const response = await fetch(url, {
     headers: {
@@ -103,15 +105,42 @@ export async function fetchTufeFromEvds(
     return [];
   }
 
-  const results: EvdsTufeItem[] = [];
+  const field = seriesCode.replace(/\./g, '_');
+  const rows: Array<{ date: string; value: string | number }> = [];
 
   for (const item of data.items) {
     const rawDate = item.Tarih;
-    const rawValue = item[EVDS_FIELD];
+    const rawValue = item[field];
 
+    // ⚠️ `null` NORMAL bir durum: hafta sonu ve resmî tatillerde kur
+    // yayımlanmıyor. Atlıyoruz; çağıran taraf forward-fill uyguluyor.
     if (typeof rawDate !== 'string' || rawValue === null || rawValue === undefined) {
       continue;
     }
+
+    rows.push({ date: rawDate, value: rawValue });
+  }
+
+  return rows;
+}
+
+export async function fetchTufeFromEvds(
+  startDate = '01-01-2017',
+  endDate = '31-12-2026',
+  apiKey?: string,
+): Promise<EvdsTufeItem[]> {
+  const items = await fetchEvdsItems(
+    EVDS_SERIES_CODE,
+    startDate,
+    endDate,
+    apiKey,
+  );
+
+  const results: EvdsTufeItem[] = [];
+
+  for (const item of items) {
+    const rawDate = item.date;
+    const rawValue = item.value;
 
     // "2020-3" -> "2020-03"
     const parts = rawDate.split('-');
@@ -130,4 +159,118 @@ export async function fetchTufeFromEvds(
   }
 
   return results;
+}
+
+// ---------------------------------------------------------------------------
+// GÜNLÜK DÖVİZ KURU
+// ---------------------------------------------------------------------------
+
+/**
+ * Seri kodu kalıbı: `TP.DK.{KOD}.A`
+ *
+ * Sondaki `.A` "alış" demek — TCMB XML'indeki `ForexBuying` ile aynı seri.
+ * Tutarlılık için ikisi de alış kuru kullanıyor: canlı fiyat XML'den,
+ * geçmiş buradan geliyor ve aralarında sistematik fark olmamalı.
+ *
+ * Sekiz para biriminin de var olduğu gerçek istekle doğrulandı
+ * (Ocak 2024, hepsi 22 dolu gözlem döndürdü).
+ */
+function seriesCodeFor(currencyCode: string): string {
+  return `TP.DK.${currencyCode}.A`;
+}
+
+/** Geriye dönük uyumluluk için duruyor. */
+export const EVDS_USD_SERIES_CODE = seriesCodeFor('USD');
+
+export type EvdsRateItem = {
+  /** "YYYY-MM-DD" */
+  date: string;
+  /**
+   * BİR birim dövizin TL karşılığı — `Price` (1e8 ölçekli bigint).
+   *
+   * ⚠️ İKİ AYRI SEBEPLE HAM METİN DEĞİL:
+   *
+   * 1. `number` olmamalı. Bu değer fiyatlarla çarpılacak; float'a düşerse
+   *    money.ts'te kurduğumuz zincir kırılır. `Price` zaten bigint.
+   *
+   * 2. Ham değer NORMALLEŞTİRİLMİŞ durumda. EVDS de TCMB gibi bazı
+   *    kurları 100 birim üzerinden veriyor (JPY: "20.74670000" = 100 yen).
+   *    Burada FX_UNITS'e bölünüyor. Ham metni dışarı verseydik her çağıran
+   *    bölmeyi kendi hatırlamak zorunda kalırdı — biri unutur.
+   */
+  rate: Price;
+};
+
+/** "02-01-2020" -> "2020-01-02" */
+function evdsDayToIso(raw: string): string | null {
+  const parts = raw.split('-');
+  if (parts.length !== 3) return null;
+
+  const [day, month, year] = parts;
+  if (!day || !month || !year) return null;
+
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
+/**
+ * Bir para biriminin günlük kur geçmişini çeker.
+ *
+ * ⚠️ NEDEN YIL YIL: EVDS 1000 gözlem sınırı uyguluyor ve sınır BİTİŞ
+ * tarihinden GERİYE işliyor. Günlük seride 2017-2026 arası ~3.300 gözlem —
+ * tek istekte sorsaydık sessizce yalnızca son 1000 günü alırdık ve
+ * eksikliği fark etmezdik.
+ *
+ * Yıl başına ~365 gözlem, sınırın çok altında.
+ *
+ * Dönen listede hafta sonu ve tatiller YOKTUR (o günlerde kur yayımlanmıyor).
+ * Boşlukları çağıran taraf forward-fill ile dolduruyor.
+ */
+export async function fetchFxHistory(
+  currencyCode: string,
+  startYear: number,
+  endYear: number,
+  apiKey?: string,
+): Promise<EvdsRateItem[]> {
+  const unit = FX_UNITS[currencyCode];
+  if (unit === undefined) {
+    throw new Error(
+      `Desteklenmeyen para birimi: ${currencyCode} (tcmb.ts FX_UNITS'e ekle)`,
+    );
+  }
+
+  const divisor = BigInt(unit);
+  const results: EvdsRateItem[] = [];
+
+  for (let year = startYear; year <= endYear; year++) {
+    const items = await fetchEvdsItems(
+      seriesCodeFor(currencyCode),
+      `01-01-${year}`,
+      `31-12-${year}`,
+      apiKey,
+    );
+
+    for (const item of items) {
+      const date = evdsDayToIso(item.date);
+      if (date === null) continue;
+
+      // Metin -> bigint -> birime böl. Hiçbir adımda `number` yok.
+      // divRound şart: bigint bölmesi kırpar (bkz. money.ts).
+      const quoted = toPrice(String(item.value));
+      results.push({ date, rate: divRound(quoted, divisor) as Price });
+    }
+  }
+
+  // Tarihe göre sırala — forward-fill sıralı veri gerektiriyor.
+  results.sort((a, b) => a.date.localeCompare(b.date));
+
+  return results;
+}
+
+/** `fetchFxHistory("USD", ...)` için kısayol. */
+export async function fetchUsdTryHistory(
+  startYear: number,
+  endYear: number,
+  apiKey?: string,
+): Promise<EvdsRateItem[]> {
+  return fetchFxHistory('USD', startYear, endYear, apiKey);
 }

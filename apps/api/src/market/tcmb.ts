@@ -1,8 +1,39 @@
-import { parseScaled, PRICE_SCALE } from "../lib/money.js";
+import { divRound, parseScaled, PRICE_SCALE } from "../lib/money.js";
 import type { Price } from "../lib/money.js";
 import { MarketDataError } from "./provider.js";
 
 const BASE_URL = "https://www.tcmb.gov.tr/kurlar";
+
+/**
+ * Desteklenen para birimleri ve TCMB'nin kotasyon BİRİMİ.
+ *
+ * ⚠️ BU TABLONUN VARLIK SEBEBİ BİR TUZAK.
+ * TCMB her kuru "1 birim" üzerinden yayımlamıyor. USD için `<Unit>1</Unit>`
+ * ama JPY için `<Unit>100</Unit>` — yani XML'deki sayı 100 YEN'in TL
+ * karşılığı. Bölmezsen yen 100 katı pahalı görünür ve bu sayı "makul"
+ * durduğu için gözden kaçar.
+ *
+ * ÖLÇÜLDÜ (EVDS TP.DK.JPY.A, 2 Ocak 2024): 20,74670000
+ * Gerçek 1 JPY o gün ~0,207 TL. Aradaki çarpan tam olarak 100.
+ *
+ * Aynı tuzak EVDS tarafında da var ve orada `<Unit>` alanı HİÇ YOK — o
+ * yüzden birim bilgisi tek merkezde, burada duruyor. evds.ts bu tabloyu
+ * içe aktarıp kullanıyor; iki ayrı liste tutsaydık biri düzeltilir öbürü
+ * eski kalırdı.
+ *
+ * SİSTEM KURALI: price_history her zaman BİR BİRİMİN fiyatını tutar.
+ * 1 JPY = 0,20746700 TL olarak yazılır, 100 JPY olarak değil.
+ */
+export const FX_UNITS: Record<string, number> = {
+  USD: 1,
+  EUR: 1,
+  GBP: 1,
+  CHF: 1,
+  CAD: 1,
+  AUD: 1,
+  SEK: 1,
+  JPY: 100,
+};
 
 /**
  * Kur bulunamazsa en fazla kaç gün geriye gidilir.
@@ -26,26 +57,47 @@ export interface FxRate {
   requestedDate: string;
   /** Kurun gerçekten yayımlandığı tarih, "YYYY-MM-DD" */
   date: string;
-  /** 1 USD kaç TL — 1e8 ölçekli */
+  /**
+   * BİR birim döviz kaç TL — 1e8 ölçekli.
+   *
+   * "Bir birim" vurgusu önemli: TCMB JPY'yi 100 birim üzerinden yayımlıyor,
+   * `parseRate` bunu bölerek normalleştiriyor (bkz. FX_UNITS).
+   */
   rate: Price;
 }
 
 export interface FxRateProvider {
+  /** Herhangi bir para biriminin kuru. `code` FX_UNITS'te tanımlı olmalı. */
+  getRate(code: string, date: string): Promise<FxRate>;
+  /** `getRate("USD", date)` için kısayol. Mevcut çağıranlar için korundu. */
   getUsdTry(date: string): Promise<FxRate>;
 }
 
 export class TcmbAdapter implements FxRateProvider {
   /**
-   * Aynı tarih için tekrar tekrar istek atmamak içindir.
+   * Gün -> o güne ait XML BELGESİ (yoksa null).
+   *
+   * ⚠️ ÖNBELLEK KURU DEĞİL BELGEYİ TUTUYOR — ve fark önemli.
+   * TCMB tek dosyada bütün para birimlerini yayımlıyor. Önbellek "kod|tarih"
+   * anahtarlı olsaydı 8 döviz için AYNI dosya 8 kez indirilirdi; cron 15
+   * saniyede bir çalıştığı için bu günde ~46.000 gereksiz istek demekti.
+   *
+   * Belgeyi bir kez indirip 8 kez ayrıştırmak, 8 kez indirip 8 kez
+   * ayrıştırmaktan farksız görünür ama ağ maliyeti sekizde bire iner.
+   *
    * `null` değeri "o gün dosya yok" demek — bu da önbelleğe alınır, yoksa
    * her hafta sonu sorgusunda cumartesi ve pazar tekrar tekrar sorulur.
    */
-  private readonly cache = new Map<string, Price | null>();
+  private readonly documents = new Map<string, string | null>();
 
-  async getUsdTry(date: string): Promise<FxRate> {
+  async getRate(code: string, date: string): Promise<FxRate> {
+    if (FX_UNITS[code] === undefined) {
+      throw new MarketDataError(`Desteklenmeyen para birimi: ${code}`, "tcmb");
+    }
+
     for (let back = 0; back < MAX_LOOKBACK_DAYS; back++) {
       const day = shiftDays(date, -back);
-      const rate = await this.rateOf(day);
+      const rate = await this.rateOf(code, day);
 
       if (rate !== null) {
         return { requestedDate: date, date: day, rate };
@@ -53,19 +105,36 @@ export class TcmbAdapter implements FxRateProvider {
     }
 
     throw new MarketDataError(
-      `${date} ve öncesindeki ${MAX_LOOKBACK_DAYS} günde USD kuru bulunamadı`,
+      `${date} ve öncesindeki ${MAX_LOOKBACK_DAYS} günde ${code} kuru bulunamadı`,
       "tcmb",
     );
   }
 
-  /** Önbellekli tek gün sorgusu. Dosya yoksa null döner — bu hata değildir. */
-  private async rateOf(date: string): Promise<Price | null> {
-    const cached = this.cache.get(date);
+  async getUsdTry(date: string): Promise<FxRate> {
+    return this.getRate("USD", date);
+  }
+
+  /**
+   * Önbellekli tek gün sorgusu. Dosya yoksa null döner — bu hata DEĞİLDİR,
+   * hafta sonu/tatil bilgisidir ve forward-fill bunu kullanır.
+   *
+   * Dosya VARSA ama para birimi içinde yoksa hata fırlatılır: o bir veri
+   * sorunudur, sessizce "kur yok" muamelesi görmemeli.
+   */
+  private async rateOf(code: string, date: string): Promise<Price | null> {
+    const xml = await this.documentOf(date);
+    if (xml === null) return null;
+
+    return parseRate(xml, code, date);
+  }
+
+  private async documentOf(date: string): Promise<string | null> {
+    const cached = this.documents.get(date);
     if (cached !== undefined) return cached;
 
-    const rate = await fetchDay(date);
-    this.cache.set(date, rate);
-    return rate;
+    const xml = await fetchDay(date);
+    this.documents.set(date, xml);
+    return xml;
   }
 }
 
@@ -78,7 +147,8 @@ function urlFor(date: string): string {
   return `${BASE_URL}/${y}${m}/${d}${m}${y}.xml`;
 }
 
-async function fetchDay(date: string): Promise<Price | null> {
+/** Günün XML belgesini indirir. Dosya yoksa null. */
+async function fetchDay(date: string): Promise<string | null> {
   let response: Response;
   try {
     response = await fetch(urlFor(date));
@@ -97,36 +167,72 @@ async function fetchDay(date: string): Promise<Price | null> {
     throw new MarketDataError(`TCMB ${response.status} döndürdü`, "tcmb");
   }
 
-  return parseUsdRate(await response.text(), date);
+  return response.text();
 }
 
 /**
- * XML'den USD alış kurunu çıkarır.
+ * XML'den bir para biriminin alış kurunu çıkarır — BİR BİRİM başına.
  *
- * Yapı sabit ve tek bir alan aradığımız için hedefli bir düzenli ifade
- * kullanıldı; XML ayrıştırıcı bağımlılığı eklenmedi.
+ * Yapı sabit olduğu için XML ayrıştırıcı bağımlılığı eklenmedi, hedefli
+ * düzenli ifade kullanıldı.
  *
  * KARAR: ForexBuying (döviz alış) kullanılıyor. TCMB dört kur yayımlıyor
  * (alış/satış x döviz/efektif). Hangisi seçilirse seçilsin tutarlı olmak
  * yeterli; ForexBuying rapordaki doğrulamada da kullanılan kur.
  *
- * NOT: <Unit> alanı USD için 1. Bazı para birimlerinde 100 olur (örn. JPY);
- * başka para birimi eklenirse kurun Unit'e bölünmesi gerekir.
+ * ⚠️ ÖNCE BLOK, SONRA ALAN — ve bu sıra bir hata sınıfını kapatıyor.
+ * Eski hâli `CurrencyCode="USD"[\s\S]*?<ForexBuying>` diye tek seferde
+ * arıyordu. `[\s\S]*?` belge sonuna kadar gidebildiği için, aradığımız
+ * para biriminin ForexBuying alanı O GÜN BOŞSA (`<ForexBuying/>` — nadir
+ * ama oluyor) desen SONRAKİ para biriminin kurunu yakalardı. Hata vermez,
+ * makul bir sayı döner, yanlıştır.
+ *
+ * Önce `<Currency>...</Currency>` bloğunu izole edip alanları onun içinde
+ * aramak bu sızmayı imkânsız kılıyor.
  */
-function parseUsdRate(xml: string, date: string): Price {
-  const match = xml.match(
-    /CurrencyCode="USD"[\s\S]*?<ForexBuying>([\d.]+)<\/ForexBuying>/,
-  );
+export function parseRate(xml: string, code: string, date: string): Price {
+  const unit = FX_UNITS[code];
+  if (unit === undefined) {
+    throw new MarketDataError(`Desteklenmeyen para birimi: ${code}`, "tcmb");
+  }
 
-  const raw = match?.[1];
-  if (!raw) {
+  const block = xml.match(
+    new RegExp(`<Currency[^>]*CurrencyCode="${code}"[\\s\\S]*?</Currency>`),
+  )?.[0];
+
+  if (!block) {
     throw new MarketDataError(
-      `${date} tarihli TCMB verisinde USD kuru okunamadı`,
+      `${date} tarihli TCMB verisinde ${code} bulunamadı`,
       "tcmb",
     );
   }
 
-  return parseScaled(raw, PRICE_SCALE) as Price;
+  const raw = block.match(/<ForexBuying>([\d.]+)<\/ForexBuying>/)?.[1];
+  if (!raw) {
+    throw new MarketDataError(
+      `${date} tarihli TCMB verisinde ${code} alış kuru boş`,
+      "tcmb",
+    );
+  }
+
+  // ⚠️ Belgedeki <Unit> ile kendi tablomuz karşılaştırılıyor.
+  // Amaç sadece bölmek değil, TCMB bir gün birimi değiştirirse bunu
+  // FARK ETMEK. Sessizce belgeye uysaydık tablo yanlışa düşer ve
+  // haberimiz olmazdı; sessizce tabloya uysaydık kur 100 kat kayardı.
+  const declaredUnit = block.match(/<Unit>(\d+)<\/Unit>/)?.[1];
+  if (declaredUnit !== undefined && Number(declaredUnit) !== unit) {
+    throw new MarketDataError(
+      `${code} birimi değişmiş: TCMB ${declaredUnit} diyor, tablomuzda ${unit} yazıyor ` +
+        `(tcmb.ts FX_UNITS güncellenmeli)`,
+      "tcmb",
+    );
+  }
+
+  const quoted = parseScaled(raw, PRICE_SCALE) as Price;
+
+  // Bir birimin fiyatına indir. JPY için 100'e bölünüyor.
+  // divRound şart: bigint bölmesi kırpar (bkz. money.ts).
+  return divRound(quoted, BigInt(unit)) as Price;
 }
 
 /** "2020-03-12" -> ["2020", "03", "12"] */

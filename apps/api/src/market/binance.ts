@@ -21,10 +21,27 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  *
  * USDT çifti seçildi çünkü TRY çifti yalnızca 20 Aralık 2019'a kadar gidiyor,
  * USDT ise 17 Ağustos 2017'ye. TL çevrimi ayrı katmanda TCMB kuruyla yapılır.
+ *
+ * ⚠️ HER COIN 2017'YE GİTMİYOR. BTC ve ETH 17 Ağustos 2017'de başlıyor, ama
+ * SOL ve AVAX 2020'de listelendi. Bu bir hata değil — geri doldurma her
+ * varlık için Binance ne veriyorsa onu yazar.
+ *
+ * Bunun sonucu: bir varlığın "en eskiye git" grafiği bir diğerininkinden
+ * kısa olabilir. Başlangıç tarihlerini BURAYA YAZMA — veritabanından
+ * MIN(ts) ile oku (repository.ts `firstAvailable`). Koda yazılan tarih,
+ * Binance listeleme tarihini değiştirdiğinde sessizce yalan söyler.
  */
 const PAIRS: Record<string, string> = {
   BTC: "BTCUSDT",
   ETH: "ETHUSDT",
+  BNB: "BNBUSDT",
+  SOL: "SOLUSDT",
+  XRP: "XRPUSDT",
+  ADA: "ADAUSDT",
+  DOGE: "DOGEUSDT",
+  AVAX: "AVAXUSDT",
+  LINK: "LINKUSDT",
+  LTC: "LTCUSDT",
 };
 
 /**

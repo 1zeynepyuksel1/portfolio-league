@@ -63,3 +63,34 @@ export async function findTufeIndex(month: string) {
 
   return record;
 }
+
+/**
+ * Verilen ay YA DA ondan önceki en yakın ayın TÜFE endeksi.
+ *
+ * ⚠️ NEDEN GEREKLİ — enflasyon verisi HER ZAMAN GECİKMELİ.
+ * TÜİK bir ayın endeksini ertesi ayın 3'ünde açıklıyor. Yani içinde
+ * bulunduğun ayın TÜFE'si hiçbir zaman mevcut olmaz; ayın 1'i ile 3'ü
+ * arasında bir önceki ayınki de yoktur.
+ *
+ * Tam eşleşme arasaydık "ya alsaydın" özelliği HER ZAMAN hata verirdi —
+ * nitekim veriyordu.
+ *
+ * `month` metni "YYYY-MM" biçiminde olduğu için sözlük sıralaması takvim
+ * sıralamasıyla aynı; `<=` doğru çalışıyor.
+ *
+ * Aynı desen `findHistoricalPrice`'ta da var: hafta sonu seçilirse en yakın
+ * önceki iş gününün fiyatı kullanılıyor.
+ */
+export async function findTufeIndexOnOrBefore(month: string) {
+  const [record] = await db
+    .select({
+      month: inflationIndex.month,
+      tufeIndex: inflationIndex.tufeIndex,
+    })
+    .from(inflationIndex)
+    .where(lte(inflationIndex.month, month))
+    .orderBy(desc(inflationIndex.month))
+    .limit(1);
+
+  return record;
+}

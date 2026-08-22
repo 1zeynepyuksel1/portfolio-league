@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './lib/env.js';
 import { app } from './app.js';
 import { startPriceCron } from './market/scheduler.js';
 import { startTufeCron } from './market/tufe-cron.js';

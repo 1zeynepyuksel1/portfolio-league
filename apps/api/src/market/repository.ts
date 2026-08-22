@@ -2,10 +2,28 @@ import { desc, eq, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { assets, priceHistory } from "../db/schema.js";
 
+/**
+ * Varlık türü — şemadaki enum'dan TÜRETİLİYOR, elle yazılmıyor.
+ *
+ * Elle yazsaydık ('crypto' | 'fx' | 'metal') şemadaki 'bist' değerini
+ * kaçırırdık ve tip hatası alırdık; daha kötüsü, enum ileride büyüdüğünde
+ * buradaki liste sessizce eskirdi. `$inferSelect` şemayı tek doğruluk
+ * kaynağı yapıyor.
+ */
+export type AssetKind = (typeof assets.$inferSelect)['kind'];
+
 export type AssetRow = {
   id: string;
   symbol: string;
   name: string;
+  /**
+   * Fiyatın hangi kaynaktan çekileceğini belirler:
+   *   crypto -> Binance (USD) + TCMB kuruyla TL'ye çevrim
+   *   fx     -> doğrudan TCMB kuru
+   *   metal  -> kaynağı henüz yok (bu varlıklar is_active=false)
+   *   bist   -> Faz 3
+   */
+  kind: AssetKind;
 };
 
 /** İşlem görebilir durumdaki varlıklar. */
@@ -15,6 +33,7 @@ export async function listActiveAssets(): Promise<AssetRow[]> {
       id: assets.id,
       symbol: assets.symbol,
       name: assets.name,
+      kind: assets.kind,
     })
     .from(assets)
     .where(eq(assets.isActive, true))
@@ -52,6 +71,24 @@ export async function insertPrice(
     .insert(priceHistory)
     .values({ assetId, ts, priceTry })
     .onConflictDoNothing();
+}
+
+/**
+ * Çok sayıda fiyat kaydını TEK sorguda yazar.
+ *
+ * NEDEN AYRI FONKSİYON: geri doldurma varlık başına ~3.300 satır yazıyor.
+ * `insertPrice`'ı döngüde çağırsaydık her satır için ayrı bir gidiş-dönüş
+ * olurdu — 3.300 tur. Toplu yazmada tek sorgu.
+ *
+ * Çağıran taraf listeyi makul parçalara bölmeli; on binlerce satırlık tek
+ * INSERT hem belleği hem sorgu boyutu sınırlarını zorlar.
+ */
+export async function insertPrices(
+  rows: Array<{ assetId: string; ts: Date; priceTry: string }>,
+): Promise<void> {
+  if (rows.length === 0) return;
+
+  await db.insert(priceHistory).values(rows).onConflictDoNothing();
 }
 
 /** Bir varlığın en son yazılmış fiyatı. */
