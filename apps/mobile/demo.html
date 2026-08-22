@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Portfolioyun — Sunum Görünümü</title>
+
+<!--
+  SUNUM ARACI — uygulamanın parçası değil.
+
+  Expo'nun web çıktısını (localhost:8081) telefon kasası içinde gösterir.
+  Amaç: dizüstünden sunum yaparken ekranda tarayıcı değil, mobil uygulama
+  görünsün.
+
+  ÇALIŞTIRMA:
+    1. Terminal 1'de API ayakta olmalı        -> npm run dev:api
+    2. Terminal 2'de Expo ayakta olmalı       -> npx expo start
+    3. Bu dosyayı Chrome'da aç (çift tıkla yeter)
+
+  İç ölçü 390x844 — tasarımın çizildiği ölçünün tam kendisi
+  (design_handoff_portfolioyun_auth). Bu yüzden ChartBackground'daki
+  sparkline ve mum koordinatları tam yerine oturuyor.
+-->
+
+<style>
+  /* Tasarımın renkleriyle aynı — sunumda kasa ile uygulama aynı dünyadan
+     görünsün diye. Kasa açık gri olsaydı koyu uygulamanın yanında ucuz durur. */
+  :root {
+    --stage: #0a0a0b;
+    --bezel: #1c1c1f;
+    --bezel-edge: #34343a;
+    --ink: #f5f4f3;
+    --ink-dim: rgba(245, 244, 243, 0.45);
+    --accent: #ec3013;
+    --gain: #43b56f;
+
+    /* Cihazın iç ekran ölçüsü. Tasarımın referans çerçevesi. */
+    --screen-w: 390px;
+    --screen-h: 844px;
+    --bezel-pad: 12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--stage);
+    font-family: "Archivo", -apple-system, "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    overflow: hidden;
+  }
+
+  .stage {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 20px;
+  }
+
+  /* ---- TELEFON KASASI ---- */
+
+  .phone {
+    position: relative;
+    width: calc(var(--screen-w) + var(--bezel-pad) * 2);
+    height: calc(var(--screen-h) + var(--bezel-pad) * 2);
+    padding: var(--bezel-pad);
+    border-radius: 54px;
+    background: var(--bezel);
+    border: 1px solid var(--bezel-edge);
+    /* Derinlik: dıştan yumuşak gölge + içeriden ince ışık çizgisi.
+       İkisi birlikte kasayı "ekrandan çıkmış" gibi gösteriyor. */
+    box-shadow:
+      0 40px 90px rgba(0, 0, 0, 0.75),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+
+    /* ⚠️ Küçük ekranlarda kasa taşmasın diye JS ile ölçeklenir.
+       transform-origin ortada: küçülürken merkezde kalır. */
+    transform-origin: center center;
+    flex: none;
+  }
+
+  .screen {
+    position: relative;
+    width: var(--screen-w);
+    height: var(--screen-h);
+    border-radius: 42px;
+    overflow: hidden;
+    background: #111112;
+  }
+
+  .screen iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+
+  /* Dynamic Island — sadece görsel, tıklamayı engellememeli */
+  .island {
+    position: absolute;
+    top: 11px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 118px;
+    height: 33px;
+    border-radius: 20px;
+    background: #000;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  /* Yan düğmeler — tamamen dekoratif */
+  .btn {
+    position: absolute;
+    background: #2a2a2f;
+    border-radius: 3px;
+  }
+  .btn.silent { left: -3px; top: 118px;  width: 3px; height: 30px; }
+  .btn.vol-up { left: -3px; top: 172px;  width: 3px; height: 56px; }
+  .btn.vol-dn { left: -3px; top: 240px;  width: 3px; height: 56px; }
+  .btn.power  { right: -3px; top: 196px; width: 3px; height: 88px; }
+
+  /* ---- ÜST ÇUBUK ---- */
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--ink-dim);
+    flex: none;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    font-size: 12px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .sep { width: 1px; height: 14px; background: rgba(245, 244, 243, 0.14); }
+
+  button.act {
+    font: inherit;
+    font-size: 12px;
+    color: var(--ink-dim);
+    background: transparent;
+    border: 1px solid rgba(245, 244, 243, 0.18);
+    border-radius: 999px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: border-color .18s, color .18s;
+  }
+  button.act:hover { border-color: rgba(245, 244, 243, 0.45); color: var(--ink); }
+
+  /* Bağlantı durumu göstergesi */
+  .status { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .led { width: 8px; height: 8px; border-radius: 50%; background: #6b6b70; }
+  .led.ok   { background: var(--gain); }
+  .led.fail { background: var(--accent); }
+
+  /* ---- HATA PERDESİ ---- */
+
+  .curtain {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 40px 32px;
+    text-align: center;
+    background: #111112;
+    z-index: 10;
+    border-radius: 42px;
+  }
+  .curtain.show { display: flex; }
+  .curtain h2 { margin: 0; font-size: 19px; }
+  .curtain p  { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-dim); }
+  .curtain code {
+    display: block;
+    margin-top: 4px;
+    padding: 9px 12px;
+    background: rgba(245, 244, 243, 0.06);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--ink);
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <div class="bar">
+    <span class="brand"><span class="dot"></span>PORTFOLIOYUN</span>
+    <span class="sep"></span>
+    <span class="status"><span class="led" id="led"></span><span id="statusText">kontrol ediliyor…</span></span>
+    <span class="sep"></span>
+    <button class="act" onclick="reload()">Yenile</button>
+  </div>
+
+  <div class="phone" id="phone">
+    <div class="btn silent"></div>
+    <div class="btn vol-up"></div>
+    <div class="btn vol-dn"></div>
+    <div class="btn power"></div>
+
+    <div class="screen">
+      <div class="island"></div>
+      <iframe id="app" src="http://localhost:8081" title="Portfolioyun"></iframe>
+
+      <div class="curtain" id="curtain">
+        <h2>Uygulama görünmüyor</h2>
+        <p>
+          Expo geliştirme sunucusu kapalı olabilir. İki terminalin de açık
+          olması gerekiyor:
+        </p>
+        <p>
+          <code>npm run dev:api</code>
+          <code>cd apps\mobile &amp;&amp; npx expo start</code>
+        </p>
+        <p>Sonra yukarıdaki <strong>Yenile</strong> düğmesine bas.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  /**
+   * Kasayı pencereye sığdır.
+   *
+   * Sabit 868px yükseklikteki kasa çoğu dizüstü ekranına (768-900px)
+   * sığmıyor; ölçeklemezsek altı kesilir. Sunumda tam ekran yapıldığında
+   * da mümkün olduğunca büyük görünmeli.
+   *
+   * ⚠️ Yalnızca KÜÇÜLTÜYORUZ (Math.min(..., 1)). Büyütseydik 390px
+   * genişliğindeki arayüz bulanıklaşırdı — iframe içeriği vektör değil.
+   */
+  function fit() {
+    const phone = document.getElementById('phone');
+    const availH = window.innerHeight - 100;   // üst çubuk + boşluklar
+    const availW = window.innerWidth  - 60;
+
+    const scale = Math.min(availH / 868, availW / 414, 1);
+    phone.style.transform = 'scale(' + scale + ')';
+
+    // Ölçeklenen öğe düzende hâlâ eski boyutunu kaplar; kalan boşluğu
+    // negatif marj ile toplayıp kasayı dikeyde ortalı tutuyoruz.
+    const lost = 868 * (1 - scale);
+    phone.style.marginTop = phone.style.marginBottom = (-lost / 2) + 'px';
+  }
+
+  window.addEventListener('resize', fit);
+  fit();
+
+  function reload() {
+    const frame = document.getElementById('app');
+    // src'yi yeniden atamak sayfayı baştan yükler.
+    frame.src = frame.src;
+    check();
+  }
+
+  /**
+   * Expo ayakta mı?
+   *
+   * ⚠️ `mode: 'no-cors'` ŞART. Metro'nun CORS başlığı yok, normal bir
+   * fetch tarayıcı tarafından engellenir. no-cors'ta yanıtın İÇERİĞİNİ
+   * okuyamayız ama "istek gitti mi, bir şey döndü mü" bilgisini alırız —
+   * bize yeten tam olarak bu.
+   */
+  async function check() {
+    const led = document.getElementById('led');
+    const text = document.getElementById('statusText');
+    const curtain = document.getElementById('curtain');
+
+    try {
+      await fetch('http://localhost:8081', { mode: 'no-cors', cache: 'no-store' });
+      led.className = 'led ok';
+      text.textContent = 'bağlı · localhost:8081';
+      curtain.classList.remove('show');
+    } catch {
+      led.className = 'led fail';
+      text.textContent = 'Expo kapalı';
+      curtain.classList.add('show');
+    }
+  }
+
+  check();
+  // Sunum sırasında Metro düşerse fark edelim.
+  setInterval(check, 5000);
+</script>
+
+</body>
+</html>
