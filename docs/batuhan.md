@@ -105,6 +105,26 @@ bildiriyor?
 "para `bigint`, `float` yasak" kuralına aykırı. Gösterim için zararsız
 olduğu için şimdilik bırakıldı ama **bilinçli bir borç**, kaza değil.
 
+### 7. Grafiğe detay, yakınlaştırma ve pozisyon kârı — 23 Ağu 2026
+| Dosya | Ne sorulacak |
+|---|---|
+| `market/hourly-backfill.ts` | Neden ayrı bir geri doldurma betiği? `PricePoint`'e `openTime` neden eklendi — `date` yetmiyor muydu? Yetmeseydi 24 saatlik mum ne olurdu? |
+| `market/provider.ts` (`Candle`) | Binance'in `1m`'i ile `ranges.ts`'in `1m`'i neden **aynı şey değil**? Bu karışıklık nasıl işaretlendi? |
+| `market/binance.ts` (`CANDLE_MS`) | Sayfalama neden sabit bir gün değil kova boyutu kadar ilerliyor? Sabit kalsaydı 5 dakikalık mumlarda ne olurdu? |
+| `market/ranges.ts` (`BUCKET_LADDER`, `bucketFor`, `parseWindow`) | Merdivenin en küçüğü neden **5 dakika**? Daha küçük olsaydı kullanıcı ne yaşardı? `range`'in kapalı liste olma kararı neden geri alındı, karşılığında hangi iki koruma kondu? |
+| `market/repository.ts` (`until` parametresi) | Üst sınır neden `null` varsayılanlı? Zorunlu olsaydı mevcut çağıranlar ne olurdu? |
+| `portfolio/cost-basis.ts` | Maliyet neden **saklanmıyor**, emir defterinden türetiliyor? `grossCents` değil neden `netCents`? Satışta maliyet neden oranla azaltılıyor? `profitPercent` hangi iki durumda `null` dönüyor ve neden 0 dönmüyor? |
+| `mobile/src/components/PriceChart.tsx` (eksen + yakınlaştırma) | Etiket biçimi neden kova boyutuna göre değişiyor? `scrubRef`/`zoomRef` neden var — `PanResponder` içinde doğrudan state okusaydık ne olurdu? İstek neden parmak kalkınca gidiyor, her karede değil? %15 eşiği ne işe yarıyor? |
+
+**Ölçülen sonuç — yakınlaştırma gerçekten çözünürlük artırıyor:**
+3 yıl → haftalık/157 · 1 yıl → günlük/365 · 1 ay → 6 saat/121 ·
+1 hafta → saatlik/168 · 2 gün → **15 dakika**/193 · 6 saat → **5 dakika**/72.
+1 aydan 6 saate inince kova 72 kat inceliyor.
+
+**Ölçülen sonuç — komisyon maliyete gerçekten dahil:** fiyat hiç değişmemiş
+bir pozisyon **−%0,10** gösterdi. Bu tam olarak komisyon oranı; `grossCents`
+kullansaydık kâr **%0,00** çıkar ve kullanıcı ödediği komisyonu hiç görmezdi.
+
 ### Küçük değişiklikler
 - `mobile/src/screens/WhatIfScreen.tsx` — sabit 5 varlıklık liste kaldırıldı,
   `/assets`'ten çekiliyor. **Ne sorulacak:** liste koda gömülüyken sunucuya
