@@ -1,22 +1,18 @@
 /**
- * PriceChart — fiyat serisini çizen ve dokunarak okunabilen SVG bileşeni.
+ * PriceChart — fiyat serisini çizen, eksenli ve dokunarak okunabilen grafik.
  *
- * Hazır grafik kütüphanesi yerine elle yazıldı. Kütüphane dokunmayı bedava
- * verirdi ama ölçekleme matematiği kutu içinde kalırdı; burada iş görünür
- * durumda.
+ * Hazır kütüphane yerine elle yazıldı: ölçekleme matematiği görünür kalıyor.
  *
  * ⚠️ BU DOSYADAKİ EN ÖNEMLİ AYRIM: FLOAT NEREDE SERBEST.
  *
  * Projenin kuralı "para `bigint`, `float` yasak". O kural PARA için.
- * Piksel koordinatı para değil — ekranda 0,3 piksellik sapmanın hiçbir
- * maliyeti yok ve `bigint` ile piksel hesaplamak anlamsız.
+ * Piksel koordinatı para değil — 0,3 piksellik sapmanın maliyeti yok.
  *
- * Sınır şurada:
- *   fiyatı OKU ve GÖSTER    -> bigint (format.ts)
- *   çizim geometrisi        -> float serbest
+ *   fiyatı OKU ve GÖSTER  -> bigint (format.ts)
+ *   çizim geometrisi      -> float serbest
  *
- * Fiyat etiketini float'tan üretirsen kuralı gerçekten kırmış olursun:
- * "3.688.083,84 ₺" yazması gereken yerde "3688083.8400000003" çıkar.
+ * Fiyat etiketini float'tan üretirsen kuralı gerçekten kırarsın:
+ * "3.688.083,84 ₺" yerine "3688083.8400000003" çıkar.
  */
 
 import React, { useMemo, useRef, useState } from 'react';
@@ -44,65 +40,115 @@ type Props = {
   points: ChartPoint[];
   width: number;
   height: number;
-  /** Yükselişte yeşil, düşüşte kırmızı. Verilmezse yönden seçilir. */
-  color?: string;
   /**
-   * Kullanıcı grafiğe dokunduğunda seçilen nokta; parmağını kaldırınca
-   * `null`. Üst ekran bunu kullanarak başlıktaki fiyatı değiştiriyor.
+   * Sunucunun kullandığı kova boyutu (saniye).
+   *
+   * Zaman etiketlerinin biçimini belirliyor: saatlik kovada "14:30",
+   * günlükte "12 Ara", haftalıkta "Ara 24". Sabit bir biçim seçseydik
+   * "Tümü" aralığında 471 tane aynı saat, "1G"de 287 tane aynı gün
+   * yazardı — ikisi de bilgi taşımaz.
    */
+  bucketSeconds?: number;
+  color?: string;
   onScrub?: (point: ChartPoint | null) => void;
 };
 
-/** Çizginin kenarlara yapışmaması için üstte ve altta bırakılan boşluk. */
-const PADDING_Y = 8;
+/** Alt eksen için ayrılan yükseklik. */
+const AXIS_HEIGHT = 22;
+/** Sağdaki fiyat etiketleri için ayrılan genişlik. */
+const AXIS_WIDTH = 62;
+/** Çizginin üst/alt kenara yapışmaması için. */
+const PADDING_Y = 10;
 
-/**
- * Ondalıklı fiyat metnini çizim için sayıya çevirir.
- *
- * ⚠️ BURADA `Number()` KULLANMAK SERBEST — ve tek yer burası.
- * Dönen değer yalnızca min/max bulmak ve piksele ölçeklemek için
- * kullanılıyor, hiçbir zaman ekrana yazılmıyor. Ekrana yazılan her fiyat
- * `formatPrice` üzerinden, yani metin -> bigint yolundan geçiyor.
- */
-function toPlot(decimal: string): number {
-  return Number(decimal);
-}
+/** Kaç yatay ızgara çizgisi. 4 aralık = 5 çizgi. */
+const GRID_LINES = 5;
+/** Kaç zaman etiketi. Daha fazlası dar ekranda üst üste biner. */
+const TIME_LABELS = 4;
 
-/** "2026-08-22T09:52:00.000Z" -> "22 Ağu 2026 12:52" (yerel saat) */
+const HOUR = 3600;
+const DAY = 24 * HOUR;
+
 const MONTHS_SHORT = [
   'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
   'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara',
 ];
 
+/**
+ * Ondalıklı fiyat metnini çizim için sayıya çevirir.
+ *
+ * ⚠️ `Number()` YALNIZCA BURADA. Dönen değer min/max bulmak ve piksele
+ * ölçeklemek için; hiçbir zaman ekrana yazılmıyor.
+ */
+function toPlot(decimal: string): number {
+  return Number(decimal);
+}
+
+/** Tam tarih — okuma kutusunda ve üst ekranda kullanılıyor. */
 export function formatChartDate(iso: string): string {
   const d = new Date(iso);
 
   const day = d.getDate();
   const month = MONTHS_SHORT[d.getMonth()];
-  const year = d.getFullYear();
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
 
-  return `${day} ${month} ${year} ${hh}:${mm}`;
+  return `${day} ${month} ${d.getFullYear()} ${hh}:${mm}`;
+}
+
+/**
+ * Eksen etiketi — kova boyutuna göre kısaltılmış.
+ *
+ * Amaç en az yer kaplayıp en çok ayırt etmek: aynı gün içindeki noktalar
+ * için saat, günler arası için gün+ay, aylar arası için ay+yıl.
+ */
+function formatAxisLabel(iso: string, bucketSeconds: number): string {
+  const d = new Date(iso);
+
+  if (bucketSeconds < DAY) {
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+
+  if (bucketSeconds < 30 * DAY) {
+    return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+  }
+
+  return `${MONTHS_SHORT[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+}
+
+/**
+ * Fiyat ekseni etiketi — kısaltılmış.
+ *
+ * ⚠️ BURADA TAM BİÇİM KULLANILMIYOR VE BU BİLİNÇLİ.
+ * "3.688.083,84 ₺" 62 piksele sığmaz, sığsa da eksen okunmaz olur.
+ * Eksen SEVİYE gösteriyor, kesin tutar değil — kesin tutarı okuma kutusu
+ * ve başlık veriyor, ikisi de `formatPrice` üzerinden bigint yolundan.
+ */
+function formatAxisPrice(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}B`;
+  if (value >= 1) return value.toFixed(2);
+
+  return value.toFixed(4);
 }
 
 export function PriceChart({
   points,
   width,
   height,
+  bucketSeconds = DAY,
   color,
   onScrub,
 }: Props) {
-  /** Dokunulan noktanın dizideki sırası. `null` = dokunulmuyor. */
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   /**
-   * ⚠️ `onScrub` BİR REF'TE TUTULUYOR.
+   * ⚠️ `onScrub` REF'TE TUTULUYOR.
    *
-   * PanResponder yalnızca BİR KEZ kuruluyor (useMemo). İçindeki fonksiyon
-   * o anki `onScrub`'ı yakalar ve üst bileşen yeniden çizildiğinde eski
-   * sürüm kapalı kalır — "stale closure" denen klasik hata. Ref her zaman
-   * güncel değeri tuttuğu için sorun ortadan kalkıyor.
+   * PanResponder yalnızca BİR KEZ kuruluyor. İçindeki fonksiyon o anki
+   * prop'u yakalar ve üst bileşen yeniden çizildiğinde eski sürüm kapalı
+   * kalır — "stale closure". Ref her zaman güncel değeri tutuyor.
    */
   const scrubRef = useRef(onScrub);
   scrubRef.current = onScrub;
@@ -110,65 +156,55 @@ export function PriceChart({
   const pointsRef = useRef(points);
   pointsRef.current = points;
 
+  /** Çizimin yapıldığı alan — eksenler dışarıda kalıyor. */
+  const plotWidth = width - AXIS_WIDTH;
+  const plotHeight = height - AXIS_HEIGHT;
+  const innerHeight = plotHeight - PADDING_Y * 2;
+
+  const plotWidthRef = useRef(plotWidth);
+  plotWidthRef.current = plotWidth;
+
   const values = points.map((p) => toPlot(p.priceTry));
 
   const min = values.length > 0 ? Math.min(...values) : 0;
   const max = values.length > 0 ? Math.max(...values) : 0;
 
   /**
-   * ⚠️ SIFIRA BÖLME KORUMASI — VE NEDEN SESSİZ BİR HATA.
+   * ⚠️ SIFIRA BÖLME KORUMASI — SESSİZ BİR HATA.
    *
-   * Bütün fiyatlar aynıysa (düz çizgi: hafta sonu döviz, ya da tek kovalık
-   * veri) `max - min` sıfır olur. `(v - min) / 0` -> NaN -> SVG hiçbir şey
-   * çizmez VE HATA DA VERMEZ. Ekranda boş bir kutu kalır, sebebi görünmez.
+   * Bütün fiyatlar aynıysa `max - min` sıfır olur. `(v - min) / 0` -> NaN
+   * -> SVG hiçbir şey çizmez VE HATA VERMEZ. Boş bir kutu kalır.
    */
   const span = max - min;
   const flat = span === 0;
-  const plotHeight = height - PADDING_Y * 2;
 
   function xOf(index: number): number {
-    if (points.length < 2) return width / 2;
-    return (index / (points.length - 1)) * width;
+    if (points.length < 2) return plotWidth / 2;
+    return (index / (points.length - 1)) * plotWidth;
   }
 
   function yOf(value: number): number {
-    if (flat) return height / 2;
-
-    const ratio = (value - min) / span;
+    if (flat) return plotHeight / 2;
 
     /**
      * ⚠️ Y TERS ÇEVRİLİYOR.
-     *
-     * SVG'de y ekranın ÜSTÜNDEN aşağı büyür; fiyat ise yukarı doğru
-     * büyümeli. Çevirmezsen grafik baş aşağı çıkar — ve asıl tehlike bu:
-     * baş aşağı bir fiyat grafiği hâlâ inandırıcı görünür, sadece yükselişi
-     * düşüş gibi gösterir.
+     * SVG'de y ekranın ÜSTÜNDEN aşağı büyür; fiyat yukarı doğru büyümeli.
+     * Çevirmezsen grafik baş aşağı çıkar — ve baş aşağı bir fiyat grafiği
+     * hâlâ inandırıcı görünür, sadece yükselişi düşüş gibi gösterir.
      */
-    return PADDING_Y + (1 - ratio) * plotHeight;
+    return PADDING_Y + (1 - (value - min) / span) * innerHeight;
   }
 
-  /**
-   * Dokunulan yatay konumu en yakın veri noktasına çevirir.
-   *
-   * ⚠️ `Math.round`, `Math.floor` DEĞİL. Floor kullansaydık parmak bir
-   * noktanın hemen sağındayken hâlâ soldakini seçerdi; imleç parmaktan
-   * geride kalır ve "takılıyor" hissi verir. Round en yakına atlar.
-   */
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        // Dokunuşu bu bileşen üstlensin — aksi hâlde ScrollView kapar.
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-
         onPanResponderGrant: (e) => pick(e),
         onPanResponderMove: (e) => pick(e),
-
         onPanResponderRelease: () => clear(),
         onPanResponderTerminate: () => clear(),
       }),
-    // Boş bağımlılık: responder bir kez kurulup ömür boyu yaşıyor.
-    // Güncel veriye ref'ler üzerinden erişiliyor.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -178,14 +214,17 @@ export function PriceChart({
     if (list.length === 0) return;
 
     // locationX = bileşenin SOL KENARINA göre konum. pageX olsaydı
-    // ekranın soluna göre olurdu ve grafiğin sayfadaki yerine bağlı
-    // bir kayma çıkardı.
+    // grafiğin sayfadaki yerine bağlı bir kayma çıkardı.
     const x = event.nativeEvent.locationX;
 
-    const ratio = list.length < 2 ? 0 : x / width;
-    const index = Math.round(ratio * (list.length - 1));
+    const ratio = list.length < 2 ? 0 : x / plotWidthRef.current;
 
-    // Parmak grafiğin dışına taşabilir; sınırların içine çekiyoruz.
+    /**
+     * ⚠️ `Math.round`, `floor` DEĞİL. Floor kullansaydık parmak bir noktanın
+     * hemen sağındayken hâlâ soldakini seçerdi; imleç parmaktan geride
+     * kalır ve "takılıyor" hissi verir.
+     */
+    const index = Math.round(ratio * (list.length - 1));
     const clamped = Math.max(0, Math.min(list.length - 1, index));
 
     setActiveIndex(clamped);
@@ -211,18 +250,36 @@ export function PriceChart({
 
   const coords = points.map((_, i) => `${xOf(i)},${yOf(values[i] as number)}`);
   const line = coords.join(' ');
-  const area = `M ${coords.join(' L ')} L ${width},${height} L 0,${height} Z`;
+  const area = `M ${coords.join(' L ')} L ${plotWidth},${plotHeight} L 0,${plotHeight} Z`;
 
   const rising = (values[values.length - 1] as number) >= (values[0] as number);
   const stroke = color ?? (rising ? '#43b56f' : '#ec3013');
 
   const active = activeIndex !== null ? points[activeIndex] : undefined;
   const activeX = activeIndex !== null ? xOf(activeIndex) : 0;
-  const activeY =
-    activeIndex !== null ? yOf(values[activeIndex] as number) : 0;
+  const activeY = activeIndex !== null ? yOf(values[activeIndex] as number) : 0;
+
+  /**
+   * Yatay ızgara seviyeleri — min ile max arasında eşit aralıklı.
+   *
+   * "Yuvarlak sayı" (100, 250, 500 gibi) seçmek daha şık olurdu ama
+   * fiyatlar 0,30 ₺ ile 3.700.000 ₺ arasında değişiyor; tek bir yuvarlama
+   * kuralı ikisine birden uymuyor. Eşit aralık her ölçekte doğru çalışıyor.
+   */
+  const levels = flat
+    ? [min]
+    : Array.from(
+        { length: GRID_LINES },
+        (_, i) => min + (span * i) / (GRID_LINES - 1),
+      );
+
+  /** Zaman etiketlerinin düşeceği nokta sıraları — eşit aralıklı. */
+  const labelIndices = Array.from({ length: TIME_LABELS }, (_, i) =>
+    Math.round((i / (TIME_LABELS - 1)) * (points.length - 1)),
+  );
 
   return (
-    <View style={{ width, height }} {...panResponder.panHandlers}>
+    <View style={{ width, height }}>
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
@@ -230,6 +287,22 @@ export function PriceChart({
             <Stop offset="1" stopColor={stroke} stopOpacity={0} />
           </LinearGradient>
         </Defs>
+
+        {/* Yatay ızgara — çizginin ALTINDA kalması için önce çiziliyor */}
+        {levels.map((value, i) => {
+          const y = yOf(value);
+          return (
+            <Line
+              key={`g${i}`}
+              x1={0}
+              y1={y}
+              x2={plotWidth}
+              y2={y}
+              stroke="rgba(148, 163, 184, 0.12)"
+              strokeWidth={1}
+            />
+          );
+        })}
 
         <Path d={area} fill="url(#fill)" />
 
@@ -242,56 +315,91 @@ export function PriceChart({
           strokeLinejoin="round"
         />
 
-        {/* İmleç: dikey çizgi + nokta */}
+        {/* İmleç */}
         {active !== undefined && (
           <>
             <Line
               x1={activeX}
               y1={0}
               x2={activeX}
-              y2={height}
+              y2={plotHeight}
               stroke="#94A3B8"
               strokeWidth={1}
               strokeDasharray="4 4"
             />
-            {/* İki daire: dış halka koyu zeminde noktayı çizgiden ayırıyor */}
+            {/* İki daire: dış halka noktayı çizgiden ayırıyor */}
             <Circle cx={activeX} cy={activeY} r={6} fill="#0B132B" />
             <Circle cx={activeX} cy={activeY} r={4} fill={stroke} />
           </>
         )}
       </Svg>
 
-      {/* En yüksek / en düşük — yalnızca dokunulmuyorken */}
-      {!flat && active === undefined && (
-        <>
-          <Text style={[styles.bound, styles.boundTop]}>
-            {formatPrice(points[values.indexOf(max)]?.priceTry ?? '0')}
+      {/* Fiyat seviyeleri — sağda, ızgara çizgileriyle hizalı */}
+      {!flat &&
+        levels.map((value, i) => (
+          <Text
+            key={`p${i}`}
+            style={[
+              styles.priceLabel,
+              // -6: metnin dikey ortası çizgiye denk gelsin
+              { top: yOf(value) - 6, width: AXIS_WIDTH - 4 },
+            ]}
+          >
+            {formatAxisPrice(value)}
           </Text>
-          <Text style={[styles.bound, styles.boundBottom]}>
-            {formatPrice(points[values.indexOf(min)]?.priceTry ?? '0')}
+        ))}
+
+      {/* Zaman ekseni — altta */}
+      {labelIndices.map((index, i) => {
+        const point = points[index];
+        if (point === undefined) return null;
+
+        // İlk etiket sola, son etiket sağa yaslanıyor; ortadakiler
+        // noktalarının üstünde ortalanıyor. Yaslamasaydık uçtakiler
+        // grafiğin dışına taşardı.
+        const x = xOf(index);
+        const anchor =
+          i === 0
+            ? { left: 0 }
+            : i === labelIndices.length - 1
+              ? { right: AXIS_WIDTH }
+              : { left: x - 24 };
+
+        return (
+          <Text key={`t${i}`} style={[styles.timeLabel, anchor]}>
+            {formatAxisLabel(point.ts, bucketSeconds)}
           </Text>
-        </>
-      )}
+        );
+      })}
 
       {/*
-        Okuma kutusu — dokunulan noktanın fiyatı ve tarihi.
-
-        ⚠️ Kutu parmağın KARŞI TARAFINA yerleşiyor: parmak sol yarıdaysa
-        sağa, sağ yarıdaysa sola. Sabit bir yere koysaydık kullanıcının
-        parmağı yarı zaman okumak istediği yazının üstünde olurdu.
+        Okuma kutusu — parmağın KARŞI TARAFINA yerleşiyor.
+        Sabit bir yere koysaydık kullanıcının eli yarı zaman okumak
+        istediği yazının üstünde olurdu.
       */}
       {active !== undefined && (
         <View
           pointerEvents="none"
           style={[
             styles.readout,
-            activeX < width / 2 ? { right: 0 } : { left: 0 },
+            activeX < plotWidth / 2 ? { right: 0 } : { left: 0 },
           ]}
         >
           <Text style={styles.readoutPrice}>{formatPrice(active.priceTry)}</Text>
           <Text style={styles.readoutDate}>{formatChartDate(active.ts)}</Text>
         </View>
       )}
+
+      {/*
+        ⚠️ DOKUNMA KATMANI EN ÜSTTE VE YALNIZCA ÇİZİM ALANINDA.
+        Metin etiketlerinin üstünde durması gerekiyor, yoksa parmak
+        etikete denk geldiğinde olay yakalanmaz. Eksen bölgesini
+        kapsamıyor — orada kaydırmanın anlamı yok.
+      */}
+      <View
+        style={[styles.touchLayer, { width: plotWidth, height: plotHeight }]}
+        {...panResponder.panHandlers}
+      />
     </View>
   );
 }
@@ -305,14 +413,22 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontSize: 13,
   },
-  bound: {
+
+  priceLabel: {
     position: 'absolute',
     right: 0,
     color: '#64748B',
     fontSize: 10,
+    textAlign: 'right',
   },
-  boundTop: { top: 0 },
-  boundBottom: { bottom: 0 },
+  timeLabel: {
+    position: 'absolute',
+    bottom: 2,
+    color: '#64748B',
+    fontSize: 10,
+    width: 48,
+    textAlign: 'center',
+  },
 
   readout: {
     position: 'absolute',
@@ -333,5 +449,11 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 11,
     marginTop: 1,
+  },
+
+  touchLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
 });

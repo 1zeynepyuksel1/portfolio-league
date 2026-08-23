@@ -58,7 +58,9 @@ type RangeValue = (typeof RANGES)[number]['value'];
 
 /** Grafik ekran genişliğinden kenar boşlukları düşülerek hesaplanıyor. */
 const CHART_WIDTH = Dimensions.get('window').width - 40;
-const CHART_HEIGHT = 220;
+// Eksenler (altta 22px zaman, sağda 62px fiyat) yer kaplıyor;
+// çizim alanı eskisi kadar kalsın diye yükseklik artırıldı.
+const CHART_HEIGHT = 250;
 
 export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
   const [range, setRange] = useState<RangeValue>('1m');
@@ -177,6 +179,9 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
               points={points}
               width={CHART_WIDTH}
               height={CHART_HEIGHT}
+              // Zaman etiketlerinin biçimi buna göre seçiliyor:
+              // saatlik kovada "14:30", günlükte "12 Ara".
+              bucketSeconds={data?.bucketSeconds ?? 86400}
               onScrub={setScrubbed}
             />
           )}
