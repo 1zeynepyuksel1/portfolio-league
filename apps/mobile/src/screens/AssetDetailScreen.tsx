@@ -78,13 +78,31 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
    */
   const [scrubbed, setScrubbed] = useState<ChartPoint | null>(null);
 
+  /**
+   * Yakınlaştırma penceresi. `null` = yakınlaştırma yok, `range` geçerli.
+   *
+   * ⚠️ AYRI BİR STATE, `range`'İN YERİNE GEÇMİYOR.
+   * Kullanıcı bir aralık düğmesine bastığında pencere sıfırlanıyor;
+   * yakınlaştırdığında düğme seçili kalıyor ama sorgu pencereden gidiyor.
+   * İkisini tek state'te birleştirseydik "şu an hangisi geçerli" sorusu
+   * her okumada yeniden sorulurdu.
+   */
+  const [zoom, setZoom] = useState<{ from: Date; to: Date } | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
+      // Yakınlaştırılmışsa serbest pencere, değilse sabit aralık.
+      // Sunucu pencere genişliğine göre kova boyutunu kendisi seçiyor.
+      const query =
+        zoom !== null
+          ? `from=${zoom.from.toISOString()}&to=${zoom.to.toISOString()}`
+          : `range=${range}`;
+
       const res = await apiFetch<SeriesResponse>(
-        `/assets/${symbol}/prices?range=${range}`,
+        `/assets/${symbol}/prices?${query}`,
       );
       setData(res);
     } catch (err) {
@@ -92,7 +110,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [symbol, range]);
+  }, [symbol, range, zoom]);
 
   useEffect(() => {
     void load();
@@ -183,20 +201,48 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
               // saatlik kovada "14:30", günlükte "12 Ara".
               bucketSeconds={data?.bucketSeconds ?? 86400}
               onScrub={setScrubbed}
+              onZoom={setZoom}
             />
           )}
         </View>
 
-        <Text style={styles.hint}>
-          Grafiğe dokunup parmağınızı kaydırarak o andaki fiyatı görebilirsiniz.
-        </Text>
+        <View style={styles.hintRow}>
+          <Text style={styles.hint}>
+            Dokunup kaydır: fiyat oku · İki parmakla sıkıştır: yakınlaştır
+          </Text>
+
+          {zoom !== null && (
+            <Pressable onPress={() => setZoom(null)} hitSlop={8}>
+              <Text style={styles.reset}>Sıfırla</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/*
+          Yakınlaştırılmışken hangi pencerede olduğumuzu yazıyoruz.
+          Aralık düğmesi hâlâ seçili görünüyor ama sorgu ondan gitmiyor —
+          bunu söylemezsek kullanıcı "1A yazıyor ama bir ay göstermiyor"
+          diye haklı olarak şaşırır.
+        */}
+        {zoom !== null && (
+          <Text style={styles.zoomInfo}>
+            🔍 Yakınlaştırılmış: {formatChartDate(zoom.from.toISOString())}
+            {' → '}
+            {formatChartDate(zoom.to.toISOString())}
+          </Text>
+        )}
 
         {/* Aralık seçici */}
         <View style={styles.rangeRow}>
           {RANGES.map((r) => (
             <Pressable
               key={r.value}
-              onPress={() => setRange(r.value)}
+              onPress={() => {
+                setRange(r.value);
+                // Aralık seçmek yakınlaştırmayı iptal eder — aksi hâlde
+                // düğmeye basıp hiçbir şeyin değişmediğini görürdü.
+                setZoom(null);
+              }}
               style={[
                 styles.rangeButton,
                 range === r.value && styles.rangeButtonActive,
@@ -274,10 +320,27 @@ const styles = StyleSheet.create({
   rangeText: { color: '#94A3B8', fontSize: 12, fontWeight: '600' },
   rangeTextActive: { color: '#FFFFFF' },
 
+  hintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 6,
+  },
+  reset: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  zoomInfo: {
+    color: '#94A3B8',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
+  },
   hint: {
     color: '#64748B',
     fontSize: 11,
-    marginTop: 6,
     textAlign: 'center',
   },
   sparse: {

@@ -51,6 +51,14 @@ type Props = {
   bucketSeconds?: number;
   color?: string;
   onScrub?: (point: ChartPoint | null) => void;
+  /**
+   * İki parmakla sıkıştırınca yeni zaman penceresi.
+   *
+   * Üst ekran bunu sunucuya soruyor ve sunucu pencere genişliğine göre
+   * DAHA İNCE kovayla cevap veriyor — yani yakınlaştırmak gerçekten
+   * detay getiriyor, sadece çizgiyi büyütmüyor.
+   */
+  onZoom?: (window: { from: Date; to: Date }) => void;
 };
 
 /** Alt eksen için ayrılan yükseklik. */
@@ -140,6 +148,7 @@ export function PriceChart({
   bucketSeconds = DAY,
   color,
   onScrub,
+  onZoom,
 }: Props) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
@@ -155,6 +164,19 @@ export function PriceChart({
 
   const pointsRef = useRef(points);
   pointsRef.current = points;
+
+  const zoomRef = useRef(onZoom);
+  zoomRef.current = onZoom;
+
+  /**
+   * Sıkıştırma başlangıcındaki iki parmak arası mesafe.
+   *
+   * `null` = sıkıştırma yok (tek parmak, yani okuma).
+   */
+  const pinchStart = useRef<number | null>(null);
+
+  /** Sıkıştırma sırasında canlı ölçek — çizimi anında büyütmek için. */
+  const [pinchScale, setPinchScale] = useState(1);
 
   /** Çizimin yapıldığı alan — eksenler dışarıda kalıyor. */
   const plotWidth = width - AXIS_WIDTH;
@@ -195,19 +217,96 @@ export function PriceChart({
     return PADDING_Y + (1 - (value - min) / span) * innerHeight;
   }
 
+  /** İki dokunuş arasındaki piksel mesafesi. */
+  function touchDistance(event: GestureResponderEvent): number | null {
+    const touches = event.nativeEvent.touches;
+    if (touches.length < 2) return null;
+
+    const [a, b] = touches;
+    if (a === undefined || b === undefined) return null;
+
+    return Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
+  }
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: (e) => pick(e),
-        onPanResponderMove: (e) => pick(e),
-        onPanResponderRelease: () => clear(),
-        onPanResponderTerminate: () => clear(),
+
+        onPanResponderGrant: (e) => {
+          const d = touchDistance(e);
+          if (d !== null) {
+            pinchStart.current = d;
+          } else {
+            pick(e);
+          }
+        },
+
+        onPanResponderMove: (e) => {
+          const d = touchDistance(e);
+
+          if (d === null) {
+            // Tek parmak -> okuma
+            pick(e);
+            return;
+          }
+
+          // İki parmak -> sıkıştırma. Okuma imlecini kapat, yoksa
+          // parmaklardan biri fiyat okuyormuş gibi görünür.
+          if (pinchStart.current === null) {
+            pinchStart.current = d;
+            return;
+          }
+
+          clear();
+          setPinchScale(d / pinchStart.current);
+        },
+
+        onPanResponderRelease: () => finish(),
+        onPanResponderTerminate: () => finish(),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+
+  /**
+   * Dokunuş bitti: sıkıştırma yapıldıysa yeni pencereyi bildir.
+   *
+   * ⚠️ İSTEK PARMAK KALKINCA GİDİYOR, HER KAREDE DEĞİL.
+   * Hareket sırasında saniyede onlarca istek gitmesi hem sunucuyu yorar
+   * hem de cevaplar sırasız dönüp grafiğin titremesine yol açar. Hareket
+   * boyunca yalnızca yerel ölçek uygulanıyor (çizgi büyüyor), gerçek veri
+   * bir kez isteniyor.
+   */
+  function finish(): void {
+    const scale = pinchStart.current !== null ? pinchScale : null;
+
+    pinchStart.current = null;
+    setPinchScale(1);
+    clear();
+
+    const list = pointsRef.current;
+
+    // Anlamsız küçük hareketleri yok say — parmak titremesi yakınlaştırma
+    // sayılmamalı.
+    if (scale === null || list.length < 2 || Math.abs(scale - 1) < 0.15) {
+      return;
+    }
+
+    const firstTs = new Date(list[0]!.ts).getTime();
+    const lastTs = new Date(list[list.length - 1]!.ts).getTime();
+
+    const center = (firstTs + lastTs) / 2;
+
+    // Parmaklar AÇILIRSA (scale > 1) yakınlaşıyoruz -> pencere DARALIYOR.
+    const newSpan = (lastTs - firstTs) / scale;
+
+    zoomRef.current?.({
+      from: new Date(center - newSpan / 2),
+      to: new Date(center + newSpan / 2),
+    });
+  }
 
   function pick(event: GestureResponderEvent): void {
     const list = pointsRef.current;
@@ -280,7 +379,33 @@ export function PriceChart({
 
   return (
     <View style={{ width, height }}>
-      <Svg width={width} height={height}>
+      {/*
+        ⚠️ SIKIŞTIRMA SIRASINDA YEREL ÖLÇEK.
+
+        Parmak hareket ederken sunucuya gitmiyoruz — çizim yatayda
+        büyüyerek anında tepki veriyor. Gerçek veri parmak kalkınca bir
+        kez isteniyor.
+
+        Bu geri bildirim olmasaydı kullanıcı sıkıştırırken hiçbir şey
+        olmuyor sanır, parmağını kaldırır, sonra grafik birden değişirdi.
+        `overflow: hidden` büyüyen çizimin eksenlerin üstüne taşmasını
+        engelliyor.
+      */}
+      <View
+        style={{
+          width: plotWidth,
+          height: plotHeight,
+          overflow: 'hidden',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+        }}
+      >
+      <Svg
+        width={width}
+        height={height}
+        style={{ transform: [{ scaleX: pinchScale }] }}
+      >
         <Defs>
           <LinearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={stroke} stopOpacity={0.22} />
@@ -333,6 +458,7 @@ export function PriceChart({
           </>
         )}
       </Svg>
+      </View>
 
       {/* Fiyat seviyeleri — sağda, ızgara çizgileriyle hizalı */}
       {!flat &&
