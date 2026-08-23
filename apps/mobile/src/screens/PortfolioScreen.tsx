@@ -141,7 +141,20 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
     (tryCents: string, usdCents: string | null): string => {
       if (currency === 'try') return formatCentsString(tryCents);
 
-      return usdCents === null ? '—' : formatCentsString(usdCents, 'usd');
+      /**
+       * ⚠️ `=== null` DEĞİL, `== null` — VE BU FARK BİR ÇÖKME DEMEK.
+       *
+       * Alan sunucudan hiç GELMEZSE değeri `null` değil `undefined` olur.
+       * `undefined === null` yanlıştır, yani kontrol geçilir ve
+       * `BigInt(undefined)` çağrılır — bu bir TypeError fırlatır, React
+       * bütün ağacı söker ve ekran KAPKARA kalır. Hata mesajı hiçbir
+       * yerde görünmez.
+       *
+       * `== null` ikisini birden yakalıyor. Tip sistemi sunucunun alanı
+       * her zaman göndereceğini SÖYLÜYOR ama bu bir söz, garanti değil:
+       * eski bir sunucu sürümü ya da yarım dağıtım bu sözü bozar.
+       */
+      return usdCents == null ? '—' : formatCentsString(usdCents, 'usd');
     },
     [currency],
   );
@@ -231,7 +244,7 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
 
               {/* Kur görünür olmalı: kullanıcı dolar tutarını kendi
                   doğrulayabilsin. */}
-              {currency === 'usd' && portfolio.usdTryRate !== null && (
+              {currency === 'usd' && portfolio.usdTryRate != null && (
                 <Text style={styles.disclaimer}>
                   1 $ = {formatPrice(portfolio.usdTryRate)} · bugünün kuruyla
                 </Text>
@@ -318,8 +331,8 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
               <Text style={styles.positionQuantity}>
                 {formatQuantity(item.quantity)} adet
                 {currency === 'usd'
-                  ? item.priceUsd !== null && ` · ${formatPrice(item.priceUsd, 'usd')}`
-                  : item.priceTry !== null && ` · ${formatPrice(item.priceTry)}`}
+                  ? item.priceUsd != null && ` · ${formatPrice(item.priceUsd, 'usd')}`
+                  : item.priceTry != null && ` · ${formatPrice(item.priceTry)}`}
               </Text>
               <Text style={styles.positionAsOf}>
                 {formatRelativeTime(item.asOf)}

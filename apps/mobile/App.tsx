@@ -21,6 +21,7 @@ import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { colors } from './src/theme';
 import { CurrencyProvider } from './src/lib/currency';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 type User = {
   id: string;
@@ -56,9 +57,11 @@ type AuthView = 'welcome' | 'login' | 'register';
  */
 export default function App() {
   return (
-    <CurrencyProvider>
-      <AppShell />
-    </CurrencyProvider>
+    <ErrorBoundary>
+      <CurrencyProvider>
+        <AppShell />
+      </CurrencyProvider>
+    </ErrorBoundary>
   );
 }
 

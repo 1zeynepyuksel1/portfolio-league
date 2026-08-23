@@ -204,7 +204,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
         {/* Hangi kurla çevrildiği görünür olmalı. Dolar tutarını gösterip
             kuru saklamak, kullanıcıya doğrulayamayacağı bir sayı vermek
             olurdu. */}
-        {currency === 'usd' && rate !== null && (
+        {currency === 'usd' && rate != null && (
           <Text style={styles.subtitle}>
             1 $ = {formatPrice(rate)} · çevrim sunucuda yapılır
           </Text>
@@ -258,11 +258,14 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
                 {/* ⚠️ Dolar görünümünde `priceUsd` boş gelirse '—' gösteriliyor,
                     `priceTry`'a DÜŞÜLMÜYOR. Düşseydik TL rakamı $ simgesiyle
                     yazılır ve sayı makul görünürdü — sessiz yalan. */}
+                {/* ⚠️ `== null` bilerek: alan hiç gelmezse `undefined`
+                    olur ve `=== null` onu kaçırır — sonra
+                    `BigInt(undefined)` çökerdi. */}
                 {currency === 'usd'
-                  ? item.priceUsd === null
+                  ? item.priceUsd == null
                     ? '—'
                     : formatPrice(item.priceUsd, 'usd')
-                  : item.priceTry === null
+                  : item.priceTry == null
                     ? '—'
                     : formatPrice(item.priceTry)}
               </Text>
