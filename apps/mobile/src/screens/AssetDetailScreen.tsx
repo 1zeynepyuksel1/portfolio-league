@@ -22,6 +22,7 @@ import {
   type ChartPoint,
 } from '../components/PriceChart';
 import { formatPrice, formatRelativeTime } from '../lib/format';
+import { colors, fonts } from '../theme';
 
 type Props = {
   symbol: string;
@@ -163,7 +164,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
             <Text
               style={[
                 styles.change,
-                { color: rising ? '#43b56f' : '#ec3013' },
+                { color: rising ? colors.gain : colors.accent },
               ]}
             >
               {/* Gerçek eksi işareti değil normal işaret: burada hizalama
@@ -186,7 +187,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
         <View style={styles.chartBox}>
           {loading ? (
             <View style={styles.chartPlaceholder}>
-              <ActivityIndicator color="#10B981" />
+              <ActivityIndicator color={colors.gain} />
             </View>
           ) : error !== '' ? (
             <View style={styles.chartPlaceholder}>
@@ -283,18 +284,18 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B132B' },
+  container: { flex: 1, backgroundColor: colors.surface },
   content: { padding: 20, paddingBottom: 40 },
 
   header: { gap: 8, marginBottom: 16 },
-  back: { color: '#10B981', fontSize: 15, fontWeight: '600' },
-  title: { color: '#FFFFFF', fontSize: 22, fontWeight: 'bold' },
+  back: { color: colors.gain, fontSize: 15, fontFamily: fonts.semibold },
+  title: { color: colors.ink, fontSize: 22, fontFamily: fonts.bold },
 
   priceBlock: { marginBottom: 12 },
-  price: { color: '#FFFFFF', fontSize: 30, fontWeight: 'bold' },
-  change: { fontSize: 15, fontWeight: '600', marginTop: 2 },
-  changeLabel: { color: '#64748B', fontWeight: '400', fontSize: 13 },
-  asOf: { color: '#64748B', fontSize: 12, marginTop: 2 },
+  price: { color: colors.ink, fontSize: 30, fontFamily: fonts.bold },
+  change: { fontSize: 15, fontFamily: fonts.semibold, marginTop: 2 },
+  changeLabel: { color: colors.inkFaint, fontFamily: fonts.regular, fontSize: 13 },
+  asOf: { color: colors.inkFaint, fontSize: 12, marginTop: 2 },
 
   chartBox: { marginVertical: 8 },
   chartPlaceholder: {
@@ -302,7 +303,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  errorText: { color: '#F87171', fontSize: 13 },
+  errorText: { color: colors.error, fontSize: 13 },
 
   rangeRow: {
     flexDirection: 'row',
@@ -314,11 +315,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     alignItems: 'center',
-    backgroundColor: '#1C2541',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
   },
-  rangeButtonActive: { backgroundColor: '#10B981' },
-  rangeText: { color: '#94A3B8', fontSize: 12, fontWeight: '600' },
-  rangeTextActive: { color: '#FFFFFF' },
+  rangeButtonActive: { backgroundColor: colors.gain },
+  rangeText: { color: colors.inkMuted, fontSize: 12, fontFamily: fonts.semibold },
+  rangeTextActive: { color: colors.ink },
 
   hintRow: {
     flexDirection: 'row',
@@ -328,34 +331,34 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   reset: {
-    color: '#10B981',
+    color: colors.gain,
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   zoomInfo: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 11,
     textAlign: 'center',
     marginTop: 4,
   },
   hint: {
-    color: '#64748B',
+    color: colors.inkFaint,
     fontSize: 11,
     textAlign: 'center',
   },
   sparse: {
-    color: '#64748B',
+    color: colors.inkFaint,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 14,
   },
 
   tradeButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.gain,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 24,
   },
-  tradeButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: 'bold' },
+  tradeButtonText: { color: colors.ink, fontSize: 17, fontFamily: fonts.bold },
 });

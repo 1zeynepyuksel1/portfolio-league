@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useCurrency } from '../lib/currency';
+import { colors, fonts } from '../theme';
 
 /**
  * CurrencyToggle — ₺ / $ arasında geçiş.
@@ -60,7 +61,7 @@ export function CurrencyToggle() {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colors.fieldFill,
     borderRadius: 8,
     padding: 2,
   },
@@ -70,14 +71,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   optionActive: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: colors.hairline,
   },
   label: {
     fontSize: 15,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.45)',
+    fontFamily: fonts.bold,
+    color: colors.inkFaint,
   },
   labelActive: {
-    color: '#ffffff',
+    color: colors.ink,
   },
 });

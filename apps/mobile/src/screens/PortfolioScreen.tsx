@@ -18,6 +18,7 @@ import {
   formatQuantity,
   formatRelativeTime,
 } from '../lib/format';
+import { colors, fonts } from '../theme';
 
 /**
  * PORTFÖY EKRANI — GET /portfolio
@@ -198,7 +199,7 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#10B981" />
+        <ActivityIndicator size="large" color={colors.gain} />
         <Text style={styles.mutedText}>Portföy yükleniyor...</Text>
       </View>
     );
@@ -230,7 +231,7 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void load(true)}
-            tintColor="#10B981"
+            tintColor={colors.gain}
           />
         }
         ListHeaderComponent={
@@ -360,7 +361,7 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
                     styles.positionProfit,
                     {
                       color:
-                        BigInt(item.profitCents) >= 0n ? '#10B981' : '#EF4444',
+                        BigInt(item.profitCents) >= 0n ? colors.gain : colors.accent,
                     },
                   ]}
                 >
@@ -398,13 +399,13 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
+    backgroundColor: colors.surface,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0B132B',
+    backgroundColor: colors.surface,
     paddingHorizontal: 30,
   },
   listContent: {
@@ -413,8 +414,8 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   summaryCard: {
-    backgroundColor: '#1C2541',
-    borderColor: '#10B981',
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.gain,
     borderWidth: 1.5,
     borderRadius: 16,
     padding: 20,
@@ -426,14 +427,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   summaryLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   summaryValue: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 30,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginTop: 6,
   },
   profitBadge: {
@@ -443,23 +444,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   profitBadgePositive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: colors.gainSoft,
   },
   profitBadgeNegative: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: colors.accentSoft,
   },
   profitText: {
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     fontSize: 14,
   },
   profitTextPositive: {
-    color: '#10B981',
+    color: colors.gain,
   },
   profitTextNegative: {
-    color: '#EF4444',
+    color: colors.accent,
   },
   disclaimer: {
-    color: '#64748B',
+    color: colors.inkFaint,
     fontSize: 11,
     marginTop: 10,
     textAlign: 'center',
@@ -471,44 +472,48 @@ const styles = StyleSheet.create({
   },
   splitCard: {
     flex: 1,
-    backgroundColor: '#1C2541',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
     borderRadius: 12,
     padding: 14,
   },
   splitLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
   },
   splitValue: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginTop: 4,
   },
   warningBox: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    borderColor: '#F59E0B',
+    backgroundColor: colors.warnSoft,
+    borderColor: colors.warn,
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
     marginTop: 12,
   },
   warningText: {
-    color: '#FBBF24',
+    color: colors.warn,
     fontSize: 12,
     lineHeight: 17,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginTop: 20,
     marginBottom: 6,
   },
   positionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C2541',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -518,31 +523,31 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#0B132B',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   symbolText: {
-    color: '#10B981',
-    fontWeight: 'bold',
+    color: colors.gain,
+    fontFamily: fonts.bold,
     fontSize: 11,
   },
   positionInfo: {
     flex: 1,
   },
   positionSymbol: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.ink,
+    fontFamily: fonts.semibold,
     fontSize: 15,
   },
   positionQuantity: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
     marginTop: 2,
   },
   positionAsOf: {
-    color: '#64748B',
+    color: colors.inkFaint,
     fontSize: 10,
     marginTop: 2,
   },
@@ -550,17 +555,17 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   positionValue: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
     fontSize: 15,
   },
   positionProfit: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
     marginTop: 2,
   },
   positionShare: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 11,
     marginTop: 3,
   },
@@ -573,51 +578,53 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyTitle: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   mutedText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
     marginTop: 8,
     textAlign: 'center',
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: '#EF4444',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 10,
     padding: 14,
   },
   errorText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 13,
     textAlign: 'center',
   },
   retryButton: {
     marginTop: 14,
-    backgroundColor: '#1C2541',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 24,
   },
   retryText: {
-    color: '#10B981',
-    fontWeight: '600',
+    color: colors.gain,
+    fontFamily: fonts.semibold,
   },
   logoutButton: {
     marginTop: 24,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: '#EF4444',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
   },
   logoutText: {
-    color: '#F87171',
-    fontWeight: 'bold',
+    color: colors.error,
+    fontFamily: fonts.bold,
     fontSize: 14,
   },
 });

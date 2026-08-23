@@ -63,6 +63,43 @@ export const colors = {
   volumeBar: ink(0.07),
   /** Grafik etiketleri (XU100, BIST...). */
   chartLabel: ink(0.08),
+
+  // -------------------------------------------------------------------------
+  // AŞAĞISI TASARIM TESLİMİNDE YOKTU — SONRADAN EKLENDİ
+  // -------------------------------------------------------------------------
+  //
+  // Teslim yalnızca giriş ekranlarını kapsıyordu; orada rozet, uyarı kutusu
+  // ya da eksen etiketi yok. Uygulama ekranları bunlara ihtiyaç duyuyor.
+  //
+  // ⚠️ HEPSİ MEVCUT ÜÇ RENKTEN TÜRETİLDİ, yeni renk uydurulmadı. Palete
+  // dördüncü bir ton eklemek tasarımı sessizce bozmanın en kolay yolu:
+  // tek tek bakınca hepsi makul görünür, yan yana gelince dağılır.
+
+  /** Yükseliş rozetinin dolgusu — `gain`in %15'i. */
+  gainSoft: 'rgba(67, 181, 111, 0.15)',
+  /** Düşüş rozetinin dolgusu — `accent`in %15'i. */
+  accentSoft: 'rgba(236, 48, 19, 0.15)',
+
+  /**
+   * Uyarı. Ne yükseliş ne düşüş — "dikkat et" demek.
+   *
+   * Tasarımda karşılığı yok. `accent` kullanamazdık: kullanıcı kırmızıyı
+   * "düşüş" diye okumayı öğrendi, uyarıyı da kırmızı yapsaydık "fiyat
+   * eski" mesajı zarar sanılırdı.
+   */
+  warn: '#d9a441',
+  warnSoft: 'rgba(217, 164, 65, 0.15)',
+
+  /** Grafik ekseni: çizgiler ve rakamlar. */
+  axisLine: ink(0.10),
+  axisText: ink(0.40),
+  /** Izgara — eksen çizgisinden daha soluk, arka planda kalmalı. */
+  axisGrid: ink(0.06),
+  /**
+   * Dokunma imlecinin fiyat balonu. Yarı saydam DEĞİL, opak:
+   * altındaki çizgi rakamın içinden geçerse rakam okunmaz.
+   */
+  readoutFill: '#1b1b1d',
 } as const;
 
 /**

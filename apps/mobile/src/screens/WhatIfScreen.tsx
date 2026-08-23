@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
+import { colors, fonts } from '../theme';
 
 type WhatIfResult = {
   symbol: string;
@@ -333,7 +334,7 @@ export function WhatIfScreen() {
       <TextInput
         style={styles.input}
         placeholder="YYYY-AA-GG (örn: 2020-03-12)"
-        placeholderTextColor="#64748B"
+        placeholderTextColor={colors.inkFaint}
         value={dateString}
         onChangeText={(text) => {
           // Girilen metni parçalara ayırıp state'e dağıtıyoruz; böylece
@@ -375,7 +376,7 @@ export function WhatIfScreen() {
       <TextInput
         style={styles.input}
         placeholder="Örn: 10000"
-        placeholderTextColor="#64748B"
+        placeholderTextColor={colors.inkFaint}
         value={amountTry}
         onChangeText={setAmountTry}
         keyboardType="numeric"
@@ -391,7 +392,7 @@ export function WhatIfScreen() {
         disabled={loading || tooEarly}
       >
         {loading ? (
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color={colors.ink} />
         ) : (
           <Text style={styles.calculateButtonText}>🚀 Simülasyonu Hesapla</Text>
         )}
@@ -462,7 +463,7 @@ export function WhatIfScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
+    backgroundColor: colors.surface,
   },
   scrollContent: {
     padding: 20,
@@ -475,26 +476,26 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 26,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    color: colors.ink,
   },
   subtitle: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: colors.inkMuted,
     marginTop: 4,
     textAlign: 'center',
   },
   sectionLabel: {
-    color: '#E2E8F0',
+    color: colors.ink,
     fontSize: 14,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
     marginTop: 18,
     marginBottom: 8,
   },
   subLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     marginTop: 10,
     marginBottom: 6,
   },
@@ -506,8 +507,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1C2541',
-    borderColor: '#10B981',
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.gain,
     borderWidth: 1.5,
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -522,18 +523,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   selectedAssetText: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   dropdownArrow: {
-    color: '#10B981',
+    color: colors.gain,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   dropdownList: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
     borderWidth: 1,
     borderRadius: 12,
     marginTop: 6,
@@ -545,19 +546,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 10,
-    borderBottomColor: '#334155',
+    borderBottomColor: colors.hairline,
     borderBottomWidth: 0.5,
   },
   dropdownItemActive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: colors.gainSoft,
   },
   dropdownItemText: {
-    color: '#E2E8F0',
+    color: colors.ink,
     fontSize: 14,
   },
   dropdownItemTextActive: {
-    color: '#10B981',
-    fontWeight: 'bold',
+    color: colors.gain,
+    fontFamily: fonts.bold,
   },
   presetDates: {
     flexDirection: 'row',
@@ -566,32 +567,32 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   presetButton: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
     borderWidth: 1,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 8,
   },
   presetButtonActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   presetText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
   },
   presetTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
   },
   horizontalScroll: {
     flexDirection: 'row',
     marginBottom: 6,
   },
   yearChip: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
     borderWidth: 1,
     paddingVertical: 8,
     paddingHorizontal: 14,
@@ -599,21 +600,21 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   yearChipActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: colors.gain,
+    borderColor: colors.gain,
   },
   yearChipText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   yearChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
   },
   monthChip: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
     borderWidth: 1,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -621,23 +622,23 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   monthChipActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   monthChipText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
   },
   monthChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
   },
   datePreviewCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderColor: 'rgba(59, 130, 246, 0.4)',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.hairlineStrong,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 14,
@@ -646,28 +647,28 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   datePreviewLabel: {
-    color: '#93C5FD',
+    color: colors.inkMuted,
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   datePreviewValue: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 15,
   },
   calculateButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.gain,
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
@@ -677,25 +678,25 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   calculateButtonText: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: '#EF4444',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
     marginTop: 16,
   },
   errorText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 13,
   },
   resultCard: {
-    backgroundColor: '#1C2541',
-    borderColor: '#10B981',
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.gain,
     borderWidth: 1.5,
     borderRadius: 16,
     padding: 18,
@@ -703,8 +704,8 @@ const styles = StyleSheet.create({
   },
   resultCardTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    color: colors.ink,
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -714,36 +715,36 @@ const styles = StyleSheet.create({
     marginVertical: 3,
   },
   priceLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
   },
   priceValue: {
-    color: '#E2E8F0',
+    color: colors.ink,
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   divider: {
     height: 1,
-    backgroundColor: '#334155',
+    backgroundColor: colors.hairline,
     marginVertical: 12,
   },
   totalValueLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
     textAlign: 'center',
   },
   totalValueAmount: {
-    color: '#10B981',
+    color: colors.gain,
     fontSize: 28,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     textAlign: 'center',
     marginVertical: 4,
   },
   profitText: {
-    color: '#34D399',
+    color: colors.gain,
     fontSize: 14,
     textAlign: 'center',
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
     marginBottom: 14,
   },
   badgeContainer: {
@@ -753,37 +754,37 @@ const styles = StyleSheet.create({
   },
   nominalBadge: {
     flex: 1,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: colors.gainSoft,
     borderRadius: 8,
     padding: 8,
     alignItems: 'center',
   },
   inflationBadge: {
     flex: 1,
-    backgroundColor: 'rgba(249, 115, 22, 0.12)',
+    backgroundColor: colors.warnSoft,
     borderRadius: 8,
     padding: 8,
     alignItems: 'center',
   },
   badgeLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 11,
   },
   nominalBadgeValue: {
-    color: '#10B981',
+    color: colors.gain,
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginTop: 2,
   },
   inflationBadgeValue: {
-    color: '#FB923C',
+    color: colors.warn,
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginTop: 2,
   },
   realBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 10,
     padding: 10,
@@ -791,19 +792,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   realBadgeTitle: {
-    color: '#93C5FD',
+    color: colors.inkMuted,
     fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     letterSpacing: 0.5,
   },
   realBadgeValue: {
-    color: '#60A5FA',
+    color: colors.accent,
     fontSize: 22,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginTop: 4,
   },
   summaryText: {
-    color: '#CBD5E1',
+    color: colors.ink,
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',

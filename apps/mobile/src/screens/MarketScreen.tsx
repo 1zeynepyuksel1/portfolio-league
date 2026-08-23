@@ -13,6 +13,7 @@ import { apiFetch } from '../api/client';
 import { formatPrice, formatRelativeTime } from '../lib/format';
 import { useCurrency } from '../lib/currency';
 import { CurrencyToggle } from '../components/CurrencyToggle';
+import { colors, fonts } from '../theme';
 
 /**
  * PİYASA EKRANI — GET /assets
@@ -181,7 +182,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#10B981" />
+        <ActivityIndicator size="large" color={colors.gain} />
         <Text style={styles.mutedText}>Fiyatlar yükleniyor...</Text>
       </View>
     );
@@ -225,7 +226,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void load(true)}
-            tintColor="#10B981"
+            tintColor={colors.gain}
           />
         }
         ListEmptyComponent={
@@ -296,7 +297,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
+    backgroundColor: colors.surface,
   },
   centered: {
     flex: 1,
@@ -316,17 +317,17 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    color: colors.ink,
   },
   subtitle: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: colors.inkMuted,
     marginTop: 2,
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: '#EF4444',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   errorText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 13,
     textAlign: 'center',
   },
@@ -346,17 +347,21 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C2541',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginVertical: 4,
   },
   rowPressed: {
-    backgroundColor: '#243154',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
   },
   chevron: {
-    color: '#64748B',
+    color: colors.inkFaint,
     fontSize: 22,
     marginLeft: 10,
   },
@@ -364,26 +369,26 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#0B132B',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   symbolText: {
-    color: '#10B981',
-    fontWeight: 'bold',
+    color: colors.gain,
+    fontFamily: fonts.bold,
     fontSize: 12,
   },
   nameColumn: {
     flex: 1,
   },
   symbol: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.ink,
+    fontFamily: fonts.semibold,
     fontSize: 15,
   },
   name: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
     marginTop: 2,
   },
@@ -391,12 +396,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   price: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
     fontSize: 15,
   },
   staleWarning: {
-    color: '#FBBF24',
+    color: colors.warn,
     fontSize: 11,
     marginTop: 3,
   },
@@ -406,11 +411,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    color: colors.ink,
   },
   mutedText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
     marginTop: 8,
     textAlign: 'center',

@@ -195,6 +195,33 @@ iki farklı şeyi ölçüyor.
 (`fx-test-…@example.com`, `fx-pos-…@example.com`) ve biri 0,005 BTC aldı.
 Lig sıralamasında görünürler; temizlenmeleri gerekiyor.
 
+### 10. Tasarım dili birliği — 23 Ağu 2026
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/theme.ts` (yeni belirteçler) | Yeni renkler neden **mevcut üçünden türetildi**, palete dördüncü bir ton eklenmedi? `warn` neden `accent` (kırmızı) olamazdı? `readoutFill` neden yarı saydam değil **opak**? |
+| `mobile/src/components/PriceChart.tsx` | `fontWeight: 'bold'` neden `fontFamily: fonts.semibold` ile değiştirildi — ikisi aynı şeyi yapmıyor mu? |
+| `mobile/src/screens/*.tsx` (5 ekran) | Ham hex yerine anlamsal belirteç kullanmanın kazancı ne? `colors.gain` yerine `#10B981` kalsaydı "yükseliş rengini değiştir" isteği kaç dosyaya dokunurdu? |
+
+**⚠️ Yol boyunca yapılan iki hata — ikisi de otomatik değiştirmeden:**
+
+1. **JSX özniteliğinde süslü parantez unutuldu.** `tintColor="#10B981"` düz
+   metin değişimiyle `tintColor=colors.gain` oldu — JSX'te sözdizimi hatası.
+   Doğrusu `tintColor={colors.gain}`. Değer bağlamı (`'#fff'`) ile öznitelik
+   bağlamı (`="#fff"`) farklı kurallara tabi.
+2. **Import çok satırlı bir import'un ortasına girdi.** "`import ` ile
+   başlayan son satır" ölçütü, `import {` ile başlayıp üç satır sonra
+   `} from '...'` ile biten blokta yanlış yeri buluyor. Ölçüt **noktalı
+   virgülle biten satır** olmalıydı.
+
+İkisi de `npx tsc` ile anında yakalandı ve dosyalar `git checkout` ile geri
+alınıp yeniden yapıldı. **Ders:** toplu değiştirme yaparken bağlamı olmayan
+metin değişimi kırılgan — ve tip kontrolü bu kırılganlığın ağıdır.
+
+**Kapsam kararı:** `FriendsScreen` ve `LeaderboardScreen` **değiştirilmedi**.
+İkisi de Zeynep'in şeridi (`docs/02-gorev-paylasimi.md`). Uygulama şu an
+karışık görünüyor — kendi ekranlarım kömür grisi, onunkiler lacivert. Bu
+bilinçli: başkasının şeridine izinsiz girmek, karışık görünmekten kötü.
+
 ### Küçük değişiklikler
 - `mobile/src/screens/WhatIfScreen.tsx` — sabit 5 varlıklık liste kaldırıldı,
   `/assets`'ten çekiliyor. **Ne sorulacak:** liste koda gömülüyken sunucuya

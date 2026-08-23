@@ -33,6 +33,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import { formatPrice } from '../lib/format';
+import { colors, fonts } from '../theme';
 
 export type ChartPoint = { ts: string; priceTry: string };
 
@@ -352,7 +353,7 @@ export function PriceChart({
   const area = `M ${coords.join(' L ')} L ${plotWidth},${plotHeight} L 0,${plotHeight} Z`;
 
   const rising = (values[values.length - 1] as number) >= (values[0] as number);
-  const stroke = color ?? (rising ? '#43b56f' : '#ec3013');
+  const stroke = color ?? (rising ? colors.gain : colors.accent);
 
   const active = activeIndex !== null ? points[activeIndex] : undefined;
   const activeX = activeIndex !== null ? xOf(activeIndex) : 0;
@@ -423,7 +424,7 @@ export function PriceChart({
               y1={y}
               x2={plotWidth}
               y2={y}
-              stroke="rgba(148, 163, 184, 0.12)"
+              stroke={colors.axisGrid}
               strokeWidth={1}
             />
           );
@@ -448,12 +449,12 @@ export function PriceChart({
               y1={0}
               x2={activeX}
               y2={plotHeight}
-              stroke="#94A3B8"
+              stroke={colors.axisText}
               strokeWidth={1}
               strokeDasharray="4 4"
             />
             {/* İki daire: dış halka noktayı çizgiden ayırıyor */}
-            <Circle cx={activeX} cy={activeY} r={6} fill="#0B132B" />
+            <Circle cx={activeX} cy={activeY} r={6} fill={colors.surface} />
             <Circle cx={activeX} cy={activeY} r={4} fill={stroke} />
           </>
         )}
@@ -536,22 +537,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
-    color: '#64748B',
+    color: colors.axisText,
+    fontFamily: fonts.regular,
     fontSize: 13,
   },
 
   priceLabel: {
     position: 'absolute',
     right: 0,
-    color: '#64748B',
+    color: colors.axisText,
+    fontFamily: fonts.regular,
     fontSize: 10,
+    letterSpacing: 0.3,
     textAlign: 'right',
   },
   timeLabel: {
     position: 'absolute',
     bottom: 2,
-    color: '#64748B',
+    color: colors.axisText,
+    fontFamily: fonts.regular,
     fontSize: 10,
+    letterSpacing: 0.3,
     width: 48,
     textAlign: 'center',
   },
@@ -559,20 +565,24 @@ const styles = StyleSheet.create({
   readout: {
     position: 'absolute',
     top: 0,
-    backgroundColor: 'rgba(11, 19, 43, 0.92)',
-    borderColor: '#334155',
+    backgroundColor: colors.readoutFill,
+    borderColor: colors.hairline,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   readoutPrice: {
-    color: '#FFFFFF',
+    color: colors.ink,
+    // ⚠️ `fontWeight: 'bold'` DEĞİL. Archivo'nun kalın kesimi ayrı bir
+    // dosya; RN ona ancak fontFamily ile ulaşıyor. `fontWeight` verseydik
+    // sistem fontunu sahte-kalınlaştırırdı ve harfler tasarımdan sapardı.
+    fontFamily: fonts.semibold,
     fontSize: 14,
-    fontWeight: 'bold',
   },
   readoutDate: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
+    fontFamily: fonts.regular,
     fontSize: 11,
     marginTop: 1,
   },
