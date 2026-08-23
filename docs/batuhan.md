@@ -125,6 +125,45 @@ olduğu için şimdilik bırakıldı ama **bilinçli bir borç**, kaza değil.
 bir pozisyon **−%0,10** gösterdi. Bu tam olarak komisyon oranı; `grossCents`
 kullansaydık kâr **%0,00** çıkar ve kullanıcı ödediği komisyonu hiç görmezdi.
 
+### 8. Denetim — listeye hiç girmemiş 13 dosya (23 Ağu 2026)
+
+Bu bölüm bir **hatanın telafisi.** Yukarıdaki bölümler yazılırken "asıl iş"
+sayılan dosyalar listelendi, yanlarında değişen dosyalar atlandı. Denetimde
+13 tanesi çıktı — hepsi benim yazdığım ya da değiştirdiğim kod.
+
+**Neden önemli:** okuma borcu eksikse borç yokmuş gibi görünür. Listeye
+girmeyen dosya sorulmayan dosyadır.
+
+#### Emir ve portföy tarafı
+| Dosya | Ne sorulacak |
+|---|---|
+| `orders/orders.schema.ts` | `quantity` neden `number` değil **`string`**? Number olsaydı zincir tam olarak nerede kırılırdı — doğrulamadan önce mi sonra mı? Ondalık sınırı neden şemada, `toAmount` içinde değil? Düzenli ifade negatifi nasıl eliyor? |
+| `orders/calculate.test.ts` | Hangi testler yuvarlamayı, hangileri ölçek matematiğini kilitliyor? |
+| `portfolio/repository.ts` (`getOrderLedger`) | Emir defteri neden **tarih sırasına göre** okunuyor — sıra bozulsa maliyet ne olurdu? |
+| `portfolio/service.ts` | Maliyet hesabı neden servis katmanında birleştiriliyor, repository'de değil? |
+| `portfolio/router.ts` | `profitCents` ve `profitPercent` JSON'a nasıl yazılıyor — biri string biri sayı, neden? |
+| `portfolio/calculate.test.ts` · `portfolio/cost-basis.test.ts` | Yarım satış testi hangi sayıyı kilitliyor? (735.510 → 367.755) |
+| `mobile/src/screens/PortfolioScreen.tsx` | Yeşil/kırmızı kararı neye bakıyor — `profitCents` mi `profitPercent` mi? `profitPercent` `null` gelince ekran ne gösteriyor ve neden **%0 değil**? |
+
+#### Altyapı
+| Dosya | Ne sorulacak |
+|---|---|
+| `app.ts` | Router'lar neden bu sırayla monte ediliyor? `/assets` yolu neden `marketRouter`'a bağlı — dosya adıyla yol adı neden aynı değil? |
+| `market/scheduler.ts` | ⚠️ Cron ifadesi neden **altı alan**, standart cron beş değil mi? Kopyalanıp başka sisteme taşınırsa ne olur? `running` bayrağı olmasaydı iki tur çakışınca ne olurdu — veritabanı korur mu, korursa bayrak neden var? |
+| `market/evds.test.ts` | 1000 gözlem sınırı testte nasıl temsil ediliyor? |
+| `mobile/src/lib/storage.ts` | ⚠️ Neden **iki farklı depo** — telefonda `SecureStore`, tarayıcıda `localStorage`? `AsyncStorage` neden bilerek reddedildi? Tarayıcıdaki düz metin saklama hangi gerekçeyle kabul edildi ve bu gerekçe **dağıtımda hâlâ geçerli mi**? |
+| `mobile/src/api/client.ts` | Token yenileme (`refresh`) hangi anda tetikleniyor? Aynı anda iki istek 401 alırsa ne oluyor — iki kez mi yenileniyor? |
+| `mobile/src/lib/format.ts` | ⚠️ Hiçbir fonksiyon neden `Number()` kullanmıyor? `decimalToCents` metni nasıl `bigint`e çeviriyor — ve neden `parseFloat` ile değil? |
+| `mobile/src/screens/AuthScreen.tsx` | ⚠️ Bu dosya artık **hiçbir yerden çağrılmıyor** — Login/Register ekranları yerine geçti. Silinmeli mi, yoksa Zeynep hâlâ kullanıyor mu? Zeynep'e sorulacak. |
+
+#### Benim borcum değil ama okunmamış (Zeynep'in yazdığı)
+`db/schema.ts` · `market/tufe-cron.ts` · `what-if/schema.ts` ·
+`screens/FriendsScreen.tsx` · `screens/LeaderboardScreen.tsx`
+
+Bunları ben değiştirmedim, o yüzden yukarıdaki tablolarda yok. Ama
+`db/schema.ts` bütün projenin veri modeli — okumadan portföy hesabının
+neden öyle olduğu tam anlaşılmaz.
+
 ### Küçük değişiklikler
 - `mobile/src/screens/WhatIfScreen.tsx` — sabit 5 varlıklık liste kaldırıldı,
   `/assets`'ten çekiliyor. **Ne sorulacak:** liste koda gömülüyken sunucuya
@@ -206,10 +245,10 @@ Varlık, fiyat, emir, portföy tipleri. Bu paket iki şeridin sözleşmesi — t
       Aynı fonksiyon gece cron'unu da besleyecek (`portfolio_snapshots`, `reason='daily'`).
       Emirde snapshot yazılmıyor — bkz. 01-plan.md 8.1
 - [x] Piyasa ve Portföy ekranları
-- [ ] **Al/Sat ekranı** ← Faz 1'in kalan TEK maddesi
-      Emir motoru yazıldı, 16 testi geçiyor, eşzamanlılık kanıtlandı, `POST /orders`
-      ayakta — ama hiçbir ekran onu çağırmıyor. Backend'in en çok emek gören
-      parçası şu an görünmez.
+- [x] **Al/Sat ekranı** — 21 Ağu 2026, Faz 1 kapandı
+      `TradeScreen.tsx`. Canlı doğrulandı: emir 201, aynı `Idempotency-Key` ile
+      tekrar → aynı `orderId` ve bakiye değişmedi, bakiyeyi aşan emir → 422.
+      İstemci tahmini sunucu sonucuyla birebir tuttu (`369393 / 369 / 369762`).
 
 ### Emir motoru hakkında şimdiden bilmen gerekenler
 
