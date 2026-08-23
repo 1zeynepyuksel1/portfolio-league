@@ -210,6 +210,14 @@ export async function getPriceSeries(
   assetId: string,
   bucketSeconds: number,
   since: Date | null,
+  /**
+   * Üst sınır — yalnızca yakınlaştırmada kullanılıyor.
+   *
+   * Sabit aralıklarda ("son 1 ay") üst sınır her zaman "şimdi", yani
+   * gereksiz. Serbest pencerede kullanıcı geçmişte bir bölgeye
+   * yakınlaştırabiliyor ve o zaman iki uç da lazım.
+   */
+  until: Date | null = null,
 ): Promise<PricePoint[]> {
   /**
    * `since === null` -> "Tümü": alt sınır yok, varlığın ilk kaydından başlar.
@@ -234,6 +242,12 @@ export async function getPriceSeries(
       ? sql`TRUE`
       : sql`ts >= ${since.toISOString()}::timestamp`;
 
+  // Aynı gerekçe: iç içe parçada Date bağlanamıyor, ISO metin + cast.
+  const upperBound =
+    until === null
+      ? sql`TRUE`
+      : sql`ts <= ${until.toISOString()}::timestamp`;
+
   const result = await db.execute<{
     ts: string | Date;
     price_try: string;
@@ -245,7 +259,7 @@ export async function getPriceSeries(
         price_try,
         floor(extract(epoch FROM ts) / ${bucketSeconds}) AS bucket
       FROM price_history
-      WHERE asset_id = ${assetId} AND ${lowerBound}
+      WHERE asset_id = ${assetId} AND ${lowerBound} AND ${upperBound}
     ) s
     -- DISTINCT ON (bucket) + ORDER BY bucket, ts DESC = her kovanın EN YENİ
     -- satırı. Sıralamanın ilk alanı DISTINCT ON ile aynı olmak ZORUNDA;

@@ -4,7 +4,13 @@ import {
   getPriceSeries,
   listAssetsWithLatestPrice,
 } from "./repository.js";
-import { isRange, RANGES, specOf, startOf } from "./ranges.js";
+import {
+  isRange,
+  parseWindow,
+  RANGES,
+  specOf,
+  startOf,
+} from "./ranges.js";
 
 export const marketRouter = Router();
 
@@ -62,23 +68,51 @@ marketRouter.get("/", async (_request, response) => {
  * sırayla zorlanır — hem de sonunda 120 nokta çizmek için. Kova mantığı
  * veritabanında, indeksin üstünde çalışıyor.
  *
- * KARAR: `range` KAPALI BİR LİSTE, serbest tarih aralığı değil.
+ * KARAR: İKİ KULLANIM BİÇİMİ — VE İKİNCİSİ SONRADAN EKLENDİ.
  *
- * `?from=...&to=...` daha esnek olurdu ama her istek farklı bir kova
- * boyutu gerektirir ve önbelleklemesi imkânsızdır. Altı sabit aralık
- * hem ekrandaki altı düğmeye birebir karşılık geliyor hem de ileride
- * önbelleğe alınabilir.
+ * Başlangıçta `range` bilerek KAPALI bir listeydi: altı sabit aralık
+ * ekrandaki altı düğmeye birebir karşılık geliyor ve önbelleklenebilir.
+ * Serbest tarih aralığı her istekte farklı olduğu için önbelleklenemez.
+ *
+ * Yakınlaştırma bu kararı geri aldırdı — kullanıcının seçebileceği
+ * pencere sayısı sonsuz, sabit listeyle karşılanamaz. Karşılığında iki
+ * koruma kondu (ranges.ts): pencere en az 15 dakika, nokta sayısı en
+ * fazla 500. Sınırsız bir uç tek istekle milyonlarca satır okutabilirdi.
  */
 marketRouter.get("/:symbol/prices", async (request, response) => {
   const { symbol } = request.params;
+
+  /**
+   * İKİ KULLANIM BİÇİMİ, TEK UÇ.
+   *
+   *   ?range=1m           -> sabit aralık, ekrandaki altı düğme
+   *   ?from=...&to=...    -> serbest pencere, YAKINLAŞTIRMA
+   *
+   * `from`/`to` verilmişse `range` yok sayılıyor. İkisini birden kabul
+   * edip birleştirmeye çalışsaydık "hangisi kazanır" sorusu her çağıranda
+   * yeniden sorulurdu.
+   */
+  const zooming =
+    request.query.from !== undefined && request.query.to !== undefined;
+
   const range = request.query.range ?? "1m";
 
-  if (!isRange(range)) {
+  if (!zooming && !isRange(range)) {
     return response.status(400).json({
       error: {
         code: "INVALID_RANGE",
         message: `Geçersiz aralık. Beklenen: ${RANGES.join(", ")}`,
       },
+    });
+  }
+
+  const window = zooming
+    ? parseWindow(request.query.from, request.query.to)
+    : null;
+
+  if (window !== null && !window.ok) {
+    return response.status(400).json({
+      error: { code: "INVALID_WINDOW", message: window.message },
     });
   }
 
@@ -91,15 +125,22 @@ marketRouter.get("/:symbol/prices", async (request, response) => {
       });
     }
 
-    const { bucketSeconds } = specOf(range);
-    const since = startOf(range, new Date());
+    // Kova: serbest pencerede genişlikten hesaplanıyor, sabit aralıkta
+    // tablodan geliyor.
+    const bucketSeconds =
+      window?.ok === true
+        ? window.bucketSeconds
+        : specOf(range as never).bucketSeconds;
 
-    const points = await getPriceSeries(asset.id, bucketSeconds, since);
+    const since = window?.ok === true ? window.from : startOf(range as never, new Date());
+    const until = window?.ok === true ? window.to : null;
+
+    const points = await getPriceSeries(asset.id, bucketSeconds, since, until);
 
     return response.json({
       symbol: symbol.toUpperCase(),
       name: asset.name,
-      range,
+      range: window?.ok === true ? "custom" : range,
       bucketSeconds,
       // ⚠️ Fiyat STRING. Sayı olarak gönderseydik istemcide float'a düşerdi
       // ve money.ts'ten beri taşıdığımız bigint zinciri son adımda kırılırdı.
