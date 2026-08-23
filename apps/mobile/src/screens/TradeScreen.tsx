@@ -141,8 +141,12 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
 
   const loadPrice = useCallback(async () => {
     try {
-      const rows = await apiFetch<AssetRow[]>('/assets');
-      const row = rows.find((r) => r.symbol === symbol);
+      // ⚠️ GET /assets artık dizi DEĞİL, zarflı nesne döndürüyor.
+      // Tip iddiası (`apiFetch<T>`) çalışma anında doğrulanmıyor; eski
+      // hâli bırakılsaydı `rows.find` "find is not a function" derdi ve
+      // hata ancak Al/Sat ekranı açılınca ortaya çıkardı.
+      const data = await apiFetch<{ assets: AssetRow[] }>('/assets');
+      const row = data.assets.find((r) => r.symbol === symbol);
 
       if (row) {
         setPrice(row.priceTry);

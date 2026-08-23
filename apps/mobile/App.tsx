@@ -20,6 +20,7 @@ import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { colors } from './src/theme';
+import { CurrencyProvider } from './src/lib/currency';
 
 type User = {
   id: string;
@@ -38,7 +39,30 @@ type Tab = 'market' | 'wallet' | 'leaderboard' | 'friends' | 'whatif';
  */
 type AuthView = 'welcome' | 'login' | 'register';
 
+/**
+ * Kök bileşen.
+ *
+ * ⚠️ SAĞLAYICI (Provider) EN DIŞTA — VE NEDENİ ÖNEMLİ.
+ *
+ * `CurrencyProvider` uygulamanın tamamını sarıyor, sadece Piyasa/Cüzdan
+ * sekmelerini değil. Yalnızca o iki ekranı sarsaydık her sekme kendi
+ * sağlayıcısını kurar, her birinin ayrı bir tercihi olurdu: kullanıcı
+ * Piyasa'da dolara geçer, Cüzdan'a bakar, orada TL görürdü — ve ikisi de
+ * "çalışıyor" gibi görünürdü.
+ *
+ * Alt bileşen olarak yazılmasının sebebi: `useCurrency` yalnızca
+ * sağlayıcının İÇİNDE çağrılabilir. `App`'in kendisi sağlayıcıyı kuruyorsa
+ * kendi içinde onu okuyamaz — bu React'in en sık düşülen kancası.
+ */
 export default function App() {
+  return (
+    <CurrencyProvider>
+      <AppShell />
+    </CurrencyProvider>
+  );
+}
+
+function AppShell() {
   // Giriş yapmış kullanıcı bilgisi (null ise kimlik ekranları görünür)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 

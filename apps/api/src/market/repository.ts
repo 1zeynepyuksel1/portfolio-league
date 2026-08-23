@@ -310,3 +310,41 @@ export function toUtcDate(value: string | Date | null): Date | null {
   const iso = value.includes("T") ? value : value.replace(" ", "T");
   return new Date(iso.endsWith("Z") ? iso : `${iso}Z`);
 }
+
+/**
+ * En güncel USD/TRY kuru — dolar görünümünün tek kaynağı.
+ *
+ * KARAR: KUR AYRI BİR TABLODA DEĞİL, NORMAL BİR VARLIK OLARAK TUTULUYOR.
+ *
+ * `price_history`'ye `price_usd` kolonu eklemek migration ister
+ * (sahibi Zeynep) ve her varlığı iki kez yazmak demekti. Bunun yerine USD
+ * `assets` tablosunda sıradan bir varlık; kuru da diğer fiyatlar gibi
+ * `price_history`'de duruyor. Herhangi bir varlığın dolar fiyatı
+ * `priceTry(varlık) ÷ priceTry(USD)` ile TÜRETİLİYOR.
+ *
+ * Kazancı: migration yok, tek doğruluk kaynağı var, geçmiş kur zaten
+ * elimizde (EVDS geri doldurması 2.421 günü yazdı).
+ *
+ * ⚠️ `null` DÖNEBİLİR ve bu sessizce geçilmemeli. USD fiyatı hiç
+ * yazılmamışsa dolar görünümü hesaplanamaz. Çağıran taraf ya açık bir
+ * hata döndürmeli ya da TL'de kalmalı — `1` varsayıp devam etmek
+ * kullanıcıya TL tutarını dolar diye göstermek olurdu.
+ */
+export async function latestUsdTryRate(): Promise<{
+  rate: string;
+  asOf: Date;
+} | null> {
+  const usd = await findAssetIdBySymbol("USD");
+
+  if (usd === null) return null;
+
+  const row = await latestPrice(usd.id);
+
+  if (row === undefined || row === null) return null;
+
+  const asOf = toUtcDate(row.ts);
+
+  if (asOf === null) return null;
+
+  return { rate: row.priceTry, asOf };
+}

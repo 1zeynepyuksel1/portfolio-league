@@ -164,6 +164,37 @@ Bunları ben değiştirmedim, o yüzden yukarıdaki tablolarda yok. Ama
 `db/schema.ts` bütün projenin veri modeli — okumadan portföy hesabının
 neden öyle olduğu tam anlaşılmaz.
 
+### 9. TL / USD gösterim düğmesi — 23 Ağu 2026
+| Dosya | Ne sorulacak |
+|---|---|
+| `lib/fx.ts` (`tryToUsd`, `centsTryToUsd`, `parseCurrency`) | `usdToTry`'ın "simetriği" değil "tersi" demek ne fark yaratıyor? Ölçekten bağımsız `divideByRate` neden tek fonksiyon, iki sarmalayıcı? Geçersiz `?currency=eur` neden sessizce TL'ye düşmüyor? |
+| `lib/fx.test.ts` | Gidiş-dönüş çevrim neden **kayıpsız değil** ve bu test neyi kilitliyor? Negatif tutar testi hangi ekran hatasını engelliyor? |
+| `market/repository.ts` (`latestUsdTryRate`) | Kur neden ayrı tabloda değil, **normal bir varlık** olarak tutuluyor? `price_usd` kolonu eklenseydi ne olurdu? `null` dönünce çağıran neden `1` varsaymıyor? |
+| `market/router.ts` · `portfolio/router.ts` | Kur neden yalnızca dolar istendiğinde okunuyor? `priceTry` alanının üzerine dolar yazsaydık hata **neden fark edilmezdi**? Kur yoksa neden 503 — sessizce TL döndürmek neden daha kötü? |
+| `mobile/src/lib/currency.tsx` | ⚠️ Sağlayıcı neden **en dışta**, sadece iki sekmeyi sarmıyor? `App` kendi sağladığı context'i neden okuyamıyor? Depoda saçma değer varsa ne oluyor? ⚠️ `./storage` importunda uzantı neden **yok** — API tarafında neden zorunlu? |
+| `mobile/src/lib/storage.ts` (`setPreference`) | Tercih neden token'larla aynı dosyada ama ayrı başlıkta? `clearTokens` tercihe neden dokunmuyor? |
+| `mobile/src/lib/format.ts` (`symbolOf`) | Dolar biçiminde neden **Türkçe sayı yazımı** korundu (`1.234,56 $`)? |
+| `mobile/src/components/CurrencyToggle.tsx` | Neden tek düğme değil, iki seçenek yan yana? |
+| `mobile/src/screens/MarketScreen.tsx` · `PortfolioScreen.tsx` | ⚠️ `queryRef` neden var — zamanlayıcının içindeki `load` doğrudan `query` okusaydı hangi hata çıkardı ve **neden yalnızca otomatik yenilemede** görünürdü? `money()` yardımcısı hangi hatayı önlüyor? Yeşil/kırmızı kararı neden hep **TL** değerine bakıyor? |
+| `mobile/src/screens/TradeScreen.tsx` · `WhatIfScreen.tsx` | `apiFetch<Asset[]>` tip iddiası neden **çalışma anında** korumuyor — `GET /assets` dizi olmaktan çıkınca tip kontrolü niye hata vermedi? |
+
+**Ölçülen sonuç — çevrim doğrulandı:**
+- USD varlığının kendi dolar fiyatı **tam 1,00000000** çıktı. Kur formülü
+  yanlış olsaydı ilk bozulacak sayı buydu.
+- BTC: `3.697.539,16 ₺ ÷ 47,8799 = 77.225,29 $` — elle hesapla birebir aynı.
+- Nakit: `100.000,00 ₺ → 2.088,56 $` (`2088,5591` → ROUND_HALF_UP).
+- Zarar `−18,50 ₺ → −0,39 $` — **işaret korundu**, yüzde iki görünümde de
+  `−%0,10`, yani tam komisyon oranı.
+
+**Yol boyunca çıkan hata:** `currency.tsx` içinde `./storage.js` yazdım —
+API'nin `nodenext` alışkanlığı. `npm run typecheck` **temiz geçti**, hata
+ancak `expo export` sırasında Metro'da çıktı. Tip kontrolü ile paketleme
+iki farklı şeyi ölçüyor.
+
+⚠️ **Doğrulama sırasında veritabanına iki tek kullanımlık kullanıcı eklendi**
+(`fx-test-…@example.com`, `fx-pos-…@example.com`) ve biri 0,005 BTC aldı.
+Lig sıralamasında görünürler; temizlenmeleri gerekiyor.
+
 ### Küçük değişiklikler
 - `mobile/src/screens/WhatIfScreen.tsx` — sabit 5 varlıklık liste kaldırıldı,
   `/assets`'ten çekiliyor. **Ne sorulacak:** liste koda gömülüyken sunucuya

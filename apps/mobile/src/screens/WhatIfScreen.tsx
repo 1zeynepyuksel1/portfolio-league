@@ -122,8 +122,9 @@ export function WhatIfScreen() {
     // Liste bir kez çekiliyor: varlıklar fiyat gibi saniyede değişmiyor.
     // Hata durumunda ekranı kilitlemiyoruz — dizi boş kalır, kullanıcı
     // yine de seçili varlıkla hesap yapabilir.
-    apiFetch<Asset[]>('/assets')
-      .then(setAssets)
+    // ⚠️ Zarflı nesne — bkz. market/router.ts, `currency` alanı eklendi.
+    apiFetch<{ assets: Asset[] }>('/assets')
+      .then((data) => setAssets(data.assets))
       .catch(() => setAssets([]));
   }, []);
 

@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
+import { useCurrency } from '../lib/currency';
+import { CurrencyToggle } from '../components/CurrencyToggle';
 import {
   formatCentsString,
   formatPrice,
@@ -34,7 +36,10 @@ type Position = {
   name: string;
   quantity: string;
   priceTry: string | null;
+  /** Dolar görünümünde dolu, TL görünümünde null — çevrimi sunucu yapar. */
+  priceUsd: string | null;
   valueCents: string | null;
+  valueUsdCents: string | null;
   sharePercent: string | null;
   asOf: string | null;
 
@@ -42,6 +47,8 @@ type Position = {
   costCents: string;
   /** Güncel değer − maliyet. Negatif olabilir. */
   profitCents: string;
+  profitUsdCents: string | null;
+  costUsdCents: string | null;
   /**
    * Yüzde getiri, iki ondalıklı metin ("12.34" / "-5.10").
    *
@@ -53,11 +60,31 @@ type Position = {
 };
 
 type Portfolio = {
+  currency: 'try' | 'usd';
+  /** Çevrimde kullanılan kur. TL görünümünde null. */
+  usdTryRate: string | null;
+  rateAsOf: string | null;
+
   cashCents: string;
   positionsValueCents: string;
   totalValueCents: string;
   depositedCents: string;
   profitCents: string;
+
+  cashUsdCents: string | null;
+  positionsValueUsdCents: string | null;
+  totalValueUsdCents: string | null;
+  depositedUsdCents: string | null;
+  profitUsdCents: string | null;
+
+  /**
+   * ⚠️ YÜZDE İKİ GÖRÜNÜMDE DE AYNI — ve bu doğru.
+   *
+   * Hem pay hem payda aynı kurla bölününce kur sadeleşir. Ayrı bir
+   * "dolar yüzdesi" beklemek yanlış: o ancak her işlemin KENDİ GÜNÜNDEKİ
+   * kurla hesaplanırsa anlamlı olurdu, bu ise TL bazlı getirinin dolar
+   * gösterimidir.
+   */
   profitPercent: string | null;
   hasIncompletePrices: boolean;
   positions: Position[];
@@ -67,6 +94,8 @@ type Portfolio = {
 const REFRESH_MS = 10_000;
 
 export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
+  const { currency, query } = useCurrency();
+
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,11 +103,19 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Bkz. MarketScreen'deki aynı ref — zamanlayıcının içindeki `load`
+  // kurulduğu andaki `query`'yi hatırlar, ref bunu kırıyor.
+  const queryRef = useRef(query);
+
+  useEffect(() => {
+    queryRef.current = query;
+  }, [query]);
+
   const load = useCallback(async (isPullToRefresh = false) => {
     if (isPullToRefresh) setRefreshing(true);
 
     try {
-      const data = await apiFetch<Portfolio>('/portfolio');
+      const data = await apiFetch<Portfolio>(`/portfolio${queryRef.current}`);
       setPortfolio(data);
       setError(null);
     } catch (err) {
@@ -88,6 +125,31 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
       setRefreshing(false);
     }
   }, []);
+
+  /**
+   * Seçili para birimine göre doğru alanı seçip biçimlendirir.
+   *
+   * NEDEN YARDIMCI FONKSİYON: ekranda on ayrı yerde para yazıyor. Her
+   * birine `currency === 'usd' ? ... : ...` üçlüsü yazsaydık biri
+   * atlanır ve o tek satır TL rakamını $ simgesiyle gösterirdi — sayı
+   * makul görünür, kimse fark etmez.
+   *
+   * ⚠️ Dolar alanı boşsa TL'ye DÜŞÜLMÜYOR, '—' gösteriliyor. Düşmek
+   * sessiz bir yalan olurdu.
+   */
+  const money = useCallback(
+    (tryCents: string, usdCents: string | null): string => {
+      if (currency === 'try') return formatCentsString(tryCents);
+
+      return usdCents === null ? '—' : formatCentsString(usdCents, 'usd');
+    },
+    [currency],
+  );
+
+  // Para birimi değişince hemen tazele — 10 saniye bekletme.
+  useEffect(() => {
+    void load();
+  }, [query, load]);
 
   // Fiyatlar değiştikçe portföy değeri de değişiyor -> periyodik yenileme.
   // Arka planda durur (pil + sunucu yükü), öne gelince hemen tazeler.
@@ -162,9 +224,20 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
           <View>
             {/* Toplam değer kartı */}
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>💼 Toplam Portföy Değeri</Text>
+              <View style={styles.summaryLabelRow}>
+                <Text style={styles.summaryLabel}>💼 Toplam Portföy Değeri</Text>
+                <CurrencyToggle />
+              </View>
+
+              {/* Kur görünür olmalı: kullanıcı dolar tutarını kendi
+                  doğrulayabilsin. */}
+              {currency === 'usd' && portfolio.usdTryRate !== null && (
+                <Text style={styles.disclaimer}>
+                  1 $ = {formatPrice(portfolio.usdTryRate)} · bugünün kuruyla
+                </Text>
+              )}
               <Text style={styles.summaryValue}>
-                {formatCentsString(portfolio.totalValueCents)}
+                {money(portfolio.totalValueCents, portfolio.totalValueUsdCents)}
               </Text>
 
               <View
@@ -179,7 +252,8 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
                     isProfit ? styles.profitTextPositive : styles.profitTextNegative,
                   ]}
                 >
-                  {isProfit ? '▲' : '▼'} {formatCentsString(portfolio.profitCents)}
+                  {isProfit ? '▲' : '▼'}{' '}
+                  {money(portfolio.profitCents, portfolio.profitUsdCents)}
                   {portfolio.profitPercent !== null &&
                     `  (%${portfolio.profitPercent})`}
                 </Text>
@@ -189,7 +263,7 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
                   ve para girişlerinin zamanını da hesaba katıyor. Buradaki sayı
                   "toplam ne kazandım" sorusunun cevabı. */}
               <Text style={styles.disclaimer}>
-                Yatırılan {formatCentsString(portfolio.depositedCents)} · Lig
+                Yatırılan {money(portfolio.depositedCents, portfolio.depositedUsdCents)} · Lig
                 sıralaması TWR ile hesaplanır
               </Text>
             </View>
@@ -199,13 +273,13 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
               <View style={styles.splitCard}>
                 <Text style={styles.splitLabel}>💵 Nakit</Text>
                 <Text style={styles.splitValue}>
-                  {formatCentsString(portfolio.cashCents)}
+                  {money(portfolio.cashCents, portfolio.cashUsdCents)}
                 </Text>
               </View>
               <View style={styles.splitCard}>
                 <Text style={styles.splitLabel}>📊 Varlıklar</Text>
                 <Text style={styles.splitValue}>
-                  {formatCentsString(portfolio.positionsValueCents)}
+                  {money(portfolio.positionsValueCents, portfolio.positionsValueUsdCents)}
                 </Text>
               </View>
             </View>
@@ -243,7 +317,9 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
               <Text style={styles.positionSymbol}>{item.symbol}</Text>
               <Text style={styles.positionQuantity}>
                 {formatQuantity(item.quantity)} adet
-                {item.priceTry !== null && ` · ${formatPrice(item.priceTry)}`}
+                {currency === 'usd'
+                  ? item.priceUsd !== null && ` · ${formatPrice(item.priceUsd, 'usd')}`
+                  : item.priceTry !== null && ` · ${formatPrice(item.priceTry)}`}
               </Text>
               <Text style={styles.positionAsOf}>
                 {formatRelativeTime(item.asOf)}
@@ -254,7 +330,7 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
               <Text style={styles.positionValue}>
                 {item.valueCents === null
                   ? '—'
-                  : formatCentsString(item.valueCents)}
+                  : money(item.valueCents, item.valueUsdCents)}
               </Text>
 
               {/*
@@ -275,8 +351,11 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
                     },
                   ]}
                 >
+                  {/* ⚠️ YEŞİL/KIRMIZI KARARI HER ZAMAN TL DEĞERİNE BAKIYOR.
+                      Çevrim işareti koruduğu için sonuç aynı; dolar alanı
+                      null gelse bile renk doğru kalsın diye TL okunuyor. */}
                   {BigInt(item.profitCents) >= 0n ? '+' : ''}
-                  {formatCentsString(item.profitCents)}
+                  {money(item.profitCents, item.profitUsdCents)}
                   {'  '}
                   ({BigInt(item.profitCents) >= 0n ? '+' : ''}
                   %{item.profitPercent.replace('.', ',').replace('-', '')})
@@ -327,6 +406,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
+  },
+  summaryLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   summaryLabel: {
     color: '#94A3B8',

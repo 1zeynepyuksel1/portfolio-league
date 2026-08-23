@@ -2,8 +2,11 @@ import { Router } from "express";
 import {
   findAssetIdBySymbol,
   getPriceSeries,
+  latestUsdTryRate,
   listAssetsWithLatestPrice,
 } from "./repository.js";
+import { parseCurrency, tryToUsd } from "../lib/fx.js";
+import { PRICE_SCALE, formatScaled, toPrice } from "../lib/money.js";
 import {
   isRange,
   parseWindow,
@@ -36,22 +39,71 @@ export const marketRouter = Router();
  * (docs/01-plan.md). Fiyatı gösterip zamanını göstermemek, kullanıcıya
  * eski veriyi güncelmiş gibi sunmak olur.
  */
-marketRouter.get("/", async (_request, response) => {
+marketRouter.get("/", async (request, response) => {
+  const currency = parseCurrency(request.query.currency);
+
+  if (currency === null) {
+    return response.status(400).json({
+      error: {
+        code: "INVALID_CURRENCY",
+        message: "Geçersiz para birimi. Beklenen: try, usd",
+      },
+    });
+  }
+
   try {
     const assets = await listAssetsWithLatestPrice();
 
-    return response.json(
-      assets.map((asset) => ({
+    /**
+     * Kur YALNIZCA dolar istendiğinde okunuyor.
+     *
+     * Her istekte okusaydık TL görünümü — yani varsayılan ve en sık
+     * kullanılan yol — bedava bir sorgu daha öderdi.
+     */
+    const fx = currency === "usd" ? await latestUsdTryRate() : null;
+
+    // ⚠️ Kur yoksa dolar görünümü HESAPLANAMAZ. "1 varsay" demek
+    // kullanıcıya TL tutarını dolar diye göstermek olurdu.
+    if (currency === "usd" && fx === null) {
+      return response.status(503).json({
+        error: {
+          code: "FX_RATE_UNAVAILABLE",
+          message: "Dolar kuru şu an okunamıyor, TL görünümünü kullanın.",
+        },
+      });
+    }
+
+    const rate = fx === null ? null : toPrice(fx.rate);
+
+    return response.json({
+      currency,
+      // Hangi kurla çevrildiği ve kurun ne kadar taze olduğu görünür olmalı.
+      // Fiyatın yanında zamanı göstermeyip "güncel" demek yanıltıcı olur.
+      usdTryRate: fx?.rate ?? null,
+      rateAsOf: fx?.asOf.toISOString() ?? null,
+
+      assets: assets.map((asset) => ({
         symbol: asset.symbol,
         name: asset.name,
         // Fiyatı hiç çekilmemiş varlık olabilir — null geçilir, uydurulmaz.
         priceTry: asset.priceTry,
+        /**
+         * ⚠️ AYRI ALAN, AYNI ALANIN ÜZERİNE YAZILMIYOR.
+         *
+         * `priceTry` alanına dolar yazsaydık alan adı yalan söylerdi ve
+         * bu ekranda fark edilmezdi — sayı yine makul görünür. Ayrı alan
+         * olunca "hangi para birimi" sorusunun cevabı kodda duruyor.
+         */
+        priceUsd:
+          rate === null || asset.priceTry === null
+            ? null
+            : formatScaled(tryToUsd(toPrice(asset.priceTry), rate), PRICE_SCALE),
         asOf: asset.asOf?.toISOString() ?? null,
         // Her varlık aynı tarihe gitmiyor: BTC 2017, SOL 2020.
         // Ekran tarih seçicisini buradan sınırlıyor.
         firstAvailable: asset.firstAvailable?.toISOString() ?? null,
       })),
-    );
+    });
   } catch (error) {
     console.error("[GET /assets] başarısız:", error);
     return response.status(500).json({ error: "Varlıklar okunamadı" });
