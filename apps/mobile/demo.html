@@ -77,9 +77,8 @@
       0 40px 90px rgba(0, 0, 0, 0.75),
       0 0 0 1px rgba(255, 255, 255, 0.04) inset;
 
-    /* ⚠️ Küçük ekranlarda kasa taşmasın diye JS ile ölçeklenir.
-       transform-origin ortada: küçülürken merkezde kalır. */
-    transform-origin: center center;
+    /* ⚠️ Küçük ekranlarda kasa taşmasın diye JS ile `zoom` uygulanır
+       (bkz. fit()). `transform: scale()` DEĞİL — o yazıyı bulanıklaştırır. */
     flex: none;
   }
 
@@ -250,8 +249,8 @@
    * sığmıyor; ölçeklemezsek altı kesilir. Sunumda tam ekran yapıldığında
    * da mümkün olduğunca büyük görünmeli.
    *
-   * ⚠️ Yalnızca KÜÇÜLTÜYORUZ (Math.min(..., 1)). Büyütseydik 390px
-   * genişliğindeki arayüz bulanıklaşırdı — iframe içeriği vektör değil.
+   * ⚠️ Yalnızca KÜÇÜLTÜYORUZ (Math.min(..., 1)). Büyütmek arayüzü
+   * kocaman ve hantal gösterirdi; telefon arayüzü 390px için tasarlandı.
    */
   function fit() {
     const phone = document.getElementById('phone');
@@ -259,12 +258,33 @@
     const availW = window.innerWidth  - 60;
 
     const scale = Math.min(availH / 868, availW / 414, 1);
-    phone.style.transform = 'scale(' + scale + ')';
 
-    // Ölçeklenen öğe düzende hâlâ eski boyutunu kaplar; kalan boşluğu
-    // negatif marj ile toplayıp kasayı dikeyde ortalı tutuyoruz.
-    const lost = 868 * (1 - scale);
-    phone.style.marginTop = phone.style.marginBottom = (-lost / 2) + 'px';
+    /*
+     * ⚠️ `zoom` KULLANILIYOR, `transform: scale()` DEĞİL — ve fark
+     * doğrudan YAZI KALİTESİ.
+     *
+     * `transform: scale()` öğeyi önce KENDİ boyutunda çizip sonra o
+     * görüntüyü küçültüyor. Yani yazılar 868px'lik bir tuvale çizilip
+     * sonra 0,8 katına indiriliyor: harflerin kenarları piksellerin
+     * arasına düşüyor ve bulanık görünüyor. Bulanıklığın sebebi
+     * uygulamanın kendisi değil, bu ölçekleme.
+     *
+     * `zoom` ise ölçeği DÜZENE uyguluyor: tarayıcı yazıyı doğrudan
+     * son boyutunda çiziyor, ara bir raster adımı yok. Aynı sonuç,
+     * keskin harfler.
+     *
+     * ⚠️ `zoom` standart değil ama Chrome'da tam destekli; bu dosya
+     * zaten yalnızca Chrome'da `--app` ile açılıyor. Firefox'ta
+     * çalışmazsa kasa taşar — küçülmez, ama bozulmaz da.
+     */
+    phone.style.zoom = String(scale);
+
+    /*
+     * `transform` düzende yer kaplamaya devam ettiği için negatif marj
+     * gerekiyordu. `zoom` düzeni gerçekten değiştirdiği için o düzeltme
+     * ARTIK GEREKSİZ — bırakılsaydı kasa yukarı kayardı.
+     */
+    phone.style.marginTop = phone.style.marginBottom = '0';
   }
 
   window.addEventListener('resize', fit);
