@@ -407,11 +407,14 @@ Araştırman gerekenler: transaction izolasyon seviyeleri, `SELECT FOR UPDATE` n
       dosyada yayımlıyor. "kod|tarih" anahtarlı önbellekte 8 döviz aynı
       dosyayı 8 kez indirirdi; cron 15 saniyede bir çalıştığı için bu günde
       ~46.000 gereksiz istek demekti. Testi var.
-- [ ] Kıymetli maden (**LBMA**) adapteri
-      Altın `gold_pm.json`, gümüş `silver.json` — **tek adapter, metal parametreli**. Tek istekte iner → `price_history`'ye dolum, sonra günlük cron. `gram_TL = ons_USD / 31,1035 × USD_TRY`
-      ⚠️ Altında `gold_am.json` ile karıştırma, aralarında ~%1 fark var. Gümüşte tek fixing olduğu için bu risk yok
-      ⚠️ `GRAM_ALTIN` şu an **`is_active = false`** — fiyat kaynağı olmadığı için
-      listede uydurma bir fiyatla durmasındansa kapatıldı. Adapter gelince aç.
+- [x] **Kıymetli maden (LBMA) adapteri** — 24 Ağu 2026
+      `market/lbma.ts`. Altın `gold_pm.json`, gümüş `silver.json`, tek adapter.
+      2.417 gün altın + 2.435 gün gümüş geri dolduruldu, ikisi de `is_active = true`.
+      **Çapraz kontrol:** 2017 Ocak gram altın 133,77 ₺ çıktı, gerçeği ~137 ₺.
+      ⚠️ Ons/gram çevrimi tek sabitte ve testli. Buradaki tehlikeli hata
+      bariz olan değil: onsu hiç çevirmemek 31 kat sapar ve saniyede fark
+      edilir, **mutfak onsunu** (28,349523125) kullanmak yalnızca %10 sapar
+      ve asla yakalanmaz. Test iki sonucun ayrıştığını ölçüyor.
 - [x] **Varlık listesi 5 → 18'e çıkarıldı** — 21 Ağu 2026
       10 kripto (BTC · ETH · BNB · SOL · XRP · ADA · DOGE · AVAX · LINK · LTC)
       + 8 döviz. `GRAM_ALTIN` kaynağı olmadığı için pasif.
@@ -475,15 +478,29 @@ Araştırman gerekenler: transaction izolasyon seviyeleri, `SELECT FOR UPDATE` n
       Yalnızca EVDS anahtarı olmayan ortam için yedek; gerçek veri backfill'den gelir
 - [ ] **`retention.ts`** — günlük özet (23:55) + 7 günden eski dakikalık satırların temizliği (00:05)
       Sıra bağlayıcı: özet önce, silme sonra. Ters olursa veri özetlenmeden gider
-- [ ] `PricePoint.currency` alanı — döviz TL geliyor, ikinci kez kurla çarpılmamalı
-- [ ] Fiyat grafiği — `date_trunc` ile kovalama, aralık başına 60-500 nokta (bkz. 01-plan.md §5.2)
+- [x] ~~`PricePoint.currency` alanı~~ — **BAŞKA YOLLA ÇÖZÜLDÜ**
+      Çift çevrim riski alana değil, cron'daki tür yönlendirmesine bağlandı:
+      `asset.kind === 'fx'` ise kur doğrudan yazılıyor, `usdToTry`'a hiç
+      girmiyor. Alan eklemek aynı bilgiyi ikinci bir yerde tutmak olurdu.
+- [x] **Fiyat grafiği** — 22 Ağu 2026
+      ⚠️ `date_trunc` KULLANILMADI: yalnızca sabit birimlerle (hour/day/week)
+      çalışıyor, bize 5 dakikalık ve 6 saatlik kova da lazımdı. Epoch'a
+      çevirip kova boyutuna bölerek tabana yuvarlamak her ölçüde çalışıyor.
+      Üstüne yakınlaştırma da eklendi (`ranges.ts`, `bucketFor`).
 - [x] ~~`GET /what-if` + reel getiri~~ — **Zeynep yazdı** (PR #9, 19 Ağu 2026)
       Şerit sınırı aşıldı ama kod çalışıyor ve testli; silmek israf olurdu. Karar: kabul edildi.
       ⚠️ **OKUNACAK — henüz okumadın.** `apps/api/src/what-if/` (service, repository, schema, test).
       Özellikle: reel getiri formülü `(1+nominal)/(1+enflasyon)−1`, TÜFE endeksi kullanımı,
       tutar → miktar çevriminde ölçek matematiği (`calcGross`'un tersi). Kendi şeridinin devamı orası.
       Faz 2'nin kalanı (geri doldurma, grafik, `retention.ts`, varlık detay ekranı) **sende kalıyor**.
-- [ ] Varlık detay ekranı + karar notu alanı
+- [x] **Varlık detay ekranı** — 22-24 Ağu 2026
+      Grafik, aralık düğmeleri, dokunmalı fiyat okuma, iki parmakla
+      yakınlaştırma, 24 saat özeti (yüksek/düşük/açılış/kapanış), canlı fiyat.
+      ⚠️ **Karar notu alanı hâlâ YOK** — "bunu neden aldım" notu. Ayrı madde
+      olarak aşağıda duruyor.
+- [ ] Karar notu alanı — emir verirken "neden" yazılabilsin, sonra geri okunsun
+      Faz 3'ün "karar profili" özelliğinin temeli (01-plan.md). Şema değişikliği
+      gerektiriyor → Zeynep.
 
 ---
 
