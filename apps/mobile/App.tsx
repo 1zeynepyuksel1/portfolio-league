@@ -26,6 +26,7 @@ import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { colors } from './src/theme';
+import { TabBar, type TabKey } from './src/components/TabBar';
 import { CurrencyProvider } from './src/lib/currency';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 
@@ -35,7 +36,17 @@ type User = {
   displayName: string;
 };
 
-type Tab = 'market' | 'wallet' | 'leaderboard' | 'friends' | 'whatif';
+/**
+ * ⚠️ SEKME LİSTESİ TabBar'DAN GELİYOR, BURADA TEKRAR TANIMLANMIYOR.
+ *
+ * İki ayrı liste tutsaydık biri değişip öbürü kalırdı ve TypeScript
+ * bunu yalnızca kullanıldığı yerde yakalardı. Tek kaynak: TabKey.
+ *
+ * ⚠️ 'friends' SEKMESİ KALDIRILDI — tasarımın kararı. Arkadaşlar artık
+ * Lig ekranının içinde bir alt sekme; ikisi de "başkalarına göre
+ * neredeyim" sorusunu soruyor ve ayrı sekmelerde karşılaştırmak zordu.
+ */
+type Tab = TabKey;
 
 /**
  * Giriş yapılmamışken hangi ekran görünüyor.
@@ -79,7 +90,7 @@ function AppShell() {
   const [authView, setAuthView] = useState<AuthView>('welcome');
 
   // Aktif Sekme (Cüzdanım, Haftalık Lig, Arkadaşlar, Ya Alsaydın)
-  const [activeTab, setActiveTab] = useState<Tab>('leaderboard');
+  const [activeTab, setActiveTab] = useState<Tab>('league');
 
   /**
    * Al/Sat ekranı açıksa hangi varlık için.
@@ -212,54 +223,6 @@ function AppShell() {
       ) : (
         // 2. GİRİŞ YAPILDIYSA: Ana Uygulama Gösterilir
         <View style={styles.mainContainer}>
-          {/* Üst Navigasyon Sekme Çubuğu */}
-          <View style={styles.topTabBar}>
-            <TouchableOpacity
-              style={[styles.tabButton, activeTab === 'market' && styles.tabButtonActive]}
-              onPress={() => setActiveTab('market')}
-            >
-              <Text style={[styles.tabButtonText, activeTab === 'market' && styles.tabButtonTextActive]}>
-                📈 Piyasa
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.tabButton, activeTab === 'wallet' && styles.tabButtonActive]}
-              onPress={() => setActiveTab('wallet')}
-            >
-              <Text style={[styles.tabButtonText, activeTab === 'wallet' && styles.tabButtonTextActive]}>
-                💰 Cüzdan
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.tabButton, activeTab === 'leaderboard' && styles.tabButtonActive]}
-              onPress={() => setActiveTab('leaderboard')}
-            >
-              <Text style={[styles.tabButtonText, activeTab === 'leaderboard' && styles.tabButtonTextActive]}>
-                🏆 Ligler
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.tabButton, activeTab === 'friends' && styles.tabButtonActive]}
-              onPress={() => setActiveTab('friends')}
-            >
-              <Text style={[styles.tabButtonText, activeTab === 'friends' && styles.tabButtonTextActive]}>
-                👥 Arkadaşlar
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.tabButton, activeTab === 'whatif' && styles.tabButtonActive]}
-              onPress={() => setActiveTab('whatif')}
-            >
-              <Text style={[styles.tabButtonText, activeTab === 'whatif' && styles.tabButtonTextActive]}>
-                🔮 Ya Alsaydın?
-              </Text>
-            </TouchableOpacity>
-          </View>
-
           {/* Aktif Ekran İçeriği */}
           {activeTab === 'market' ? (
             <MarketScreen
@@ -281,13 +244,20 @@ function AppShell() {
                */
               onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })}
             />
-          ) : activeTab === 'leaderboard' ? (
+          ) : activeTab === 'league' ? (
             <LeaderboardScreen />
-          ) : activeTab === 'friends' ? (
-            <FriendsScreen />
           ) : (
             <WhatIfScreen />
           )}
+
+          {/*
+            ALT SEKME ÇUBUĞU — tasarımın yeri burası.
+
+            Üstteydi; tasarım alta taşıyor. Sebebi ergonomi: telefon tek
+            elle tutulurken başparmak ekranın üst kenarına ulaşamıyor.
+            Sekmeler en sık dokunulan hedef ve en zor yerdeydi.
+          */}
+          <TabBar active={activeTab} onChange={setActiveTab} />
 
           {/*
             AL/SAT KATMANI — sekmelerin ÜSTÜNDE.

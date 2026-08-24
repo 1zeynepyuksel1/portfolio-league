@@ -121,6 +121,18 @@ export type AssetWithPrice = {
    * bu değerden besleniyor.
    */
   firstAvailable: Date | null;
+
+  /** Varlık türü — ekrandaki Kripto/Döviz/Metal filtresi bunu kullanıyor. */
+  kind: AssetKind;
+
+  /**
+   * 24 saat önceki fiyat. Yüzde değişim ekranda bundan hesaplanıyor.
+   *
+   * ⚠️ `null` OLABİLİR ve bu "değişim yok" DEĞİL, "bilinmiyor" demek.
+   * Varlık dünden yeniyse ya da o aralıkta hiç kayıt yoksa boş döner.
+   * Sıfır göndermek "fiyat hiç kıpırdamadı" iddiası olurdu.
+   */
+  priceTry24hAgo: string | null;
 };
 
 /**
@@ -140,13 +152,16 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
   const result = await db.execute<{
     symbol: string;
     name: string;
+    kind: AssetKind;
     price_try: string | null;
     // Ham SQL sonucunda sürücü timestamp'i STRING olarak veriyor
     // ("2026-08-18 09:19:00.17"), Date olarak değil.
     ts: string | Date | null;
     first_ts: string | Date | null;
+    price_24h: string | null;
   }>(sql`
-    SELECT a.symbol, a.name, p.price_try, p.ts, f.first_ts
+    SELECT a.symbol, a.name, a.kind, p.price_try, p.ts, f.first_ts,
+           d.price_24h
     FROM assets a
     LEFT JOIN LATERAL (
       SELECT price_try, ts
@@ -155,6 +170,33 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
       ORDER BY ts DESC
       LIMIT 1
     ) p ON true
+    LEFT JOIN LATERAL (
+      /*
+       * 24 saat önceki fiyat — "o ana EN YAKIN ÖNCEKİ kayıt".
+       *
+       * ⚠️ TAM EŞLEŞME ARAMIYORUZ. Tam 24 saat önce yazılmış bir satır
+       * olma ihtimali düşük: cron 15 saniyede bir yazıyor ama sunucu
+       * kapalıyken hiç yazmıyor, döviz ve maden ise günde bir kez
+       * gerçek veri alıyor. Tam eşleşme arasaydık neredeyse her varlık
+       * için boş dönerdi.
+       *
+       * ⚠️ NOT: bu yorumda ters tırnak KULLANILAMAZ — sorgu bir JS şablon
+       * dizesinin içinde ve ters tırnak onu erken kapatıyor. İlk yazımda
+       * düştüğüm tuzak buydu; hata mesajı SQL'i değil TypeScript'i
+       * işaret ettiği için kaynağı görmek zaman aldı.
+       *
+       * Alt sınır 48 saat: daha eskisine düşersek "günlük değişim"
+       * iki günlük değişim olur ve rakam sessizce yanlışlaşır. O
+       * durumda boş dönmek doğru — bilmediğimizi söylemek.
+       */
+      SELECT price_try AS price_24h
+      FROM price_history
+      WHERE asset_id = a.id
+        AND ts <= now() - interval '24 hours'
+        AND ts >= now() - interval '48 hours'
+      ORDER BY ts DESC
+      LIMIT 1
+    ) d ON true
     LEFT JOIN LATERAL (
       -- ⚠️ MIN(ts) yerine ORDER BY ts ASC LIMIT 1.
       -- İkisi de aynı sonucu verir ama planları farklı: MIN() toplama
@@ -174,9 +216,11 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
   return result.map((row) => ({
     symbol: row.symbol,
     name: row.name,
+    kind: row.kind,
     priceTry: row.price_try,
     asOf: toUtcDate(row.ts),
     firstAvailable: toUtcDate(row.first_ts),
+    priceTry24hAgo: row.price_24h,
   }));
 }
 

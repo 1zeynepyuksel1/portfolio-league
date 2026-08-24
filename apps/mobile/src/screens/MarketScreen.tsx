@@ -1,47 +1,45 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
 import { formatPrice, formatRelativeTime } from '../lib/format';
 import { useCurrency } from '../lib/currency';
 import { CurrencyToggle } from '../components/CurrencyToggle';
-import { colors, fonts } from '../theme';
+import { AssetBadge, ChangeText, Chip, SectionLabel } from '../components/DesignKit';
+import { colors, fonts, rowMetrics, spacing } from '../theme';
 
 /**
- * PİYASA EKRANI — GET /assets
+ * MarketScreen — `docs/export/9a-piyasa.html`
  *
- * Fiyatlar sunucudaki cron tarafından 15 saniyede bir tazeleniyor
- * (apps/api/src/market/scheduler.ts). Bu ekran da 15 saniyede bir okuyor.
+ * Tasarımın üç eklediği şey: arama, tür filtresi, ve her satırda YÖN.
  *
- * Daha sık sormanın anlamı yok — aynı değeri tekrar alırdık.
+ * Yön en önemlisi. Eski listede fiyat vardı ama "yükseliyor mu düşüyor
+ * mu" bilgisi yoktu — kullanıcı 3.107.273 ₺ rakamına bakıp hiçbir şey
+ * anlayamıyordu. Rakam tek başına bağlamsız; asıl soru "dün neredeydi".
  */
 
 type Asset = {
   symbol: string;
   name: string;
+  kind: 'crypto' | 'fx' | 'metal' | 'bist';
   /** ⚠️ STRING. Number'a çevirme — backend'deki bigint zinciri kırılır. */
   priceTry: string | null;
-  /**
-   * Sunucunun çevirdiği dolar fiyatı. Yalnızca `?currency=usd` istendiğinde
-   * dolu gelir; TL görünümünde `null`.
-   *
-   * ⚠️ ÇEVRİMİ SUNUCU YAPIYOR, EKRAN DEĞİL. Ekranda `Number(priceTry) / kur`
-   * yazsaydık bigint zinciri son adımda float'a düşerdi — projenin
-   * "para bigint, float yasak" kuralı tam burada kırılırdı.
-   */
   priceUsd: string | null;
+  /** Son 24 saatteki yüzde değişim. `null` = bilinmiyor, sıfır değil. */
+  changePercent24h: string | null;
   asOf: string | null;
+  firstAvailable: string | null;
 };
 
-/** GET /assets artık dizi değil, zarflı bir nesne döndürüyor. */
 type AssetsResponse = {
   currency: 'try' | 'usd';
   usdTryRate: string | null;
@@ -53,31 +51,21 @@ type AssetsResponse = {
  * Ekranın sorma aralığı — cron'un YAZMA aralığından (15 sn) bilerek FARKLI.
  *
  * İkisi de 15 saniye olsaydı faz kilitlenirdi: ekran her seferinde cron'un
- * yazma anının hemen öncesinde sorar, hep bir önceki turun verisini alır ve
- * "x sn önce" yazısı 15'in altına hiç inmezdi.
- *
- * 5 saniye seçilince periyotlar birbirini kaydırıyor, yaş 0-20 arasında
- * geziniyor. Maliyeti yok — bu istek Binance'e gitmiyor, kendi
- * veritabanımızdan tek satır okuyor. Dış API yükü değişmiyor.
+ * bir önceki turunu görürdü ve fiyat sürekli bir tur geride kalırdı.
  */
 const REFRESH_MS = 5_000;
 
-/** Fiyat bu süreden eskiyse kullanıcıyı uyar. Cron 15 sn'de bir yazıyor. */
-const STALE_AFTER_MS = 60_000;
+/** Tür filtreleri. `null` = tümü. */
+const KINDS = [
+  { key: 'all', label: 'Tümü' },
+  { key: 'crypto', label: 'Kripto' },
+  { key: 'fx', label: 'Döviz' },
+  { key: 'metal', label: 'Metal' },
+] as const;
 
-function isStale(asOf: string | null): boolean {
-  if (asOf === null) return false; // fiyat hiç yok — zaten "—" gösteriliyor
-  return Date.now() - new Date(asOf).getTime() > STALE_AFTER_MS;
-}
+type KindKey = (typeof KINDS)[number]['key'];
 
 type Props = {
-  /**
-   * Satıra dokununca çağrılır — Al/Sat ekranını açar.
-   *
-   * İSTEĞE BAĞLI: verilmezse satırlar dokunulamaz kalır ve sağdaki ok
-   * çıkmaz. Böylece bu ekran ileride emir vermenin anlamsız olduğu bir
-   * yerde (örneğin salt görüntüleme kipinde) de kullanılabilir.
-   */
   onSelectAsset?: (symbol: string, name: string) => void;
 };
 
@@ -86,27 +74,24 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
 
   const [assets, setAssets] = useState<Asset[]>([]);
   const [rate, setRate] = useState<string | null>(null);
+  const [rateAsOf, setRateAsOf] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // useRef: değeri değiştiğinde YENİDEN ÇİZİM tetiklemeyen kutu.
-  // Zamanlayıcı kimliğini state'te tutsaydık her kurulumda ekran yeniden
-  // çizilir, o da yeni bir zamanlayıcı kurardı — sonsuz döngü.
+  const [search, setSearch] = useState('');
+  const [kind, setKind] = useState<KindKey>('all');
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /**
-   * ⚠️ SORGU PARÇASI REF'TE TUTULUYOR — VE BU BAYAT KAPANIŞ (stale closure)
-   * TUZAĞINDAN KAÇINMAK İÇİN.
+   * ⚠️ SORGU PARÇASI REF'TE — bayat kapanış (stale closure) tuzağı.
    *
-   * `load` aşağıda `useCallback(..., [])` ile bir kez üretiliyor ve
-   * `setInterval`'a veriliyor. `query`'yi doğrudan okusaydı, o değeri
-   * kurulduğu andaki hâliyle sonsuza kadar hatırlardı: kullanıcı dolara
-   * geçse bile zamanlayıcı TL istemeye devam ederdi. Elle yenilemede
-   * doğru, otomatik yenilemede yanlış — fark edilmesi zor bir hata.
-   *
-   * `load`'u `query`'ye bağımlı yapmak da olurdu ama o zaman her geçişte
-   * zamanlayıcı sökülüp yeniden kurulurdu. Ref ikisini de çözüyor.
+   * `load` aşağıda `useCallback(..., [])` ile bir kez üretilip
+   * `setInterval`'a veriliyor. `query`'yi doğrudan okusaydı kurulduğu
+   * andaki değeri sonsuza kadar hatırlardı: kullanıcı dolara geçse bile
+   * zamanlayıcı TL istemeye devam ederdi. Elle yenilemede doğru,
+   * otomatik yenilemede yanlış — fark edilmesi zor bir hata.
    */
   const queryRef = useRef(query);
 
@@ -121,6 +106,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
       const data = await apiFetch<AssetsResponse>(`/assets${queryRef.current}`);
       setAssets(data.assets);
       setRate(data.usdTryRate);
+      setRateAsOf(data.rateAsOf);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fiyatlar alınamadı.');
@@ -130,26 +116,14 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
     }
   }, []);
 
-  /**
-   * Para birimi değişince HEMEN yeniden çek — 15 saniyeyi bekleme.
-   *
-   * Beklesek kullanıcı düğmeye basar, ekranda hiçbir şey değişmez ve
-   * düğmenin bozuk olduğunu düşünür. İlk çizimde de çalışıyor ama
-   * aşağıdaki `void load()` ile çakışmıyor: ikisi de aynı isteği atar,
-   * sonuç aynıdır ve ekran zaten yükleniyor durumundadır.
-   */
+  // Para birimi değişince hemen tazele — 5 saniye bekletme.
   useEffect(() => {
     void load();
   }, [query, load]);
 
-  // Otomatik yenileme — sadece uygulama ÖN PLANDAYKEN.
-  //
-  // ⚠️ Arka planda durdurmazsak pil yakar ve sunucuya boşuna yük bineriz.
-  // Kullanıcı uygulamayı cebine koydu diye fiyat çekmeye devam etmenin
-  // hiçbir faydası yok.
   useEffect(() => {
     function startPolling() {
-      if (intervalRef.current !== null) return; // zaten çalışıyor
+      if (intervalRef.current !== null) return;
       intervalRef.current = setInterval(() => void load(), REFRESH_MS);
     }
 
@@ -159,109 +133,168 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
       intervalRef.current = null;
     }
 
-    void load(); // ilk yükleme, zamanlayıcıyı bekleme
+    void load();
     startPolling();
 
+    // Arka planda durdurulmazsa pil yakar ve sunucuya boşuna yük biner.
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        void load(); // geri dönünce HEMEN tazele, 15 sn bekletme
+        void load();
         startPolling();
       } else {
         stopPolling();
       }
     });
 
-    // Temizlik: ekran kapanınca zamanlayıcı ve dinleyici bırakılır.
-    // Yapmazsak sekme değiştirildikçe zamanlayıcılar birikir.
     return () => {
       stopPolling();
       subscription.remove();
     };
   }, [load]);
 
+  /**
+   * Görünen liste: önce tür, sonra arama.
+   *
+   * ⚠️ ARAMA HEM ADA HEM SEMBOLE BAKIYOR ve Türkçe küçültme kullanıyor.
+   * `toLowerCase()` tek başına yetmez: "ALTIN" içindeki `I` harfi
+   * Türkçe'de `ı` olur, İngilizce kuralıyla `i`. Kullanıcı "altın"
+   * yazdığında "GRAM_ALTIN" bulunmalı — `toLocaleLowerCase('tr')` bunu
+   * çözüyor.
+   */
+  const visible = useMemo(() => {
+    const needle = search.trim().toLocaleLowerCase('tr');
+
+    return assets.filter((asset) => {
+      if (kind !== 'all' && asset.kind !== kind) return false;
+      if (needle === '') return true;
+
+      return (
+        asset.name.toLocaleLowerCase('tr').includes(needle) ||
+        asset.symbol.toLocaleLowerCase('tr').includes(needle)
+      );
+    });
+  }, [assets, kind, search]);
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: assets.length };
+
+    for (const asset of assets) {
+      map[asset.kind] = (map[asset.kind] ?? 0) + 1;
+    }
+
+    return map;
+  }, [assets]);
+
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.gain} />
-        <Text style={styles.mutedText}>Fiyatlar yükleniyor...</Text>
+        <ActivityIndicator color={colors.inkMuted} />
       </View>
     );
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>📈 Piyasa</Text>
-          <CurrencyToggle />
-        </View>
-        {/* 15 sn: sunucudaki cron'un yazma aralığı. Ekranın sorma aralığı
-            (REFRESH_MS) ayrı bir şey — kullanıcıyı ilgilendiren fiyatın
-            ne sıklıkta TAZELENDİĞİ. */}
-        <Text style={styles.subtitle}>
-          Fiyatlar 15 saniyede bir güncellenir
-        </Text>
+  const searching = search.trim() !== '';
 
-        {/* Hangi kurla çevrildiği görünür olmalı. Dolar tutarını gösterip
-            kuru saklamak, kullanıcıya doğrulayamayacağı bir sayı vermek
-            olurdu. */}
-        {currency === 'usd' && rate != null && (
-          <Text style={styles.subtitle}>
-            1 $ = {formatPrice(rate)} · çevrim sunucuda yapılır
+  return (
+    <View style={styles.screen}>
+      {/* --- başlık --- */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Piyasa</Text>
+
+        <View style={styles.liveRow}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>
+            {formatRelativeTime(assets[0]?.asOf ?? null)}
           </Text>
+        </View>
+      </View>
+
+      {/* --- arama --- */}
+      <View style={styles.searchWrap}>
+        <Text style={styles.searchIcon}>⌕</Text>
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Varlık ara"
+          placeholderTextColor={colors.inkDisabled}
+          autoCorrect={false}
+          // ⚠️ Otomatik büyük harf KAPALI: "Bitcoin" yazmaya başlayınca
+          // klavye "B" yapıyor ve arama Türkçe küçültmeyle eşleşse de
+          // kullanıcı yazdığını farklı görüyor.
+          autoCapitalize="none"
+          returnKeyType="search"
+        />
+        {searching && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Text style={styles.searchClear}>✕</Text>
+          </TouchableOpacity>
         )}
       </View>
 
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-        </View>
-      )}
+      {/* --- filtre / sonuç sayısı --- */}
+      <View style={styles.filterRow}>
+        {searching ? (
+          <SectionLabel>{visible.length} SONUÇ</SectionLabel>
+        ) : (
+          <View style={styles.chipRow}>
+            {KINDS.map((item) => (
+              <Chip
+                key={item.key}
+                label={item.label}
+                count={counts[item.key] ?? 0}
+                selected={kind === item.key}
+                onPress={() => setKind(item.key)}
+              />
+            ))}
+          </View>
+        )}
+
+        <CurrencyToggle />
+      </View>
+
+      {error !== null && <Text style={styles.error}>{error}</Text>}
 
       <FlatList
-        data={assets}
+        data={visible}
         keyExtractor={(item) => item.symbol}
-        contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void load(true)}
-            tintColor={colors.gain}
+            tintColor={colors.inkMuted}
           />
         }
         ListEmptyComponent={
-          <View style={styles.centered}>
-            <Text style={styles.emptyEmoji}>📭</Text>
-            <Text style={styles.emptyTitle}>Varlık yok</Text>
-            <Text style={styles.mutedText}>
-              Veritabanına henüz varlık eklenmemiş.
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>
+              {searching ? 'Eşleşen varlık yok.' : 'Varlık listesi boş.'}
             </Text>
           </View>
         }
         renderItem={({ item }) => (
-          <Pressable
+          <TouchableOpacity
+            style={styles.row}
             onPress={() => onSelectAsset?.(item.symbol, item.name)}
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            disabled={onSelectAsset === undefined}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.name} detayını aç`}
           >
-            <View style={styles.symbolCircle}>
-              <Text style={styles.symbolText}>{item.symbol.slice(0, 3)}</Text>
+            <AssetBadge symbol={item.symbol} />
+
+            <View style={styles.rowNames}>
+              <Text style={styles.rowName} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={styles.rowMeta} numberOfLines={1}>
+                {item.symbol} · {formatRelativeTime(item.asOf)}
+              </Text>
             </View>
 
-            <View style={styles.nameColumn}>
-              <Text style={styles.symbol}>{item.symbol}</Text>
-              <Text style={styles.name}>{item.name}</Text>
-            </View>
-
-            <View style={styles.priceColumn}>
-              {/* Fiyatı hiç çekilmemiş varlık olabilir — uydurma değer
-                  göstermek yerine tire koyuyoruz. */}
-              <Text style={styles.price}>
-                {/* ⚠️ Dolar görünümünde `priceUsd` boş gelirse '—' gösteriliyor,
-                    `priceTry`'a DÜŞÜLMÜYOR. Düşseydik TL rakamı $ simgesiyle
-                    yazılır ve sayı makul görünürdü — sessiz yalan. */}
-                {/* ⚠️ `== null` bilerek: alan hiç gelmezse `undefined`
-                    olur ve `=== null` onu kaçırır — sonra
-                    `BigInt(undefined)` çökerdi. */}
+            <View style={styles.rowRight}>
+              <Text style={styles.rowPrice}>
+                {/* ⚠️ Dolar alanı boşsa TL'ye DÜŞÜLMÜYOR: TL rakamını $
+                    simgesiyle yazmak sessiz bir yalan olurdu. */}
                 {currency === 'usd'
                   ? item.priceUsd == null
                     ? '—'
@@ -270,154 +303,140 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
                     ? '—'
                     : formatPrice(item.priceTry)}
               </Text>
-              {/* Tazelik göstergesi sadece veri BAYATLADIĞINDA çıkıyor.
-                  Her satırın altında ilerleyen bir sayaç görsel gürültü;
-                  ama fiyat gerçekten eskidiyse kullanıcı bilmeli — yoksa
-                  eski veriyi güncel sanır. Eşik 60 sn: cron 15 saniyede
-                  bir yazıyor, 60'ı geçtiyse gerçekten bir sorun var. */}
-              {isStale(item.asOf) && (
-                <Text style={styles.staleWarning}>
-                  ⚠️ {formatRelativeTime(item.asOf)}
-                </Text>
-              )}
+
+              <ChangeText percent={item.changePercent24h} size={12} />
             </View>
 
-            {/* Dokunulabilir olduğunu gösteren işaret. Olmasaydı satırın
-                bir şey yaptığı hiçbir yerden anlaşılmazdı. */}
-            {onSelectAsset !== undefined && (
-              <Text style={styles.chevron}>›</Text>
-            )}
-          </Pressable>
+            <Text style={styles.chevron}>›</Text>
+          </TouchableOpacity>
         )}
       />
+
+      {/* --- dolar dipnotu --- */}
+      {currency === 'usd' && rate !== null && (
+        <View style={styles.banner}>
+          <Text style={styles.bannerText}>
+            Dolar fiyatını sunucu çeviriyor. USDTRY kuru{' '}
+            <Text style={styles.bannerStrong}>{formatPrice(rate)}</Text> ile
+            hesaplandı, {formatRelativeTime(rateAsOf)} güncellendi.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
+  screen: { flex: 1, backgroundColor: colors.surface },
   centered: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: colors.surface,
     alignItems: 'center',
-    paddingVertical: 40,
+    justifyContent: 'center',
   },
-  titleRow: {
+
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingHorizontal: spacing.screen,
+    paddingTop: 18,
   },
   title: {
-    fontSize: 20,
-    fontFamily: fonts.bold,
+    fontFamily: fonts.semibold,
+    fontSize: 26,
     color: colors.ink,
+    letterSpacing: -0.6,
   },
-  subtitle: {
-    fontSize: 12,
-    color: colors.inkMuted,
-    marginTop: 2,
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // Yeşil nokta "veri akıyor" demek — fiyatın yönüyle ilgisi yok.
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.gain,
   },
-  errorBox: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
+  liveText: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkMuted },
+
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: spacing.screen,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceSunken,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginHorizontal: 20,
-    marginTop: 10,
+    borderColor: colors.border,
   },
-  errorText: {
+  searchIcon: { fontSize: 16, color: colors.inkFaint },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.ink,
+    // Android'de TextInput'un kendi dikey boşluğu satırı kaydırıyor.
+    padding: 0,
+  },
+  searchClear: { fontSize: 14, color: colors.inkFaint, paddingHorizontal: 4 },
+
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.screen,
+    paddingTop: 14,
+    paddingBottom: 12,
+  },
+  chipRow: { flexDirection: 'row', gap: 7, flex: 1 },
+
+  error: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
     color: colors.error,
-    fontSize: 13,
-    textAlign: 'center',
+    paddingHorizontal: spacing.screen,
+    paddingBottom: 8,
   },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 30,
-  },
+
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.fieldFill,
-    borderWidth: 1,
-    borderColor: colors.hairlineSoft,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginVertical: 4,
+    gap: 11,
+    paddingHorizontal: spacing.screen,
+    paddingVertical: rowMetrics.paddingVertical,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  rowPressed: {
-    backgroundColor: colors.fieldFill,
-    borderWidth: 1,
-    borderColor: colors.hairlineSoft,
-  },
-  chevron: {
+  rowNames: { flex: 1 },
+  rowName: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
+  rowMeta: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
     color: colors.inkFaint,
-    fontSize: 22,
-    marginLeft: 10,
-  },
-  symbolCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  symbolText: {
-    color: colors.gain,
-    fontFamily: fonts.bold,
-    fontSize: 12,
-  },
-  nameColumn: {
-    flex: 1,
-  },
-  symbol: {
-    color: colors.ink,
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-  },
-  name: {
-    color: colors.inkMuted,
-    fontSize: 12,
     marginTop: 2,
   },
-  priceColumn: {
-    alignItems: 'flex-end',
+  rowRight: { alignItems: 'flex-end' },
+  rowPrice: { fontFamily: fonts.monoBold, fontSize: 15, color: colors.ink },
+  chevron: { fontSize: 18, color: colors.inkDisabled },
+
+  empty: { alignItems: 'center', paddingVertical: 40 },
+  emptyText: { fontFamily: fonts.regular, fontSize: 13, color: colors.inkFaint },
+
+  banner: {
+    margin: spacing.screen,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  price: {
-    color: colors.ink,
-    fontFamily: fonts.bold,
-    fontSize: 15,
-  },
-  staleWarning: {
-    color: colors.warn,
-    fontSize: 11,
-    marginTop: 3,
-  },
-  emptyEmoji: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    color: colors.ink,
-  },
-  mutedText: {
+  bannerText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 18,
     color: colors.inkMuted,
-    fontSize: 13,
-    marginTop: 8,
-    textAlign: 'center',
   },
+  bannerStrong: { fontFamily: fonts.monoSemibold, color: colors.inkBright },
 });
