@@ -75,3 +75,33 @@ export async function loadTokens(): Promise<{
 export async function clearTokens(): Promise<void> {
   await Promise.all([removeItem(ACCESS_KEY), removeItem(REFRESH_KEY)]);
 }
+
+/**
+ * ---------------------------------------------------------------------------
+ * TERCİHLER — sır değil, ayar
+ * ---------------------------------------------------------------------------
+ *
+ * ⚠️ TOKEN'LARDAN AYRI TUTULUYOR VE NEDENİ ÖNEMLİ.
+ *
+ * Token bir kimlik bilgisi: çalınırsa hesap ele geçer, o yüzden telefonda
+ * işletim sisteminin şifreli kasasında (`SecureStore`) duruyor. "TL mi
+ * dolar mı" tercihi ise sır değil — çalınmasının hiçbir anlamı yok.
+ *
+ * Yine de aynı `setItem`/`getItem` sarmalayıcılarını kullanıyoruz: tek bir
+ * depolama yolu olsun, tarayıcı/telefon ayrımı tek yerde kalsın. Ayrı bir
+ * yol açsaydık aynı `Platform.OS === 'web'` kontrolü iki dosyada
+ * tekrarlanır ve biri güncellenmeyi unuturdu.
+ *
+ * ⚠️ `clearTokens` bunlara DOKUNMUYOR — çıkış yapan kullanıcının para
+ * birimi tercihi silinmemeli. Tercih kimliğe değil cihaza ait.
+ */
+export async function setPreference(
+  key: string,
+  value: string,
+): Promise<void> {
+  await setItem(key, value);
+}
+
+export async function getPreference(key: string): Promise<string | null> {
+  return getItem(key);
+}

@@ -11,6 +11,9 @@ import {
 } from 'react-native';
 import { apiFetch } from '../api/client';
 import { formatPrice, formatRelativeTime } from '../lib/format';
+import { useCurrency } from '../lib/currency';
+import { CurrencyToggle } from '../components/CurrencyToggle';
+import { colors, fonts } from '../theme';
 
 /**
  * PİYASA EKRANI — GET /assets
@@ -26,7 +29,24 @@ type Asset = {
   name: string;
   /** ⚠️ STRING. Number'a çevirme — backend'deki bigint zinciri kırılır. */
   priceTry: string | null;
+  /**
+   * Sunucunun çevirdiği dolar fiyatı. Yalnızca `?currency=usd` istendiğinde
+   * dolu gelir; TL görünümünde `null`.
+   *
+   * ⚠️ ÇEVRİMİ SUNUCU YAPIYOR, EKRAN DEĞİL. Ekranda `Number(priceTry) / kur`
+   * yazsaydık bigint zinciri son adımda float'a düşerdi — projenin
+   * "para bigint, float yasak" kuralı tam burada kırılırdı.
+   */
+  priceUsd: string | null;
   asOf: string | null;
+};
+
+/** GET /assets artık dizi değil, zarflı bir nesne döndürüyor. */
+type AssetsResponse = {
+  currency: 'try' | 'usd';
+  usdTryRate: string | null;
+  rateAsOf: string | null;
+  assets: Asset[];
 };
 
 /**
@@ -62,7 +82,10 @@ type Props = {
 };
 
 export function MarketScreen({ onSelectAsset }: Props = {}) {
+  const { currency, query } = useCurrency();
+
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [rate, setRate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,12 +95,32 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
   // çizilir, o da yeni bir zamanlayıcı kurardı — sonsuz döngü.
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  /**
+   * ⚠️ SORGU PARÇASI REF'TE TUTULUYOR — VE BU BAYAT KAPANIŞ (stale closure)
+   * TUZAĞINDAN KAÇINMAK İÇİN.
+   *
+   * `load` aşağıda `useCallback(..., [])` ile bir kez üretiliyor ve
+   * `setInterval`'a veriliyor. `query`'yi doğrudan okusaydı, o değeri
+   * kurulduğu andaki hâliyle sonsuza kadar hatırlardı: kullanıcı dolara
+   * geçse bile zamanlayıcı TL istemeye devam ederdi. Elle yenilemede
+   * doğru, otomatik yenilemede yanlış — fark edilmesi zor bir hata.
+   *
+   * `load`'u `query`'ye bağımlı yapmak da olurdu ama o zaman her geçişte
+   * zamanlayıcı sökülüp yeniden kurulurdu. Ref ikisini de çözüyor.
+   */
+  const queryRef = useRef(query);
+
+  useEffect(() => {
+    queryRef.current = query;
+  }, [query]);
+
   const load = useCallback(async (isPullToRefresh = false) => {
     if (isPullToRefresh) setRefreshing(true);
 
     try {
-      const data = await apiFetch<Asset[]>('/assets');
-      setAssets(data);
+      const data = await apiFetch<AssetsResponse>(`/assets${queryRef.current}`);
+      setAssets(data.assets);
+      setRate(data.usdTryRate);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fiyatlar alınamadı.');
@@ -86,6 +129,18 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
       setRefreshing(false);
     }
   }, []);
+
+  /**
+   * Para birimi değişince HEMEN yeniden çek — 15 saniyeyi bekleme.
+   *
+   * Beklesek kullanıcı düğmeye basar, ekranda hiçbir şey değişmez ve
+   * düğmenin bozuk olduğunu düşünür. İlk çizimde de çalışıyor ama
+   * aşağıdaki `void load()` ile çakışmıyor: ikisi de aynı isteği atar,
+   * sonuç aynıdır ve ekran zaten yükleniyor durumundadır.
+   */
+  useEffect(() => {
+    void load();
+  }, [query, load]);
 
   // Otomatik yenileme — sadece uygulama ÖN PLANDAYKEN.
   //
@@ -127,7 +182,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#10B981" />
+        <ActivityIndicator size="large" color={colors.gain} />
         <Text style={styles.mutedText}>Fiyatlar yükleniyor...</Text>
       </View>
     );
@@ -136,13 +191,25 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>📈 Piyasa</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>📈 Piyasa</Text>
+          <CurrencyToggle />
+        </View>
         {/* 15 sn: sunucudaki cron'un yazma aralığı. Ekranın sorma aralığı
             (REFRESH_MS) ayrı bir şey — kullanıcıyı ilgilendiren fiyatın
             ne sıklıkta TAZELENDİĞİ. */}
         <Text style={styles.subtitle}>
           Fiyatlar 15 saniyede bir güncellenir
         </Text>
+
+        {/* Hangi kurla çevrildiği görünür olmalı. Dolar tutarını gösterip
+            kuru saklamak, kullanıcıya doğrulayamayacağı bir sayı vermek
+            olurdu. */}
+        {currency === 'usd' && rate != null && (
+          <Text style={styles.subtitle}>
+            1 $ = {formatPrice(rate)} · çevrim sunucuda yapılır
+          </Text>
+        )}
       </View>
 
       {error && (
@@ -159,7 +226,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => void load(true)}
-            tintColor="#10B981"
+            tintColor={colors.gain}
           />
         }
         ListEmptyComponent={
@@ -189,7 +256,19 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
               {/* Fiyatı hiç çekilmemiş varlık olabilir — uydurma değer
                   göstermek yerine tire koyuyoruz. */}
               <Text style={styles.price}>
-                {item.priceTry === null ? '—' : formatPrice(item.priceTry)}
+                {/* ⚠️ Dolar görünümünde `priceUsd` boş gelirse '—' gösteriliyor,
+                    `priceTry`'a DÜŞÜLMÜYOR. Düşseydik TL rakamı $ simgesiyle
+                    yazılır ve sayı makul görünürdü — sessiz yalan. */}
+                {/* ⚠️ `== null` bilerek: alan hiç gelmezse `undefined`
+                    olur ve `=== null` onu kaçırır — sonra
+                    `BigInt(undefined)` çökerdi. */}
+                {currency === 'usd'
+                  ? item.priceUsd == null
+                    ? '—'
+                    : formatPrice(item.priceUsd, 'usd')
+                  : item.priceTry == null
+                    ? '—'
+                    : formatPrice(item.priceTry)}
               </Text>
               {/* Tazelik göstergesi sadece veri BAYATLADIĞINDA çıkıyor.
                   Her satırın altında ilerleyen bir sayaç görsel gürültü;
@@ -218,13 +297,18 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
+    backgroundColor: colors.surface,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 40,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   header: {
     paddingHorizontal: 20,
@@ -233,17 +317,17 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    color: colors.ink,
   },
   subtitle: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: colors.inkMuted,
     marginTop: 2,
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: '#EF4444',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 10,
     padding: 12,
@@ -251,7 +335,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   errorText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 13,
     textAlign: 'center',
   },
@@ -263,17 +347,21 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C2541',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginVertical: 4,
   },
   rowPressed: {
-    backgroundColor: '#243154',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
   },
   chevron: {
-    color: '#64748B',
+    color: colors.inkFaint,
     fontSize: 22,
     marginLeft: 10,
   },
@@ -281,26 +369,26 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#0B132B',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   symbolText: {
-    color: '#10B981',
-    fontWeight: 'bold',
+    color: colors.gain,
+    fontFamily: fonts.bold,
     fontSize: 12,
   },
   nameColumn: {
     flex: 1,
   },
   symbol: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.ink,
+    fontFamily: fonts.semibold,
     fontSize: 15,
   },
   name: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
     marginTop: 2,
   },
@@ -308,12 +396,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   price: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
     fontSize: 15,
   },
   staleWarning: {
-    color: '#FBBF24',
+    color: colors.warn,
     fontSize: 11,
     marginTop: 3,
   },
@@ -323,11 +411,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    color: colors.ink,
   },
   mutedText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
     marginTop: 8,
     textAlign: 'center',

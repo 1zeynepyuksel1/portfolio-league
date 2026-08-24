@@ -36,6 +36,7 @@ import {
   maxBuyableQuantity,
   MIN_ORDER_CENTS,
 } from '../lib/order-math';
+import { colors, fonts } from '../theme';
 
 type Side = 'buy' | 'sell';
 
@@ -141,8 +142,12 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
 
   const loadPrice = useCallback(async () => {
     try {
-      const rows = await apiFetch<AssetRow[]>('/assets');
-      const row = rows.find((r) => r.symbol === symbol);
+      // ⚠️ GET /assets artık dizi DEĞİL, zarflı nesne döndürüyor.
+      // Tip iddiası (`apiFetch<T>`) çalışma anında doğrulanmıyor; eski
+      // hâli bırakılsaydı `rows.find` "find is not a function" derdi ve
+      // hata ancak Al/Sat ekranı açılınca ortaya çıkardı.
+      const data = await apiFetch<{ assets: AssetRow[] }>('/assets');
+      const row = data.assets.find((r) => r.symbol === symbol);
 
       if (row) {
         setPrice(row.priceTry);
@@ -313,7 +318,7 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
             setResult(null);
           }}
           placeholder="0.00"
-          placeholderTextColor="#64748B"
+          placeholderTextColor={colors.inkFaint}
           keyboardType="decimal-pad"
           editable={!submitting}
         />
@@ -390,7 +395,7 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
           ]}
         >
           {submitting ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={colors.ink} />
           ) : (
             <Text style={styles.submitText}>
               {side === 'buy' ? 'Satın Al' : 'Sat'}
@@ -422,28 +427,30 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B132B' },
+  container: { flex: 1, backgroundColor: colors.surface },
   content: { padding: 20, paddingBottom: 40 },
 
   header: { gap: 8, marginBottom: 16 },
-  back: { color: '#10B981', fontSize: 15, fontWeight: '600' },
-  title: { color: '#FFFFFF', fontSize: 22, fontWeight: 'bold' },
+  back: { color: colors.gain, fontSize: 15, fontFamily: fonts.semibold },
+  title: { color: colors.ink, fontSize: 22, fontFamily: fonts.bold },
 
   priceCard: {
-    backgroundColor: '#1C2541',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
     borderRadius: 14,
     padding: 16,
     alignItems: 'center',
     marginBottom: 18,
   },
-  priceLabel: { color: '#94A3B8', fontSize: 13 },
+  priceLabel: { color: colors.inkMuted, fontSize: 13 },
   priceValue: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 28,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginVertical: 4,
   },
-  priceAge: { color: '#64748B', fontSize: 12 },
+  priceAge: { color: colors.inkFaint, fontSize: 12 },
 
   sideRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
   sideButton: {
@@ -451,14 +458,14 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: '#1C2541',
+    backgroundColor: colors.fieldFill,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: colors.hairline,
   },
-  buyActive: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  sellActive: { backgroundColor: '#EF4444', borderColor: '#EF4444' },
-  sideText: { color: '#94A3B8', fontWeight: 'bold', fontSize: 15 },
-  sideTextActive: { color: '#FFFFFF' },
+  buyActive: { backgroundColor: colors.gain, borderColor: colors.gain },
+  sellActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  sideText: { color: colors.inkMuted, fontFamily: fonts.bold, fontSize: 15 },
+  sideTextActive: { color: colors.ink },
 
   labelRow: {
     flexDirection: 'row',
@@ -466,54 +473,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  label: { color: '#E2E8F0', fontSize: 13, fontWeight: '500' },
-  available: { color: '#10B981', fontSize: 12 },
+  label: { color: colors.ink, fontSize: 13, fontFamily: fonts.medium },
+  available: { color: colors.gain, fontSize: 12 },
 
   input: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 14,
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 18,
   },
 
   estimate: {
-    backgroundColor: 'rgba(28, 37, 65, 0.6)',
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.hairlineSoft,
     borderRadius: 12,
     padding: 14,
     marginTop: 16,
     gap: 6,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
-  rowLabel: { color: '#94A3B8', fontSize: 13 },
-  rowValue: { color: '#E2E8F0', fontSize: 13, fontWeight: '600' },
-  rowValueStrong: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
-  divider: { height: 1, backgroundColor: '#334155', marginVertical: 4 },
+  rowLabel: { color: colors.inkMuted, fontSize: 13 },
+  rowValue: { color: colors.ink, fontSize: 13, fontFamily: fonts.semibold },
+  rowValueStrong: { color: colors.ink, fontSize: 16, fontFamily: fonts.bold },
+  divider: { height: 1, backgroundColor: colors.hairline, marginVertical: 4 },
   disclaimer: {
-    color: '#64748B',
+    color: colors.inkFaint,
     fontSize: 11,
     lineHeight: 16,
     marginTop: 6,
   },
 
-  warning: { color: '#FB923C', fontSize: 13, marginTop: 12 },
+  warning: { color: colors.warn, fontSize: 13, marginTop: 12 },
 
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderColor: '#EF4444',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
     marginTop: 16,
   },
-  errorText: { color: '#F87171', fontSize: 13 },
+  errorText: { color: colors.error, fontSize: 13 },
 
   resultBox: {
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderColor: '#10B981',
+    backgroundColor: colors.gainSoft,
+    borderColor: colors.gain,
     borderWidth: 1,
     borderRadius: 12,
     padding: 14,
@@ -521,9 +530,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   resultTitle: {
-    color: '#10B981',
+    color: colors.gain,
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginBottom: 4,
   },
 
@@ -533,8 +542,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 22,
   },
-  submitBuy: { backgroundColor: '#10B981' },
-  submitSell: { backgroundColor: '#EF4444' },
+  submitBuy: { backgroundColor: colors.gain },
+  submitSell: { backgroundColor: colors.accent },
   submitDisabled: { opacity: 0.4 },
-  submitText: { color: '#FFFFFF', fontSize: 17, fontWeight: 'bold' },
+  submitText: { color: colors.ink, fontSize: 17, fontFamily: fonts.bold },
 });

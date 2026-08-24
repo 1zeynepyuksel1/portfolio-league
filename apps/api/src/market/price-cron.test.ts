@@ -34,7 +34,11 @@ function fakeMarket(prices: Record<string, string>): MarketDataProvider {
     getLatest: vi.fn(async (symbol: string) => {
       const price = prices[symbol];
       if (!price) throw new Error(`${symbol} alınamadı`);
-      return { date: "2026-08-18", price: toPrice(price) };
+      return {
+        date: "2026-08-18",
+        openTime: Date.parse("2026-08-18T00:00:00Z"),
+        price: toPrice(price),
+      };
     }),
     getHistory: vi.fn(async () => []),
   };

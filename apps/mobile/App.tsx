@@ -12,6 +12,7 @@ import { FriendsScreen } from './src/screens/FriendsScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { MarketScreen } from './src/screens/MarketScreen';
 import { TradeScreen } from './src/screens/TradeScreen';
+import { AssetDetailScreen } from './src/screens/AssetDetailScreen';
 import { WhatIfScreen } from './src/screens/WhatIfScreen';
 import { clearSession, restoreSession } from './src/api/client';
 import { PortfolioScreen } from './src/screens/PortfolioScreen';
@@ -19,6 +20,8 @@ import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { colors } from './src/theme';
+import { CurrencyProvider } from './src/lib/currency';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 type User = {
   id: string;
@@ -37,7 +40,32 @@ type Tab = 'market' | 'wallet' | 'leaderboard' | 'friends' | 'whatif';
  */
 type AuthView = 'welcome' | 'login' | 'register';
 
+/**
+ * Kök bileşen.
+ *
+ * ⚠️ SAĞLAYICI (Provider) EN DIŞTA — VE NEDENİ ÖNEMLİ.
+ *
+ * `CurrencyProvider` uygulamanın tamamını sarıyor, sadece Piyasa/Cüzdan
+ * sekmelerini değil. Yalnızca o iki ekranı sarsaydık her sekme kendi
+ * sağlayıcısını kurar, her birinin ayrı bir tercihi olurdu: kullanıcı
+ * Piyasa'da dolara geçer, Cüzdan'a bakar, orada TL görürdü — ve ikisi de
+ * "çalışıyor" gibi görünürdü.
+ *
+ * Alt bileşen olarak yazılmasının sebebi: `useCurrency` yalnızca
+ * sağlayıcının İÇİNDE çağrılabilir. `App`'in kendisi sağlayıcıyı kuruyorsa
+ * kendi içinde onu okuyamaz — bu React'in en sık düşülen kancası.
+ */
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <CurrencyProvider>
+        <AppShell />
+      </CurrencyProvider>
+    </ErrorBoundary>
+  );
+}
+
+function AppShell() {
   // Giriş yapmış kullanıcı bilgisi (null ise kimlik ekranları görünür)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
@@ -55,6 +83,18 @@ export default function App() {
    * geri dönünce aynı listeye düşüyor.
    */
   const [tradeAsset, setTradeAsset] = useState<{
+    symbol: string;
+    name: string;
+  } | null>(null);
+
+  /**
+   * Varlık detayı (grafik) açıksa hangi varlık için.
+   *
+   * Akış: liste -> detay -> emir. Detaydan Al/Sat'a geçilince detay
+   * KAPANMIYOR, üstüne emir katmanı açılıyor; emirden geri dönünce
+   * kullanıcı grafiğe düşüyor, listeye değil.
+   */
+  const [detailAsset, setDetailAsset] = useState<{
     symbol: string;
     name: string;
   } | null>(null);
@@ -204,7 +244,7 @@ export default function App() {
           {/* Aktif Ekran İçeriği */}
           {activeTab === 'market' ? (
             <MarketScreen
-              onSelectAsset={(symbol, name) => setTradeAsset({ symbol, name })}
+              onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })}
             />
           ) : activeTab === 'wallet' ? (
             // Sabit "100.000,00 ₺" yerine GET /portfolio'dan gelen gerçek
@@ -227,6 +267,18 @@ export default function App() {
             Sekme çubuğunu da kapatıyor: emir verirken kullanıcı yanlışlıkla
             başka sekmeye geçip yarım kalmış bir formu kaybetmesin.
           */}
+          {detailAsset !== null && (
+            <View style={StyleSheet.absoluteFill}>
+              <AssetDetailScreen
+                symbol={detailAsset.symbol}
+                name={detailAsset.name}
+                onClose={() => setDetailAsset(null)}
+                onTrade={() => setTradeAsset(detailAsset)}
+              />
+            </View>
+          )}
+
+          {/* Emir katmanı EN ÜSTTE — detayın da üstünde. */}
           {tradeAsset !== null && (
             <View style={StyleSheet.absoluteFill}>
               <TradeScreen

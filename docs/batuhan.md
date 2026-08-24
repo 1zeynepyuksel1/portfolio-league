@@ -16,6 +16,7 @@ Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi biti
 ### 1. Döviz ve varlık listesi genişlemesi — 21 Ağu 2026
 | Dosya | Ne sorulacak |
 |---|---|
+| `market/binance.ts` | `PAIRS` neden kural (`symbol + "USDT"`) değil elle tablo? Coin'lerin başlangıç tarihleri neden koda YAZILMADI? |
 | `market/tcmb.ts` | `FX_UNITS` neden var? JPY neden 100'e bölünüyor? Önbellek neden kuru değil **belgeyi** tutuyor? `parseRate` neden önce `<Currency>` bloğunu izole ediyor? |
 | `market/tcmb.test.ts` | "kur boşsa sonraki para biriminin kuruna sızmaz" testi hangi hatayı kilitliyor? |
 | `market/evds.ts` | `fetchFxHistory` neden `Price` döndürüyor, ham metin değil? Seri kalıbı `TP.DK.{KOD}.A`'daki `.A` ne demek? |
@@ -33,6 +34,7 @@ Bu ikisi **gerçek bir hata ayıklama oturumunun bedeliydi**: kayıt ve giriş
 |---|---|
 | `lib/env.ts` | `.env` neden `import.meta.url`'den bulunuyor, `dotenv/config`'ten değil? `npm run dev:api` ile `npx tsx apps/api/src/server.ts` arasındaki fark neydi? `requireEnv` neden yedek değer kabul etmiyor? |
 | `auth/router.ts` | `logUnexpected` neden eklendi? İstemciye giden mesaj neden **değişmedi**? |
+| `server.ts` · `market/tufe-backfill.ts` | Tek satır: `dotenv/config` → `lib/env.js`. Neden hepsinin değişmesi gerekti? |
 
 **Hikâye:** `.env` yalnızca repo kökünde. `import 'dotenv/config'` dosyayı
 çalışma dizinine göre arıyor. `apps/api`'den başlatınca bulamıyor →
@@ -55,9 +57,170 @@ Bu ikisi **gerçek bir hata ayıklama oturumunun bedeliydi**: kayıt ve giriş
 metinleri **kaldırıldı** — üçü de ürün için gerçek dışıydı. Gerekçeler
 WelcomeScreen.tsx'in başındaki yorumda.
 
-### 4. `apps/api/src/what-if/` — Zeynep yazdı, sen hâlâ okumadın
-Reel getiri formülü `(1+nominal)/(1+enflasyon)−1`, TÜFE endeksi kullanımı,
-tutar → miktar çevriminde ölçek matematiği (`calcGross`'un tersi).
+### 4. Al/Sat ekranı — 21 Ağu 2026 (Faz 1'i kapatan iş)
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/lib/order-math.ts` | Sunucunun ölçek matematiği neden **tekrarlandı**? `16` nereden geliyor? `divRound` neden düz bölme değil? `maxBuyableQuantity` neden komisyonu hesaba katıyor ve neden **aşağı** yuvarlıyor? |
+| `mobile/src/screens/TradeScreen.tsx` | Idempotency anahtarı neden `useState` değil **`useRef`**? Hangi durumda sıfırlanıyor, hangisinde korunuyor — ve korunmasaydı ne olurdu? Ekrandaki tutar neden "tahmini" diye işaretli? |
+| `mobile/src/screens/MarketScreen.tsx` | `onSelectAsset` neden **isteğe bağlı** bir prop? |
+| `market/price-cron.test.ts` | "döviz varlığını Binance'e değil TCMB'ye sorar" testi hangi hatayı kilitliyor? |
+
+**Ölçülen sonuç:** istemci tahmini ile sunucu sonucu birebir aynı çıktı —
+`gross 369393 · fee 369 · net 369762`. İkisi ayrışsaydı kullanıcı ekranda
+bir tutar görüp başka bir tutar öderdi.
+
+### 5. Fiyat grafiği — 22 Ağu 2026
+| Dosya | Ne sorulacak |
+|---|---|
+| `market/ranges.ts` | Kova boyutları neden bu sayılar? Hedef nokta aralığı neden 90-500? `max` için `lookbackSeconds` neden `null`, 0 değil? `startOf` neden `now`'u parametre alıyor? |
+| `market/ranges.test.ts` | Test "kod çalışıyor mu"yu değil neyi sınıyor? |
+| `market/repository.ts` (`getPriceSeries`) | `DISTINCT ON (bucket)` + `ORDER BY bucket, ts DESC` birlikte ne yapıyor? Neden `date_trunc` kullanılmadı? Neden ortalama değil **son** fiyat alınıyor? Tarih neden `Date` değil ISO metin + `::timestamp`? Neden `::timestamptz` değil? |
+| `market/router.ts` | Seyreltme neden sunucuda, istemcide değil? `range` neden kapalı liste, serbest tarih aralığı değil? |
+| `mobile/src/components/PriceChart.tsx` | `Number()` burada neden serbest, `format.ts`'te neden yasak? `y` neden ters çevriliyor? `max === min` olduğunda ne oluyor ve neden **sessiz** bir hata? |
+| `mobile/src/screens/AssetDetailScreen.tsx` | Yüzde değişimde float neden kabul edilebilir? Seyrek veri uyarısı neden var? |
+| `mobile/src/screens/WhatIfScreen.tsx` | `yearsFor` hangi hata mesajını ortadan kaldırıyor? Varlık değişince seçili yıl neden sınıra çekiliyor? `tooEarly` neden `dateString`'den SONRA tanımlanmak zorunda? |
+
+**Yol boyunca çıkan hata:** iç içe `sql` parçasında JS `Date` bağlamak
+`ERR_INVALID_ARG_TYPE` veriyor — düz sorguda çalışıyor, iç içe kullanımda
+patlıyor. Beş aralık 0 nokta döndürüyordu ve **benim test betiğim bunu
+gizledi** (`d.get('points', [])` yazdığım için 500 yanıtı "0 nokta" gibi
+göründü). Ders: testin hatayı yutmadığından emin ol.
+
+**Ölçülen sonuç:** `1y` 365 nokta · `max` 471 nokta (BTC) · SOL `max`
+316 nokta, 2020-08-12'den başlıyor — varlık başına gerçek başlangıç.
+
+### 6. `apps/api/src/what-if/` — sen hâlâ okumadın
+`service.ts` · `repository.ts` · `what-if.test.ts`
+
+**Zeynep'in yazdığı kısım:** reel getiri formülü `(1+nominal)/(1+enflasyon)−1`,
+TÜFE endeksi kullanımı, tutar → miktar çevriminde ölçek matematiği
+(`calcGross`'un tersi).
+
+**Sonradan eklenen kısım:** `findTufeIndexOnOrBefore`.
+**Ne sorulacak:** enflasyon verisi neden HER ZAMAN gecikmeli? Tam eşleşme
+arasaydık ne olurdu? Yanıt neden istenen ayı değil **kullanılan** ayı
+bildiriyor?
+
+⚠️ Bu dosyalarda hesabın tamamı `parseFloat` ile yapılıyor — projenin
+"para `bigint`, `float` yasak" kuralına aykırı. Gösterim için zararsız
+olduğu için şimdilik bırakıldı ama **bilinçli bir borç**, kaza değil.
+
+### 7. Grafiğe detay, yakınlaştırma ve pozisyon kârı — 23 Ağu 2026
+| Dosya | Ne sorulacak |
+|---|---|
+| `market/hourly-backfill.ts` | Neden ayrı bir geri doldurma betiği? `PricePoint`'e `openTime` neden eklendi — `date` yetmiyor muydu? Yetmeseydi 24 saatlik mum ne olurdu? |
+| `market/provider.ts` (`Candle`) | Binance'in `1m`'i ile `ranges.ts`'in `1m`'i neden **aynı şey değil**? Bu karışıklık nasıl işaretlendi? |
+| `market/binance.ts` (`CANDLE_MS`) | Sayfalama neden sabit bir gün değil kova boyutu kadar ilerliyor? Sabit kalsaydı 5 dakikalık mumlarda ne olurdu? |
+| `market/ranges.ts` (`BUCKET_LADDER`, `bucketFor`, `parseWindow`) | Merdivenin en küçüğü neden **5 dakika**? Daha küçük olsaydı kullanıcı ne yaşardı? `range`'in kapalı liste olma kararı neden geri alındı, karşılığında hangi iki koruma kondu? |
+| `market/repository.ts` (`until` parametresi) | Üst sınır neden `null` varsayılanlı? Zorunlu olsaydı mevcut çağıranlar ne olurdu? |
+| `portfolio/cost-basis.ts` | Maliyet neden **saklanmıyor**, emir defterinden türetiliyor? `grossCents` değil neden `netCents`? Satışta maliyet neden oranla azaltılıyor? `profitPercent` hangi iki durumda `null` dönüyor ve neden 0 dönmüyor? |
+| `mobile/src/components/PriceChart.tsx` (eksen + yakınlaştırma) | Etiket biçimi neden kova boyutuna göre değişiyor? `scrubRef`/`zoomRef` neden var — `PanResponder` içinde doğrudan state okusaydık ne olurdu? İstek neden parmak kalkınca gidiyor, her karede değil? %15 eşiği ne işe yarıyor? |
+
+**Ölçülen sonuç — yakınlaştırma gerçekten çözünürlük artırıyor:**
+3 yıl → haftalık/157 · 1 yıl → günlük/365 · 1 ay → 6 saat/121 ·
+1 hafta → saatlik/168 · 2 gün → **15 dakika**/193 · 6 saat → **5 dakika**/72.
+1 aydan 6 saate inince kova 72 kat inceliyor.
+
+**Ölçülen sonuç — komisyon maliyete gerçekten dahil:** fiyat hiç değişmemiş
+bir pozisyon **−%0,10** gösterdi. Bu tam olarak komisyon oranı; `grossCents`
+kullansaydık kâr **%0,00** çıkar ve kullanıcı ödediği komisyonu hiç görmezdi.
+
+### 8. Denetim — listeye hiç girmemiş 13 dosya (23 Ağu 2026)
+
+Bu bölüm bir **hatanın telafisi.** Yukarıdaki bölümler yazılırken "asıl iş"
+sayılan dosyalar listelendi, yanlarında değişen dosyalar atlandı. Denetimde
+13 tanesi çıktı — hepsi benim yazdığım ya da değiştirdiğim kod.
+
+**Neden önemli:** okuma borcu eksikse borç yokmuş gibi görünür. Listeye
+girmeyen dosya sorulmayan dosyadır.
+
+#### Emir ve portföy tarafı
+| Dosya | Ne sorulacak |
+|---|---|
+| `orders/orders.schema.ts` | `quantity` neden `number` değil **`string`**? Number olsaydı zincir tam olarak nerede kırılırdı — doğrulamadan önce mi sonra mı? Ondalık sınırı neden şemada, `toAmount` içinde değil? Düzenli ifade negatifi nasıl eliyor? |
+| `orders/calculate.test.ts` | Hangi testler yuvarlamayı, hangileri ölçek matematiğini kilitliyor? |
+| `portfolio/repository.ts` (`getOrderLedger`) | Emir defteri neden **tarih sırasına göre** okunuyor — sıra bozulsa maliyet ne olurdu? |
+| `portfolio/service.ts` | Maliyet hesabı neden servis katmanında birleştiriliyor, repository'de değil? |
+| `portfolio/router.ts` | `profitCents` ve `profitPercent` JSON'a nasıl yazılıyor — biri string biri sayı, neden? |
+| `portfolio/calculate.test.ts` · `portfolio/cost-basis.test.ts` | Yarım satış testi hangi sayıyı kilitliyor? (735.510 → 367.755) |
+| `mobile/src/screens/PortfolioScreen.tsx` | Yeşil/kırmızı kararı neye bakıyor — `profitCents` mi `profitPercent` mi? `profitPercent` `null` gelince ekran ne gösteriyor ve neden **%0 değil**? |
+
+#### Altyapı
+| Dosya | Ne sorulacak |
+|---|---|
+| `app.ts` | Router'lar neden bu sırayla monte ediliyor? `/assets` yolu neden `marketRouter`'a bağlı — dosya adıyla yol adı neden aynı değil? |
+| `market/scheduler.ts` | ⚠️ Cron ifadesi neden **altı alan**, standart cron beş değil mi? Kopyalanıp başka sisteme taşınırsa ne olur? `running` bayrağı olmasaydı iki tur çakışınca ne olurdu — veritabanı korur mu, korursa bayrak neden var? |
+| `market/evds.test.ts` | 1000 gözlem sınırı testte nasıl temsil ediliyor? |
+| `mobile/src/lib/storage.ts` | ⚠️ Neden **iki farklı depo** — telefonda `SecureStore`, tarayıcıda `localStorage`? `AsyncStorage` neden bilerek reddedildi? Tarayıcıdaki düz metin saklama hangi gerekçeyle kabul edildi ve bu gerekçe **dağıtımda hâlâ geçerli mi**? |
+| `mobile/src/api/client.ts` | Token yenileme (`refresh`) hangi anda tetikleniyor? Aynı anda iki istek 401 alırsa ne oluyor — iki kez mi yenileniyor? |
+| `mobile/src/lib/format.ts` | ⚠️ Hiçbir fonksiyon neden `Number()` kullanmıyor? `decimalToCents` metni nasıl `bigint`e çeviriyor — ve neden `parseFloat` ile değil? |
+| `mobile/src/screens/AuthScreen.tsx` | ⚠️ Bu dosya artık **hiçbir yerden çağrılmıyor** — Login/Register ekranları yerine geçti. Silinmeli mi, yoksa Zeynep hâlâ kullanıyor mu? Zeynep'e sorulacak. |
+
+#### Benim borcum değil ama okunmamış (Zeynep'in yazdığı)
+`db/schema.ts` · `market/tufe-cron.ts` · `what-if/schema.ts` ·
+`screens/FriendsScreen.tsx` · `screens/LeaderboardScreen.tsx`
+
+Bunları ben değiştirmedim, o yüzden yukarıdaki tablolarda yok. Ama
+`db/schema.ts` bütün projenin veri modeli — okumadan portföy hesabının
+neden öyle olduğu tam anlaşılmaz.
+
+### 9. TL / USD gösterim düğmesi — 23 Ağu 2026
+| Dosya | Ne sorulacak |
+|---|---|
+| `lib/fx.ts` (`tryToUsd`, `centsTryToUsd`, `parseCurrency`) | `usdToTry`'ın "simetriği" değil "tersi" demek ne fark yaratıyor? Ölçekten bağımsız `divideByRate` neden tek fonksiyon, iki sarmalayıcı? Geçersiz `?currency=eur` neden sessizce TL'ye düşmüyor? |
+| `lib/fx.test.ts` | Gidiş-dönüş çevrim neden **kayıpsız değil** ve bu test neyi kilitliyor? Negatif tutar testi hangi ekran hatasını engelliyor? |
+| `market/repository.ts` (`latestUsdTryRate`) | Kur neden ayrı tabloda değil, **normal bir varlık** olarak tutuluyor? `price_usd` kolonu eklenseydi ne olurdu? `null` dönünce çağıran neden `1` varsaymıyor? |
+| `market/router.ts` · `portfolio/router.ts` | Kur neden yalnızca dolar istendiğinde okunuyor? `priceTry` alanının üzerine dolar yazsaydık hata **neden fark edilmezdi**? Kur yoksa neden 503 — sessizce TL döndürmek neden daha kötü? |
+| `mobile/src/lib/currency.tsx` | ⚠️ Sağlayıcı neden **en dışta**, sadece iki sekmeyi sarmıyor? `App` kendi sağladığı context'i neden okuyamıyor? Depoda saçma değer varsa ne oluyor? ⚠️ `./storage` importunda uzantı neden **yok** — API tarafında neden zorunlu? |
+| `mobile/src/lib/storage.ts` (`setPreference`) | Tercih neden token'larla aynı dosyada ama ayrı başlıkta? `clearTokens` tercihe neden dokunmuyor? |
+| `mobile/src/lib/format.ts` (`symbolOf`) | Dolar biçiminde neden **Türkçe sayı yazımı** korundu (`1.234,56 $`)? |
+| `mobile/src/components/CurrencyToggle.tsx` | Neden tek düğme değil, iki seçenek yan yana? |
+| `mobile/src/screens/MarketScreen.tsx` · `PortfolioScreen.tsx` | ⚠️ `queryRef` neden var — zamanlayıcının içindeki `load` doğrudan `query` okusaydı hangi hata çıkardı ve **neden yalnızca otomatik yenilemede** görünürdü? `money()` yardımcısı hangi hatayı önlüyor? Yeşil/kırmızı kararı neden hep **TL** değerine bakıyor? |
+| `mobile/src/screens/TradeScreen.tsx` · `WhatIfScreen.tsx` | `apiFetch<Asset[]>` tip iddiası neden **çalışma anında** korumuyor — `GET /assets` dizi olmaktan çıkınca tip kontrolü niye hata vermedi? |
+
+**Ölçülen sonuç — çevrim doğrulandı:**
+- USD varlığının kendi dolar fiyatı **tam 1,00000000** çıktı. Kur formülü
+  yanlış olsaydı ilk bozulacak sayı buydu.
+- BTC: `3.697.539,16 ₺ ÷ 47,8799 = 77.225,29 $` — elle hesapla birebir aynı.
+- Nakit: `100.000,00 ₺ → 2.088,56 $` (`2088,5591` → ROUND_HALF_UP).
+- Zarar `−18,50 ₺ → −0,39 $` — **işaret korundu**, yüzde iki görünümde de
+  `−%0,10`, yani tam komisyon oranı.
+
+**Yol boyunca çıkan hata:** `currency.tsx` içinde `./storage.js` yazdım —
+API'nin `nodenext` alışkanlığı. `npm run typecheck` **temiz geçti**, hata
+ancak `expo export` sırasında Metro'da çıktı. Tip kontrolü ile paketleme
+iki farklı şeyi ölçüyor.
+
+⚠️ **Doğrulama sırasında veritabanına iki tek kullanımlık kullanıcı eklendi**
+(`fx-test-…@example.com`, `fx-pos-…@example.com`) ve biri 0,005 BTC aldı.
+Lig sıralamasında görünürler; temizlenmeleri gerekiyor.
+
+### 10. Tasarım dili birliği — 23 Ağu 2026
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/theme.ts` (yeni belirteçler) | Yeni renkler neden **mevcut üçünden türetildi**, palete dördüncü bir ton eklenmedi? `warn` neden `accent` (kırmızı) olamazdı? `readoutFill` neden yarı saydam değil **opak**? |
+| `mobile/src/components/PriceChart.tsx` | `fontWeight: 'bold'` neden `fontFamily: fonts.semibold` ile değiştirildi — ikisi aynı şeyi yapmıyor mu? |
+| `mobile/src/screens/*.tsx` (5 ekran) | Ham hex yerine anlamsal belirteç kullanmanın kazancı ne? `colors.gain` yerine `#10B981` kalsaydı "yükseliş rengini değiştir" isteği kaç dosyaya dokunurdu? |
+
+**⚠️ Yol boyunca yapılan iki hata — ikisi de otomatik değiştirmeden:**
+
+1. **JSX özniteliğinde süslü parantez unutuldu.** `tintColor="#10B981"` düz
+   metin değişimiyle `tintColor=colors.gain` oldu — JSX'te sözdizimi hatası.
+   Doğrusu `tintColor={colors.gain}`. Değer bağlamı (`'#fff'`) ile öznitelik
+   bağlamı (`="#fff"`) farklı kurallara tabi.
+2. **Import çok satırlı bir import'un ortasına girdi.** "`import ` ile
+   başlayan son satır" ölçütü, `import {` ile başlayıp üç satır sonra
+   `} from '...'` ile biten blokta yanlış yeri buluyor. Ölçüt **noktalı
+   virgülle biten satır** olmalıydı.
+
+İkisi de `npx tsc` ile anında yakalandı ve dosyalar `git checkout` ile geri
+alınıp yeniden yapıldı. **Ders:** toplu değiştirme yaparken bağlamı olmayan
+metin değişimi kırılgan — ve tip kontrolü bu kırılganlığın ağıdır.
+
+**Kapsam kararı:** `FriendsScreen` ve `LeaderboardScreen` **değiştirilmedi**.
+İkisi de Zeynep'in şeridi (`docs/02-gorev-paylasimi.md`). Uygulama şu an
+karışık görünüyor — kendi ekranlarım kömür grisi, onunkiler lacivert. Bu
+bilinçli: başkasının şeridine izinsiz girmek, karışık görünmekten kötü.
 
 ### Küçük değişiklikler
 - `mobile/src/screens/WhatIfScreen.tsx` — sabit 5 varlıklık liste kaldırıldı,
@@ -140,10 +303,10 @@ Varlık, fiyat, emir, portföy tipleri. Bu paket iki şeridin sözleşmesi — t
       Aynı fonksiyon gece cron'unu da besleyecek (`portfolio_snapshots`, `reason='daily'`).
       Emirde snapshot yazılmıyor — bkz. 01-plan.md 8.1
 - [x] Piyasa ve Portföy ekranları
-- [ ] **Al/Sat ekranı** ← Faz 1'in kalan TEK maddesi
-      Emir motoru yazıldı, 16 testi geçiyor, eşzamanlılık kanıtlandı, `POST /orders`
-      ayakta — ama hiçbir ekran onu çağırmıyor. Backend'in en çok emek gören
-      parçası şu an görünmez.
+- [x] **Al/Sat ekranı** — 21 Ağu 2026, Faz 1 kapandı
+      `TradeScreen.tsx`. Canlı doğrulandı: emir 201, aynı `Idempotency-Key` ile
+      tekrar → aynı `orderId` ve bakiye değişmedi, bakiyeyi aşan emir → 422.
+      İstemci tahmini sunucu sonucuyla birebir tuttu (`369393 / 369 / 369762`).
 
 ### Emir motoru hakkında şimdiden bilmen gerekenler
 

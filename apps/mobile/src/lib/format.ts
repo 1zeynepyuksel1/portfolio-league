@@ -53,24 +53,50 @@ export function decimalToCents(decimal: string): bigint {
  *
  * Nokta binlik, virgül ondalık — backend'deki formatTRY ile aynı biçim.
  */
-export function formatCents(cents: bigint): string {
+export type DisplayCurrency = 'try' | 'usd';
+
+/**
+ * Para birimi simgesi.
+ *
+ * ⚠️ SAYI BİÇİMİ DEĞİŞMİYOR, SADECE SİMGE.
+ *
+ * Dolar dünyada "1,234.56" diye yazılır — nokta ondalık, virgül binlik.
+ * Biz Türkçe biçimde bırakıyoruz ("1.234,56 $") çünkü kullanıcı Türk ve
+ * ekranın geri kalanı Türkçe. Aynı ekranda iki farklı sayı yazım kuralı
+ * olsaydı kullanıcı 1.234'ü bin iki yüz mü bir nokta iki yüz mü diye
+ * duraksardı — asıl kafa karışıklığı orada çıkar.
+ */
+function symbolOf(currency: DisplayCurrency): string {
+  return currency === 'usd' ? '$' : '₺';
+}
+
+export function formatCents(
+  cents: bigint,
+  currency: DisplayCurrency = 'try',
+): string {
   const isNegative = cents < 0n;
   const abs = isNegative ? -cents : cents;
 
   const lira = groupThousands((abs / 100n).toString());
   const kurus = (abs % 100n).toString().padStart(2, '0');
 
-  return `${isNegative ? '-' : ''}${lira},${kurus} ₺`;
+  return `${isNegative ? '-' : ''}${lira},${kurus} ${symbolOf(currency)}`;
 }
 
 /** Sunucudan gelen kuruş metnini doğrudan biçimlendirir: "9691126" -> "96.911,26 ₺" */
-export function formatCentsString(cents: string): string {
-  return formatCents(BigInt(cents));
+export function formatCentsString(
+  cents: string,
+  currency: DisplayCurrency = 'try',
+): string {
+  return formatCents(BigInt(cents), currency);
 }
 
 /** Ondalıklı fiyat metnini biçimlendirir: "3107273.31000900" -> "3.107.273,31 ₺" */
-export function formatPrice(decimal: string): string {
-  return formatCents(decimalToCents(decimal));
+export function formatPrice(
+  decimal: string,
+  currency: DisplayCurrency = 'try',
+): string {
+  return formatCents(decimalToCents(decimal), currency);
 }
 
 /**

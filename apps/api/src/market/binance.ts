@@ -1,6 +1,7 @@
 import { toPrice } from "../lib/money.js";
 import {
   MarketDataError,
+  type Candle,
   type MarketDataProvider,
   type PricePoint,
 } from "./provider.js";
@@ -10,7 +11,21 @@ const BASE_URL = "https://api.binance.com/api/v3/klines";
 /** Binance istek başına en fazla bu kadar mum döndürür. */
 const MAX_KLINES = 1000;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+
+/**
+ * Mum aralığı -> milisaniye.
+ *
+ * ⚠️ SAYFALAMA BU TABLOYA BAĞLI. `fetchRange` her turda son mumun
+ * zamanına BİR ARALIK ekleyerek ilerliyor. Günlük sabit kalsaydı saatlik
+ * çekimde her sayfa 24 saat atlar ve verinin %96'sı sessizce kaybolurdu.
+ */
+const CANDLE_MS: Record<Candle, number> = {
+  '5m': 5 * 60 * 1000,
+  '1h': HOUR_MS,
+  '1d': DAY_MS,
+};
 
 /**
  * Bizim varlık kodumuz -> Binance işlem çifti.
@@ -56,7 +71,7 @@ const IDX_CLOSE = 4;
 export class BinanceAdapter implements MarketDataProvider {
   async getLatest(symbol: string): Promise<PricePoint> {
     const now = Date.now();
-    const points = await this.fetchRange(symbol, now - 3 * DAY_MS, now);
+    const points = await this.fetchRange(symbol, now - 3 * DAY_MS, now, '1d');
 
     const last = points.at(-1);
     if (!last) {
@@ -69,8 +84,9 @@ export class BinanceAdapter implements MarketDataProvider {
     symbol: string,
     from: string,
     to: string,
+    candle: Candle = '1d',
   ): Promise<PricePoint[]> {
-    return this.fetchRange(symbol, toMillis(from), toMillis(to));
+    return this.fetchRange(symbol, toMillis(from), toMillis(to), candle);
   }
 
   /**
@@ -83,6 +99,7 @@ export class BinanceAdapter implements MarketDataProvider {
     symbol: string,
     fromMs: number,
     toMs: number,
+    candle: Candle,
   ): Promise<PricePoint[]> {
     const pair = PAIRS[symbol];
     if (!pair) {
@@ -97,7 +114,7 @@ export class BinanceAdapter implements MarketDataProvider {
     let cursor = fromMs;
 
     while (cursor <= toMs) {
-      const rows = await this.fetchPage(pair, cursor, symbol);
+      const rows = await this.fetchPage(pair, cursor, symbol, candle);
       if (rows.length === 0) break;
 
       let lastOpenTime = cursor;
@@ -110,7 +127,7 @@ export class BinanceAdapter implements MarketDataProvider {
 
       // Sınırdan az kayıt geldiyse kaynakta daha fazla veri yok.
       if (rows.length < MAX_KLINES) break;
-      cursor = lastOpenTime + DAY_MS;
+      cursor = lastOpenTime + (CANDLE_MS[candle] as number);
     }
 
     return out;
@@ -120,9 +137,10 @@ export class BinanceAdapter implements MarketDataProvider {
     pair: string,
     startTime: number,
     symbol: string,
+    candle: Candle,
   ): Promise<unknown[][]> {
     const url =
-      `${BASE_URL}?symbol=${pair}&interval=1d` +
+      `${BASE_URL}?symbol=${pair}&interval=${candle}` +
       `&startTime=${startTime}&limit=${MAX_KLINES}`;
 
     let response: Response;
@@ -196,8 +214,11 @@ function toPricePoint(row: unknown[], symbol: string): PricePoint {
     );
   }
 
+  const openTime = openTimeOf(row, symbol);
+
   return {
-    date: toDateString(openTimeOf(row, symbol)),
+    date: toDateString(openTime),
+    openTime,
     price: toPrice(close),
   };
 }

@@ -9,6 +9,7 @@ import {
 import {
   type PortfolioSummary,
   type PositionInput,
+  type PositionValue,
   type ProfitSummary,
   calculatePortfolio,
   calculateProfit,
@@ -17,7 +18,14 @@ import {
   getCashCents,
   getDepositedCents,
   getHoldings,
+  getOrderLedger,
 } from './repository.js';
+import {
+  calculateCostBasis,
+  calculatePositionProfit,
+  type LedgerOrder,
+  type PositionProfit,
+} from './cost-basis.js';
 
 /**
  * Portföy servisi — sorguları hesapla birleştiren katman.
@@ -33,17 +41,38 @@ export class PortfolioNotFoundError extends Error {
   }
 }
 
-export interface PortfolioResult extends PortfolioSummary, ProfitSummary {}
+/**
+ * Kâr/zarar bilgisi eklenmiş pozisyon.
+ *
+ * `PositionValue` (calculate.ts) yalnızca DEĞER biliyor: miktar × fiyat.
+ * Maliyet emir defterinden geldiği için ayrı bir katmanda ekleniyor;
+ * calculate.ts veritabanını tanımıyor ve tanımamalı.
+ */
+export interface PositionWithProfit extends PositionValue, PositionProfit {}
+
+/**
+ * ⚠️ `positions` ALANI BİLEREK DARALTILIYOR.
+ *
+ * `PortfolioSummary`'den geliyor ve tipi `PositionValue[]`. Omit ile
+ * çıkarıp yeniden tanımlamasaydık router `costCents`'i göremezdi —
+ * çalışma anında alan orada olurdu ama TypeScript yokmuş gibi davranırdı.
+ */
+export interface PortfolioResult
+  extends Omit<PortfolioSummary, 'positions'>,
+    ProfitSummary {
+  positions: PositionWithProfit[];
+}
 
 export async function getPortfolio(userId: string): Promise<PortfolioResult> {
   // Üç sorgu birbirine bağlı değil -> paralel çalışsınlar.
   // Sırayla `await` etseydik üç gidiş-dönüş süresi toplanırdı.
-  const [cashCents, holdingRows, depositedCents, assetPrices] =
+  const [cashCents, holdingRows, depositedCents, assetPrices, ledger] =
     await Promise.all([
       getCashCents(userId),
       getHoldings(userId),
       getDepositedCents(userId),
       listAssetsWithLatestPrice(),
+      getOrderLedger(userId),
     ]);
 
   if (cashCents === null) {
@@ -56,6 +85,27 @@ export async function getPortfolio(userId: string): Promise<PortfolioResult> {
   const priceBySymbol = new Map(
     assetPrices.map((asset) => [asset.symbol, asset]),
   );
+
+  /**
+   * Emir defterini varlığa göre grupla.
+   *
+   * ⚠️ SIRA KORUNUYOR. Sorgu zaten `executed_at, id` ile sıralı geliyor
+   * ve gruplama o sırayı bozmuyor — `calculateCostBasis` defteri baştan
+   * sona yürüdüğü için sıra bozulursa maliyet sessizce yanlış çıkar.
+   */
+  const ledgerBySymbol = new Map<string, LedgerOrder[]>();
+
+  for (const row of ledger) {
+    const list = ledgerBySymbol.get(row.symbol) ?? [];
+
+    list.push({
+      side: row.side,
+      quantity: toAmount(row.quantity),
+      netCents: row.netCents as Penny,
+    });
+
+    ledgerBySymbol.set(row.symbol, list);
+  }
 
   const positions: PositionInput[] = holdingRows.map((row) => {
     const priceRow = priceBySymbol.get(row.symbol);
@@ -82,5 +132,27 @@ export async function getPortfolio(userId: string): Promise<PortfolioResult> {
     depositedCents as Penny,
   );
 
-  return { ...summary, ...profit };
+  /**
+   * Pozisyon başına kâr/zarar.
+   *
+   * ⚠️ BU, PORTFÖY TOPLAMINDAKİ KÂR/ZARARDAN FARKLI BİR ŞEY.
+   *
+   *   toplam kâr    = bütün servet − dışarıdan yatırılan para
+   *   pozisyon kârı = o varlığın değeri − o varlığa ödenen para
+   *
+   * İkisi birbirini tutmak zorunda değil: nakitte bekleyen para toplamı
+   * etkiler ama hiçbir pozisyonun kârı değildir. Aynı sayıymış gibi
+   * göstermek kullanıcıyı yanıltır.
+   */
+  const positionsWithProfit = summary.positions.map((position) => {
+    const orders = ledgerBySymbol.get(position.symbol) ?? [];
+    const basis = calculateCostBasis(orders);
+
+    return {
+      ...position,
+      ...calculatePositionProfit(basis.costCents, position.valueCents),
+    };
+  });
+
+  return { ...summary, positions: positionsWithProfit, ...profit };
 }
