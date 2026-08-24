@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  PanResponder,
   ScrollView,
   Share,
   StyleSheet,
@@ -8,8 +9,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Svg, { Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  Line,
+  LinearGradient,
+  Path,
+  Stop,
+} from 'react-native-svg';
 import { apiFetch } from '../api/client';
+import { formatCentsString } from '../lib/format';
 import { AssetBadge, SectionLabel } from '../components/DesignKit';
 import { colors, fonts, spacing } from '../theme';
 
@@ -42,6 +51,15 @@ type WhatIfResult = {
   startUsdTryRate: string | null;
   currentDate: string;
   currentPriceTry: string;
+  /**
+   * Bugünkü fiyatın dolar karşılığı ve BUGÜNKÜ kur.
+   *
+   * ⚠️ Başlangıçtakinden ayrı alanlar — her fiyat kendi gününün kuruyla
+   * çevriliyor. Aynı kuru ikisine birden uygulamak sayılardan birini
+   * mutlaka bozar.
+   */
+  currentPriceUsd: string | null;
+  currentUsdTryRate: string | null;
   purchasedQuantity: string;
   initialInvestmentTry: string;
   currentValueTry: string;
@@ -256,7 +274,11 @@ export function WhatIfResultScreen({
       </Text>
 
       {/* --- grafik --- */}
-      <AreaChart points={series} inflationMultiple={inflationMultiple} />
+      <AreaChart
+        points={series}
+        inflationMultiple={inflationMultiple}
+        amountTry={amountTry}
+      />
 
       <View style={styles.legend}>
         <View style={styles.legendItem}>
@@ -358,24 +380,40 @@ export function WhatIfResultScreen({
 
       {showQuantity && (
         <View style={styles.detailBox}>
-          <DetailLine label="O günkü fiyat" value={result.startPriceTry} />
-          {result.startPriceUsd !== null && (
-            <DetailLine
-              label="O günkü fiyat ($)"
-              value={`${result.startPriceUsd} $`}
-            />
-          )}
-          <DetailLine label="Bugünkü fiyat" value={result.currentPriceTry} />
+          {/*
+            ⚠️ O GÜN VE BUGÜN, HER BİRİ KENDİ GÜNÜNÜN KURUYLA.
+
+            İki dolar fiyatı iki AYRI kurdan hesaplanıyor. Tek kur
+            kullansaydık ikisinden biri mutlaka saçmalardı: bugünkü kurla
+            12 Mart 2020'nin bitcoin'i 620 dolar çıkardı (gerçeği 4.800).
+          */}
+          <DetailLine
+            label="O günkü fiyat"
+            value={
+              result.startPriceUsd === null
+                ? result.startPriceTry
+                : `${result.startPriceTry}  ·  ${result.startPriceUsd} $`
+            }
+          />
+
+          <DetailLine
+            label="Bugünkü fiyat"
+            value={
+              result.currentPriceUsd === null
+                ? result.currentPriceTry
+                : `${result.currentPriceTry}  ·  ${result.currentPriceUsd} $`
+            }
+          />
           <DetailLine label="Yatırılan" value={result.initialInvestmentTry} />
           <DetailLine label="Bugünkü değer" value={result.currentValueTry} />
           <DetailLine label="Nominal kâr" value={result.nominalProfitTry} />
 
           {result.startUsdTryRate !== null && (
             <Text style={styles.footnote}>
-              ⚠️ Dolar fiyatı O TARİHTEKİ kurla hesaplandı
-              (1 $ = {result.startUsdTryRate}), bugünkü kurla değil.
-              Bugünkü kurla çarpsaydık aynı varlık bambaşka bir sayı
-              gösterirdi.
+              ⚠️ Her fiyat KENDİ GÜNÜNÜN kuruyla dolara çevrildi:
+              {' '}o gün 1 $ = {result.startUsdTryRate}, bugün 1 $ ={' '}
+              {result.currentUsdTryRate ?? '—'}. Tek kur kullansaydık
+              geçmiş fiyat bambaşka bir sayı gösterirdi.
             </Text>
           )}
         </View>
@@ -430,11 +468,69 @@ function DetailLine({ label, value }: { label: string; value: string }) {
 function AreaChart({
   points,
   inflationMultiple,
+  amountTry,
 }: {
   points: PricePoint[];
   inflationMultiple: number;
+  /** Yatırılan tutar — dokunulan andaki değeri hesaplamak için. */
+  amountTry: string;
 }) {
   const [width, setWidth] = useState(0);
+
+  /** Dokunulan noktanın indisi. `null` = dokunulmuyor. */
+  const [active, setActive] = useState<number | null>(null);
+
+  /**
+   * ⚠️ NOKTALAR VE GENİŞLİK REF'TE TUTULUYOR.
+   *
+   * `PanResponder` BİR KEZ kuruluyor ve o andaki değerleri kapanışına
+   * hapsediyor. State'i doğrudan okusaydı, yeni bir seri geldiğinde bile
+   * eskisine göre hesap yapardı — parmak doğru yerde, okunan sayı yanlış
+   * olurdu. Ref her zaman güncel değeri veriyor.
+   */
+  const pointsRef = useRef(points);
+  const widthRef = useRef(width);
+
+  useEffect(() => {
+    pointsRef.current = points;
+  }, [points]);
+
+  useEffect(() => {
+    widthRef.current = width;
+  }, [width]);
+
+  const responder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+
+      onPanResponderGrant: (event) => locate(event.nativeEvent.locationX),
+      onPanResponderMove: (event) => locate(event.nativeEvent.locationX),
+
+      // Parmak kalkınca okuma kayboluyor. Kalıcı bırakmak o noktanın
+      // "seçili" olduğu izlenimini verirdi; oysa geçici bir bakış.
+      onPanResponderRelease: () => setActive(null),
+      onPanResponderTerminate: () => setActive(null),
+    }),
+  ).current;
+
+  function locate(touchX: number) {
+    const series = pointsRef.current;
+    const w = widthRef.current;
+
+    if (series.length < 2 || w === 0) return;
+
+    /**
+     * ⚠️ `Math.round`, `Math.floor` DEĞİL.
+     *
+     * Floor kullansaydık parmak iki nokta arasındayken hep SOLDAKİNİ
+     * seçerdi ve imleç parmağın gerisinde sürüklenirdi. Round en yakını
+     * seçiyor, imleç parmakla birlikte yürüyor.
+     */
+    const index = Math.round((touchX / w) * (series.length - 1));
+
+    setActive(Math.min(Math.max(index, 0), series.length - 1));
+  }
 
   if (points.length < 2 || width === 0) {
     return (
@@ -469,33 +565,96 @@ function AreaChart({
 
   const area = `${line} L${width},${CHART_HEIGHT} L0,${CHART_HEIGHT} Z`;
 
+  const activeMultiple = active === null ? undefined : multiples[active];
+  const activePoint = active === null ? undefined : points[active];
+
   return (
-    <View
-      style={styles.chartBox}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-    >
-      <Svg width={width} height={CHART_HEIGHT}>
-        <Defs>
-          <LinearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={colors.gain} stopOpacity="0.35" />
-            <Stop offset="1" stopColor={colors.gain} stopOpacity="0.02" />
-          </LinearGradient>
-        </Defs>
+    <View>
+      {/*
+        Okuma satırı grafiğin ÜSTÜNDE, içinde değil.
 
-        <Path d={area} fill="url(#fill)" />
-        <Path d={line} stroke={colors.gain} strokeWidth={2} fill="none" />
+        İçine koysaydık balon parmağın altında kalırdı — kullanıcı okumak
+        istediği sayıyı kendi parmağıyla kapatırdı. Sabit bir satır aynı
+        bilgiyi hep aynı yerde veriyor.
+      */}
+      <View style={styles.scrubRow}>
+        {activePoint !== undefined && activeMultiple !== undefined ? (
+          <>
+            <Text style={styles.scrubDate}>
+              {humanDate(activePoint.ts.slice(0, 10))}
+            </Text>
 
-        {/* Enflasyon eşiği — kesikli, çünkü bu bir sınır, bir seri değil. */}
-        <Line
-          x1={0}
-          y1={y(1)}
-          x2={width}
-          y2={y(inflationMultiple)}
-          stroke={colors.inkMuted}
-          strokeWidth={1.2}
-          strokeDasharray="4 4"
-        />
-      </Svg>
+            <Text style={styles.scrubValue}>
+              {formatCentsString(
+                // Tutar × kat = o gündeki değer. Tutar tam TL olduğu için
+                // kuruşa çevirmek yüzle çarpmak kadar basit.
+                String(Math.round(Number(amountTry) * 100 * activeMultiple)),
+              )}
+            </Text>
+
+            <Text style={styles.scrubMultiple}>
+              {formatMultiple(activeMultiple)}
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.scrubHint}>
+            Grafiğe dokun — o günkü değeri gör
+          </Text>
+        )}
+      </View>
+
+      <View
+        style={styles.chartBox}
+        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+        {...responder.panHandlers}
+      >
+        <Svg width={width} height={CHART_HEIGHT}>
+          <Defs>
+            <LinearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={colors.gain} stopOpacity="0.35" />
+              <Stop offset="1" stopColor={colors.gain} stopOpacity="0.02" />
+            </LinearGradient>
+          </Defs>
+
+          <Path d={area} fill="url(#fill)" />
+          <Path d={line} stroke={colors.gain} strokeWidth={2} fill="none" />
+
+          {/* Enflasyon eşiği — kesikli, çünkü bu bir sınır, bir seri değil. */}
+          <Line
+            x1={0}
+            y1={y(1)}
+            x2={width}
+            y2={y(inflationMultiple)}
+            stroke={colors.inkMuted}
+            strokeWidth={1.2}
+            strokeDasharray="4 4"
+          />
+
+          {active !== null && activeMultiple !== undefined && (
+            <>
+              <Line
+                x1={x(active)}
+                y1={0}
+                x2={x(active)}
+                y2={CHART_HEIGHT}
+                stroke={colors.inkFaint}
+                strokeWidth={1}
+              />
+
+              {/* Nokta zemin renginde bir halkayla çevrili: çizginin
+                  üstünde durduğu net olsun, içinde kaybolmasın. */}
+              <Circle
+                cx={x(active)}
+                cy={y(activeMultiple)}
+                r={5}
+                fill={colors.gain}
+                stroke={colors.surface}
+                strokeWidth={2}
+              />
+            </>
+          )}
+        </Svg>
+      </View>
     </View>
   );
 }
@@ -588,11 +747,33 @@ const styles = StyleSheet.create({
 
   chartBox: {
     height: CHART_HEIGHT,
-    marginTop: 20,
+    marginTop: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
   chartEmpty: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkFaint },
+
+  scrubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 18,
+    // Sabit yükseklik: okuma çıkıp kaybolurken grafik zıplamasın.
+    minHeight: 20,
+  },
+  scrubDate: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkMuted },
+  scrubValue: {
+    flex: 1,
+    fontFamily: fonts.monoSemibold,
+    fontSize: 13,
+    color: colors.ink,
+  },
+  scrubMultiple: {
+    fontFamily: fonts.monoSemibold,
+    fontSize: 13,
+    color: colors.gain,
+  },
+  scrubHint: { fontFamily: fonts.regular, fontSize: 11, color: colors.inkFaint },
 
   legend: { flexDirection: 'row', gap: 18, marginTop: 12, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7 },
