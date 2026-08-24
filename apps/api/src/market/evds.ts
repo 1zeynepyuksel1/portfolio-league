@@ -126,7 +126,7 @@ async function fetchEvdsItems(
 
 export async function fetchTufeFromEvds(
   startDate = '01-01-2017',
-  endDate = '31-12-2026',
+  endDate = '31-12-2027',
   apiKey?: string,
 ): Promise<EvdsTufeItem[]> {
   const items = await fetchEvdsItems(
