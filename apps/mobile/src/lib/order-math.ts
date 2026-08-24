@@ -176,3 +176,26 @@ export function formatScaled(value: bigint, scale: number): string {
 
   return `${intPart}.${fracPart}`;
 }
+
+/**
+ * TL tutarından alınabilecek miktarı hesaplar.
+ *
+ * ⚠️ KOMİSYON DAHİL. Kullanıcı "5.000 ₺'lik al" dediğinde cebinden çıkan
+ * 5.000 olmalı — komisyon o tutarın İÇİNDEN alınır, üstüne eklenmez.
+ * Eklenseydi "5.000 ₺" yazıp 5.005 ₺ ödemiş olurdu ve bakiyesi tam
+ * 5.000 ise emir reddedilirdi.
+ *
+ * Aynı mantık `maxBuyableQuantity` ile birebir aynı; tek farkı oradaki
+ * girdinin bakiyenin tamamı olması. Ortak çekirdek kullanılıyor ki ikisi
+ * ayrışmasın.
+ *
+ * ⚠️ AŞAĞI YUVARLIYOR (düz bölme). Yukarı yuvarlasaydık hesaplanan miktar
+ * tutarı bir kuruş aşabilir ve emir `INSUFFICIENT_FUNDS` alırdı — hem de
+ * kullanıcı tam da elindeki parayı yazmışken.
+ */
+export function quantityForAmount(
+  amountCents: bigint,
+  priceDecimal: string | null,
+): string {
+  return maxBuyableQuantity(amountCents, priceDecimal);
+}

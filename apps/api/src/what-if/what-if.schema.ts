@@ -28,6 +28,14 @@ export type WhatIfResultDto = {
    */
   startPriceUsd: string | null;
   startUsdTryRate: string | null;
+  /**
+   * Bugünkü fiyatın dolar karşılığı ve bugünkü kur.
+   *
+   * ⚠️ Başlangıçtakinden AYRI alanlar: her fiyat kendi gününün kuruyla
+   * çevriliyor. Tek kur kullanmak iki sayıdan birini mutlaka bozardı.
+   */
+  currentPriceUsd: string | null;
+  currentUsdTryRate: string | null;
   symbol: string;
   assetName: string;
   startDate: string;

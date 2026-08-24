@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
   },
   readoutPrice: {
     color: colors.ink,
-    // ⚠️ `fontWeight: 'bold'` DEĞİL. Archivo'nun kalın kesimi ayrı bir
+    // ⚠️ `fontWeight: 'bold'` DEĞİL. Rubik'in kalın kesimi ayrı bir
     // dosya; RN ona ancak fontFamily ile ulaşıyor. `fontWeight` verseydik
     // sistem fontunu sahte-kalınlaştırırdı ve harfler tasarımdan sapardı.
     fontFamily: fonts.semibold,

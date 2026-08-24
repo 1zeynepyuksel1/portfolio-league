@@ -98,9 +98,7 @@ describe("TcmbAdapter", () => {
   it("hiç kur bulunamazsa hata fırlatır", async () => {
     vi.stubGlobal("fetch", mockFetch({}));
 
-    await expect(new TcmbAdapter().getUsdTry("2020-03-14")).rejects.toThrow(
-      /bulunamadı/,
-    );
+    await expect(new TcmbAdapter().getUsdTry("2020-03-14")).rejects.toThrow(/bulunamadı/,);
   });
 
   it("sınırsız geriye gitmez", async () => {

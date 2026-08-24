@@ -1,6 +1,7 @@
 import { formatTwrPercent } from '@portfolio-league/contracts';
 import { formatTRY, type Penny } from '../lib/money.js';
 import {
+  findMultiplesForDate,
   findAssetBySymbol,
   findHistoricalPrice,
   findLatestPrice,
@@ -79,6 +80,17 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
     usdAsset == null
       ? null
       : (await findHistoricalPrice(usdAsset.id, input.date)) ?? null;
+
+  /**
+   * BUGÜNKÜ kur — başlangıç kurundan AYRI okunuyor.
+   *
+   * ⚠️ İKİSİ FARKLI SORGU VE BU ZORUNLU. Tek kur kullanıp iki fiyatı da
+   * onunla çevirseydik, ya geçmiş fiyat bugünkü kurla (12 Mart 2020'de
+   * BTC 620 dolar gibi saçma bir sayı) ya da bugünkü fiyat 2020 kuruyla
+   * hesaplanırdı. Her fiyat KENDİ GÜNÜNÜN kuruyla çevrilmeli.
+   */
+  const currentUsdRate =
+    usdAsset == null ? null : (await findLatestPrice(usdAsset.id)) ?? null;
 
   // 3. Güncel canlı fiyatı bul
   const currentPriceRecord = await findLatestPrice(asset.id);
@@ -162,6 +174,16 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
     /** Çevrimde kullanılan kur — ekranda dipnot olarak gösteriliyor. */
     startUsdTryRate:
       startUsdRate == null ? null : formatKurus(parseFloat(startUsdRate.priceTry)),
+
+    /** Bugünkü fiyatın dolar karşılığı — BUGÜNKÜ kurla. */
+    currentPriceUsd:
+      currentUsdRate == null || parseFloat(currentUsdRate.priceTry) <= 0
+        ? null
+        : (currentPriceFloat / parseFloat(currentUsdRate.priceTry)).toFixed(2),
+    currentUsdTryRate:
+      currentUsdRate == null
+        ? null
+        : formatKurus(parseFloat(currentUsdRate.priceTry)),
     currentDate: currentPriceRecord.ts.toISOString().slice(0, 10),
     currentPriceTry: formatKurus(currentPriceFloat),
     purchasedQuantity: purchasedQuantity.toFixed(8),
@@ -181,5 +203,86 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
     realReturnPercentRaw: realReturn,
     realReturnPercentFormatted: formatTwrPercent(realReturn),
     summary,
+  };
+}
+
+/**
+ * "O günden bugüne kaç kat" listesi + ENFLASYON EŞİĞİ.
+ *
+ * ⚠️ ENFLASYON EŞİĞİ BU EKRANIN ASIL FİKRİ.
+ *
+ * "BTC 104 kat arttı" tek başına gurur verici bir sayı ama eksik: aynı
+ * dönemde TÜFE 12,8 kat arttı. Yani paranın alım gücü 104 kat değil,
+ * 104 ÷ 12,8 = 8,1 kat arttı.
+ *
+ * Eşiğin ALTINDA kalan varlıklar nominal olarak "kazandırmış" görünür
+ * ama gerçekte alım gücü KAYBETTİRMİŞTİR. Ekran bu çizgiyi listenin
+ * içine çizerek hangi varlığın gerçekten kazandırdığını gösteriyor.
+ */
+export async function calculateMultiples(date: string): Promise<{
+  date: string;
+  /** TÜFE'nin aynı dönemdeki katı — listedeki kırmızı çizgi. */
+  inflationMultiple: number;
+  tufeStartMonth: string;
+  tufeEndMonth: string;
+  assets: Array<{
+    symbol: string;
+    name: string;
+    kind: string;
+    /** Nominal kat: bugünkü fiyat ÷ o günkü fiyat. */
+    multiple: number;
+    /** Enflasyondan arındırılmış kat: nominal ÷ enflasyon. */
+    realMultiple: number;
+    startPriceTry: string;
+    currentPriceTry: string;
+  }>;
+}> {
+  const rows = await findMultiplesForDate(date);
+
+  const startMonth = date.slice(0, 7);
+  const startTufe = await findTufeIndexOnOrBefore(startMonth);
+  // ⚠️ Bugünün ayı DEĞİL, en son YAYIMLANMIŞ ay. TÜFE her zaman
+  // gecikmeli: Ağustos'tayken en yeni endeks Temmuz'unki olabilir.
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentTufe = await findTufeIndexOnOrBefore(currentMonth);
+
+  if (!startTufe || !currentTufe) {
+    throw new InflationIndexNotFoundError(startMonth);
+  }
+
+  const startIndex = parseFloat(startTufe.tufeIndex);
+  const endIndex = parseFloat(currentTufe.tufeIndex);
+
+  // Sıfıra bölme koruması: endeks 0 olamaz ama veri bozuksa çökmeyelim.
+  const inflationMultiple = startIndex > 0 ? endIndex / startIndex : 1;
+
+  const assets = rows
+    .map((row) => {
+      const start = parseFloat(row.startPriceTry);
+      const current = parseFloat(row.currentPriceTry);
+      const multiple = start > 0 ? current / start : 0;
+
+      return {
+        symbol: row.symbol,
+        name: row.name,
+        kind: row.kind,
+        multiple,
+        realMultiple: inflationMultiple > 0 ? multiple / inflationMultiple : 0,
+        startPriceTry: row.startPriceTry,
+        currentPriceTry: row.currentPriceTry,
+      };
+    })
+    // Katı sıfır olan varlık = fiyatı okunamamış. Listeden düşüyor.
+    .filter((a) => a.multiple > 0)
+    // ⚠️ BÜYÜKTEN KÜÇÜĞE. Ekran enflasyon eşiğini listenin ORTASINA
+    // çiziyor; bu ancak sıralı listede anlamlı olur.
+    .sort((a, b) => b.multiple - a.multiple);
+
+  return {
+    date,
+    inflationMultiple,
+    tufeStartMonth: startTufe.month,
+    tufeEndMonth: currentTufe.month,
+    assets,
   };
 }
