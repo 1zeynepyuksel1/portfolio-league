@@ -271,6 +271,15 @@ function AppShell() {
             <PortfolioScreen
               key={portfolioVersion}
               onLogout={() => void handleLogout()}
+              /**
+               * Cüzdandaki bir varlığa dokununca piyasadaki detayına git.
+               *
+               * ⚠️ SEKME DEĞİŞTİRMİYORUZ, KATMAN AÇIYORUZ. `setActiveTab`
+               * çağırsaydık kullanıcı geri döndüğünde Piyasa sekmesinde
+               * kalırdı — oysa cüzdandan gelmişti. Detay ekranı üstte bir
+               * katman olarak açılıyor, kapanınca cüzdana düşüyor.
+               */
+              onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })}
             />
           ) : activeTab === 'leaderboard' ? (
             <LeaderboardScreen />
