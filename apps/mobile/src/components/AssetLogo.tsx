@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { colors, fonts } from '../theme';
 
 /**
@@ -95,15 +96,95 @@ const FX_SYMBOLS: Record<string, string> = {
 };
 
 /**
- * Maden simgeleri — kimyasal sembol.
+ * Madenler — İNDİRİLMEDİ, ÇİZİLDİ.
  *
- * Altın için "Au", gümüş için "Ag". Hem doğru hem kısa; "ALT"/"GUM"
- * gibi kısaltmalar hem çirkin hem belirsizdi.
+ * Altın ve gümüş için hazır dosya gelmedi. İnternetten indirmek yerine
+ * SVG ile çiziliyor; üç sebeple:
+ *
+ *   1. Lisans sorunu yok — kendi çizimimiz.
+ *   2. Filigran riski yok (CHF dosyasında yaşandı).
+ *   3. Vektör: 32px'te de 128px'te de aynı keskinlikte.
+ *
+ * ⚠️ MADENİ PARA GİBİ ÇİZİLİYOR, düz harf olarak değil. Önceki hâli
+ * dairenin içinde soluk "Au" yazısıydı ve diğer varlıkların gerçek
+ * logolarının yanında yarım kalmış duruyordu. Degrade dolgu ona madeni
+ * bir yüzey hissi veriyor ve listedeki ağırlığı eşitliyor.
+ *
+ * Kimyasal simge korundu: "ALT"/"GUM" gibi kısaltmalar hem çirkin hem
+ * belirsizdi; Au ve Ag doğru ve evrensel.
  */
-const METAL_SYMBOLS: Record<string, { text: string; color: string }> = {
-  GRAM_ALTIN: { text: 'Au', color: '#D4AF37' },
-  GRAM_GUMUS: { text: 'Ag', color: '#B8B8BD' },
+const METALS: Record<
+  string,
+  { text: string; from: string; to: string; ink: string }
+> = {
+  // Sıcak sarıdan koyu altına — tek renk düz bir daire verirdi.
+  GRAM_ALTIN: { text: 'Au', from: '#F7D774', to: '#B8860B', ink: '#4A3608' },
+  // Gümüşte kontrast daha düşük; metal zaten soğuk ve soluk bir yüzey.
+  GRAM_GUMUS: { text: 'Ag', from: '#F2F2F7', to: '#9096A0', ink: '#33353B' },
 };
+
+/** Degrade dolgulu madeni para. */
+function MetalCoin({
+  metal,
+  size,
+}: {
+  metal: { text: string; from: string; to: string; ink: string };
+  size: number;
+}) {
+  /**
+   * ⚠️ DEGRADE KİMLİĞİ BENZERSİZ OLMALI.
+   *
+   * SVG'de `id` belge genelinde geçerli. İki madeni para aynı ekranda
+   * çizilirken ikisi de "coin" kimliğini kullansaydı, ikincisi
+   * birincinin degradesini alırdı — gümüş altın rengi çıkardı.
+   * Sembolü kimliğe katmak bunu kapatıyor.
+   */
+  const id = `coin-${metal.text}`;
+
+  return (
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size} viewBox="0 0 100 100">
+        <Defs>
+          <LinearGradient id={id} x1="0" y1="0" x2="0.7" y2="1">
+            <Stop offset="0" stopColor={metal.from} />
+            <Stop offset="1" stopColor={metal.to} />
+          </LinearGradient>
+        </Defs>
+
+        <Circle cx={50} cy={50} r={49} fill={`url(#${id})`} />
+
+        {/*
+          İnce iç halka: madeni paraların kenar pahını taklit ediyor.
+          Olmadan daire düz bir renk lekesi gibi duruyor.
+        */}
+        <Circle
+          cx={50}
+          cy={50}
+          r={41}
+          fill="none"
+          stroke={metal.ink}
+          strokeWidth={2}
+          strokeOpacity={0.28}
+        />
+      </Svg>
+
+      {/*
+        ⚠️ YAZI SVG İÇİNDE DEĞİL, ÜSTÜNDE.
+        `react-native-svg`'nin `Text` öğesi yazı tipini platforma göre
+        farklı çözüyor ve web'de Rubik'e ulaşamıyor. Normal RN `Text`
+        her yerde aynı fontu kullanıyor.
+      */}
+      <Text
+        style={[
+          styles.coinText,
+          { color: metal.ink, fontSize: size * 0.36, lineHeight: size },
+        ]}
+      >
+        {metal.text}
+      </Text>
+    </View>
+  );
+}
 
 export function AssetLogo({
   symbol,
@@ -142,16 +223,12 @@ export function AssetLogo({
     );
   }
 
-  const metal = METAL_SYMBOLS[symbol];
+  const metal = METALS[symbol];
 
   if (metal !== undefined) {
     return (
-      <View style={[styles.base, styles.filled, frame]}>
-        <Text
-          style={[styles.text, { color: metal.color, fontSize: size * 0.38 }]}
-        >
-          {metal.text}
-        </Text>
+      <View style={[styles.base, frame]}>
+        <MetalCoin metal={metal} size={size} />
       </View>
     );
   }
@@ -207,4 +284,15 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   text: { fontFamily: fonts.bold, textAlign: 'center' },
+  coinText: {
+    // ⚠️ `StyleSheet.absoluteFillObject` DEĞİL — bu sürümde tanımlı değil;
+    // dört kenarı elle sıfırlamak aynı işi yapıyor ve her sürümde çalışır.
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    fontFamily: fonts.bold,
+    textAlign: 'center',
+  },
 });
