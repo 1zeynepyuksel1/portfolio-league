@@ -10,6 +10,7 @@ import {
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 import { SectionLabel } from '../components/DesignKit';
+import { AddFriend } from '../components/AddFriend';
 
 /**
  * Lig aralığını insan diline çevirir: "7-13 Ağustos".
@@ -184,6 +185,16 @@ export function LeaderboardScreen() {
               ? 'Arkadaşlarınız henüz işlem yapmadı veya arkadaş listeniz boş.'
               : 'Bu haftaki ligde henüz yarışmacı skoru girilmedi.'}
           </Text>
+
+          {/*
+            ⚠️ DAVET DÜĞMESİ BOŞ DURUMDA DA VAR — asıl gerekli olduğu yer
+            burası. Yalnızca dolu listenin altına koysaydık, arkadaşı
+            olmayan kullanıcı arkadaş EKLEYEMEZDİ; tam da eklemesi gereken
+            kişi düğmeyi göremezdi.
+          */}
+          {activeTab === 'friends' && (
+            <AddFriend onSent={() => void loadData()} />
+          )}
         </View>
       ) : (
         <FlatList
@@ -280,6 +291,11 @@ export function LeaderboardScreen() {
               </View>
             );
           }}
+          ListFooterComponent={
+            activeTab === 'friends' ? (
+              <AddFriend onSent={() => void loadData()} />
+            ) : null
+          }
         />
       )}
     </View>

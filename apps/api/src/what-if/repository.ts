@@ -1,4 +1,4 @@
-import { and, desc, eq, lte } from 'drizzle-orm';
+import { and, desc, eq, lte, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { assets, inflationIndex, priceHistory } from '../db/schema.js';
 
@@ -93,4 +93,67 @@ export async function findTufeIndexOnOrBefore(month: string) {
     .limit(1);
 
   return record;
+}
+
+/**
+ * TÜM varlıklar için "o günden bugüne kaç kat" — TEK SORGUDA.
+ *
+ * ⚠️ NEDEN TEK SORGU: ekran 20 varlığın katını aynı anda gösteriyor.
+ * Her biri için ayrı `findHistoricalPrice` + `findLatestPrice` çağırsaydık
+ * 40 sorgu olurdu (N+1 problemi) ve kullanıcı tarihi her değiştirdiğinde
+ * tekrarlanırdı. LATERAL ile hepsi tek turda geliyor.
+ *
+ * ⚠️ "O TARİH YA DA ÖNCESİ" ARANIYOR, tam eşleşme değil. TCMB hafta sonu
+ * kur yayımlamıyor, LBMA da öyle. 14 Mart 2020 (cumartesi) sorulduğunda
+ * 13 Mart'ın fiyatı dönüyor — bu forward-fill kuralının aynısı.
+ */
+export async function findMultiplesForDate(targetDateStr: string): Promise<
+  Array<{
+    symbol: string;
+    name: string;
+    kind: string;
+    startPriceTry: string;
+    currentPriceTry: string;
+  }>
+> {
+  const endOfDay = `${targetDateStr}T23:59:59.999Z`;
+
+  const rows = await db.execute<{
+    symbol: string;
+    name: string;
+    kind: string;
+    start_price: string | null;
+    current_price: string | null;
+  }>(sql`
+    SELECT a.symbol, a.name, a.kind, s.start_price, c.current_price
+    FROM assets a
+    LEFT JOIN LATERAL (
+      SELECT price_try AS start_price
+      FROM price_history
+      WHERE asset_id = a.id AND ts <= ${endOfDay}::timestamp
+      ORDER BY ts DESC
+      LIMIT 1
+    ) s ON true
+    LEFT JOIN LATERAL (
+      SELECT price_try AS current_price
+      FROM price_history
+      WHERE asset_id = a.id
+      ORDER BY ts DESC
+      LIMIT 1
+    ) c ON true
+    WHERE a.is_active = true
+    ORDER BY a.sort_order
+  `);
+
+  // Fiyatı eksik olan varlık listeden DÜŞÜYOR, sıfırla doldurulmuyor.
+  // "0 kat" diye bir şey yok; bilmiyorsak göstermemeliyiz.
+  return rows
+    .filter((r) => r.start_price !== null && r.current_price !== null)
+    .map((r) => ({
+      symbol: r.symbol,
+      name: r.name,
+      kind: r.kind,
+      startPriceTry: r.start_price as string,
+      currentPriceTry: r.current_price as string,
+    }));
 }
