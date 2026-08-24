@@ -265,6 +265,7 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >

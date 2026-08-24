@@ -256,6 +256,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
       {error !== null && <Text style={styles.error}>{error}</Text>}
 
       <FlatList
+        showsVerticalScrollIndicator={false}
         data={visible}
         keyExtractor={(item) => item.symbol}
         refreshControl={

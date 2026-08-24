@@ -198,7 +198,7 @@ export function WhatIfScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <SectionLabel>YA ALSAYDIN</SectionLabel>
 
       {/* --- soru cümlesi --- */}
