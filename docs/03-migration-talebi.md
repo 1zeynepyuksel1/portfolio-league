@@ -1,57 +1,43 @@
 # Migration talebi — Zeynep'e
 
 > **Kimden:** Batuhan (Şerit A · Piyasa & Portföy)
-> **Tarih:** 23 Ağustos 2026
+> **Tarih:** 23 Ağustos 2026 · **güncellendi 24 Ağustos** (1. madde geri çekildi)
 > **Neden sana geliyor:** `docs/02-gorev-paylasimi.md` — migration'ların tek sahibi sensin.
 
-İki iş için şema değişikliği gerekiyor. Tek turda halledelim diye ikisini
-birleştirdim; ayrı ayrı istersem iki kez beklemek gerekecek.
+Tek turda halledelim diye maddeleri birleştirdim; ayrı ayrı istersem iki kez
+beklemek gerekiyor.
+
+**⚠️ Bu belge güncellendi. İlk hâlinde üç madde vardı, biri geri çekildi.
+Geçerli olan: 2 ve 3.**
 
 ---
 
-## 1 · Hesabın para birimi TL'den dolara geçiyor
+## ⚠️ 1 · GERİ ÇEKİLDİ — dolar geçişi yapılmıyor
 
-### Karar ve gerekçesi
+**Bu talebin ilk hâlinde `accounts` ve `orders` için dolar geçişi vardı.
+İptal. Aşağıdaki 2 ve 3 numaralı maddeler geçerli, 1 numaralı madde değil.**
 
-Lig TL bazlı ölçtüğü sürece **kur hareketi yatırım becerisinin önüne geçiyor.**
-TL bir hafta içinde %20 değer kaybederse kripto tutan herkesin TL getirisi
-şişer — kimse bir şey yapmadan kazanmış görünür. O hafta lig, kimin doğru
-varlığı seçtiğini değil, kurun ne yaptığını ölçer.
+Okumaya başlamadıysan hiç iş çıkmadı; başladıysan özür, sebebi şu:
 
-Hesap dolar olunca bu gürültü kayboluyor.
+### Neden istenmişti
 
-### Bunun bir yan faydası var
+TL bazlı ölçümün ligi bozduğunu düşünüyorduk: TL değer kaybedince kripto
+tutan herkesin TL getirisi şişer, kimse bir şey yapmadan kazanmış görünür.
 
-Kripto fiyatları Binance'ten **zaten dolar olarak** geliyor; biz onları TCMB
-kuruyla TL'ye çevirip saklıyoruz. Taban dolar olunca bu çevrim kripto için
-tamamen gereksizleşiyor — bir yuvarlama katmanı ve hafta sonu forward-fill
-bağımlılığı ortadan kalkıyor. Yani değişiklik kodu karmaşıklaştırmıyor,
-sadeleştiriyor.
+### Neden vazgeçildi
 
-Çevrim yalnızca TCMB'den TL olarak gelen varlıklar için kalıyor (EUR, altın,
-gümüş) — ters yönde.
-
-### ⚠️ Bu, `CLAUDE.md`'deki kilitli bir kararı bozuyor
-
-Tabloda "Lig haftalık, sıralama TWR (yüzde getiri) ile" yazıyor ve o TWR TL
-bazlıydı. **Bilerek bozuyoruz.** Sen de onaylarsan `CLAUDE.md`'yi
-güncelleyeceğim — kararı sessizce değiştirip tabloyu eski hâlinde bırakmak
-en kötüsü olur.
-
-### Sıralamaya etkisi: YOK
-
-Bu, kararı verirken hesapladığımız ve şaşırtıcı bulduğumuz şey:
+Matematiği yapınca gerekçe çürüdü:
 
 ```
 TWR_dolar = TWR_TL × (başlangıç kuru ÷ bitiş kuru)
 ```
 
-Sağdaki çarpan **herkes için aynı** — aynı haftanın aynı kur değişimi.
-Herkesin yüzdesi aynı sayıyla çarpılıyor, yani **sıralama bire bir aynı
-kalıyor.** Alt dönemlere bölünse bile çarpanlar teleskoplanıp aynı toplam
-kur değişimine iniyor.
+Sağdaki çarpan **herkes için aynı** — aynı dönemin aynı kur değişimi.
+Alt dönemlere bölünse bile çarpanlar teleskoplanıp aynı toplam kur
+değişimine iniyor. Yani herkesin yüzdesi aynı sayıyla çarpılıyor ve
+**sıralama bire bir aynı kalıyor.**
 
-Örnek — TL bir haftada 40'tan 50'ye gitsin:
+Somut — TL bir haftada 40'tan 50'ye gitsin:
 
 | Kullanıcı | Portföy | TL getirisi | Dolar getirisi |
 |---|---|---|---|
@@ -59,42 +45,39 @@ kur değişimine iniyor.
 | B | %100 TL nakit | %0 | −%20 |
 | C | %100 dolar nakit | +%25 | %0 |
 
-İki sütunda da sıra aynı: **A = C > B.**
+İki sütunda da sıra aynı: **A = C > B.** Dolara geçmenin lig adaletine
+katkısı **sıfır.**
 
-Yani bu bir **adalet** değil **anlatım** tercihi: hesap dolarsa getiriyi de
-dolarda göstermek tutarlı olur.
+### Yerine ne var: elimizdeki daha iyi alet
 
-### İstenen değişiklikler
+Devalüasyon gürültüsünü **TÜFE** zaten arındırıyor — senin yazdığın
+"ya alsaydın" hesabı. Canlı ölçüm:
 
-**`accounts.cash_cents`** — kolon tipi ve adı **aynı kalıyor** (`bigint`,
-"cents" zaten para birimi belirtmiyor). Değişen tek şey **anlamı**: TL kuruşu
-yerine dolar senti.
-
-```sql
-ALTER TABLE accounts ALTER COLUMN cash_cents SET DEFAULT 500000;  -- 5.000,00 $
+```
+2020-03-12'de 10.000 ₺ ile BTC
+  nominal:   +%12.390
+  enflasyon:  +%814
+  reel:      +%1.266   ← asıl sayı
 ```
 
-> ⚠️ `CHECK (cash_cents >= 0)` aynen kalsın. Emir motorunun üç savunma
-> katmanından biri o.
+Nominal rakam gerçekten şişmiş. Reel hâli değil.
 
-**`orders`** — `price_try` kolonu artık dolar fiyatı tutacak, adı yalan
-söylemesin:
+Ve bu, dolara çevirmekten **daha doğru**: kullanıcı doları değil,
+Türkiye'de mal alıyor. Dolar paritesi satın alma gücünün yaklaşımı,
+TÜFE ise kendisi.
 
-```sql
-ALTER TABLE orders RENAME COLUMN price_try TO price_usd;
-```
+### Sonuçlar
 
-`gross_cents` · `fee_cents` · `net_cents` adları değişmiyor, anlamları
-dolar sentine dönüyor.
+- `accounts.cash_cents` **TL kuruşu kalıyor**, varsayılan 100.000 ₺
+- `orders.price_try` **yeniden adlandırılmıyor**
+- `price_history.price_usd` **gerekmiyor**
+- **Veri sıfırlanmıyor** — emir geçmişi duruyor
+- `CLAUDE.md`'deki "lig TL bazlı TWR" kararı **bozulmuyor**, olduğu gibi kalıyor
+- "Ya alsaydın" ekranının TÜFE karşılaştırması **anlamlı kalıyor** —
+  aşağıdaki "açık kalan konu" da kapandı
 
-### Mevcut veri: sıfırdan başlıyoruz
-
-Bütün hesaplar 5.000 $ ile yeniden başlar, emir geçmişi silinir.
-
-**Neden dönüştürmüyoruz:** her emri kendi tarihindeki kurla çevirmek daha
-doğru *görünür* ama sonuç yine yaklaşık olur — ve "o gün gerçekten böyle
-miydi" sorusuna dürüst cevap veremeyiz. Geliştirme aşamasındayız, gerçek
-kullanıcı yok. Temiz başlangıç, uydurma geçmişten iyidir.
+Dolar isteyen kullanıcı için ekranlarda `₺ / $` düğmesi zaten var: muhasebe
+TL, gösterim seçilebilir. Sunucu çevirimi yapıyor, saklamıyor.
 
 ---
 
@@ -106,42 +89,36 @@ var.
 
 ### İstenen değişiklikler
 
-`price_history` tablosuna:
+`price_history` tablosuna üç kolon:
 
 ```sql
 ALTER TABLE price_history
-  ADD COLUMN price_usd numeric(24,8),
-  ADD COLUMN open_usd  numeric(24,8),
-  ADD COLUMN high_usd  numeric(24,8),
-  ADD COLUMN low_usd   numeric(24,8);
+  ADD COLUMN open_usd numeric(24,8),
+  ADD COLUMN high_usd numeric(24,8),
+  ADD COLUMN low_usd  numeric(24,8);
 ```
 
-**Neden `close_usd` yok:** kapanış zaten `price_usd`. Ayrı bir kolon açsaydık
-aynı sayının iki kopyası olurdu ve bir gün ayrışırlardı — ayrıştıklarında da
-kimse haber vermezdi. (Aynı gerekçeyle maliyet de `holdings`'te tutulmuyor,
-emir defterinden hesaplanıyor.)
+**Neden `close` kolonu yok:** kapanış zaten mevcut `price_try`. Ayrı bir
+kapanış kolonu açsaydık aynı sayının iki kopyası olurdu ve bir gün
+ayrışırlardı — ayrıştıklarında da kimse haber vermezdi. (Aynı gerekçeyle
+pozisyon maliyeti de `holdings`'te tutulmuyor, emir defterinden
+hesaplanıyor.)
 
-**Neden hepsi NULL kabul ediyor:** mevcut ~2,4 milyon satırda bu değerler yok
-ve geri doldurmak zaman alacak. `NOT NULL` istersek migration mevcut veriyle
-patlar. Geri doldurma bitince ikinci bir migration'la `price_usd`'yi
-`NOT NULL` yapabiliriz — o ayrı bir tur.
+**⚠️ Neden `_usd` eki var ama kapanış TL:** kaynak mumları dolar veriyor.
+Binance `open/high/low/close`'u USD olarak döndürüyor, LBMA da öyle.
+Kapanışı TCMB kuruyla TL'ye çevirip `price_try`'a yazıyoruz; diğer üçünü
+çevirmenin anlamı yok, çünkü grafikte **aynı ölçekte** kullanılacaklar ve
+her birini ayrı ayrı çevirmek dört kat yuvarlama demek.
 
-### ⚠️ `price_try` DURUYOR, silinmiyor
+Ekran çizerken üçünü aynı `ts`'in kuruyla çevirecek. Tek kur, tek yuvarlama.
 
-İki kolon birden tutmak "türetilmiş verinin iki kopyası" kuralına aykırı
-görünüyor ama burada kaçınılmaz, çünkü **kaynak varlığa göre değişiyor:**
+**⚠️ Döviz ve maden için `open/high/low` NULL kalacak** — TCMB ve LBMA
+günde tek fiyat yayımlıyor, gün içi aralık diye bir şey yok. Mum grafiği
+yalnızca kriptoda anlamlı; ekran bunu bilip diğerlerinde çizgi göstermeli.
 
-| Varlık türü | Kaynak | Türetilen |
-|---|---|---|
-| `crypto` | Binance → **USD** | TL |
-| `fx` · `metal` | TCMB → **TL** | USD |
-
-Sadece dolar saklasaydık EUR'nun TL fiyatı iki yuvarlamadan geçer ve TCMB'nin
-resmî rakamından sapardı — kullanıcı resmî kuru bildiği için bu fark görünür
-olurdu. Sadece TL saklasaydık kriptoda aynı sorun ters yönde çıkardı.
-
-Kural: **her varlık kendi kaynağının verdiği rakamı olduğu gibi saklar,
-diğeri aynı `ts`'teki USD/TRY kuruyla türetilir.**
+**Neden hepsi NULL kabul ediyor:** mevcut 121 bin satırda bu değerler yok
+ve geri doldurmak zaman alacak. `NOT NULL` istersek migration mevcut
+veriyle patlar.
 
 ---
 
@@ -164,35 +141,38 @@ Grafik için gerekmiyor — kova mantığı kaynağa bakmadan çalışıyor.
 
 ## İş bölümü
 
-**Sen:** yukarıdaki üç migration + `schema.ts` güncellemesi.
+**Sen:** aşağıdaki iki migration + `schema.ts` güncellemesi.
+
+```sql
+ALTER TABLE price_history
+  ADD COLUMN open_usd  numeric(24,8),
+  ADD COLUMN high_usd  numeric(24,8),
+  ADD COLUMN low_usd   numeric(24,8),
+  ADD COLUMN granularity text;
+```
+
+⚠️ Kolon adlarındaki `_usd` eki bilerek: LBMA ve Binance mumları **dolar**
+veriyor, kapanış ise `price_try` olarak TL saklanıyor. Ad, içindekini
+söylesin.
 
 **Ben:** migration indikten sonra
 - geri doldurmayı OHLC yazacak şekilde güncelleme (Binance mumları zaten
-  açılış/yüksek/düşük/kapanış döndürüyor, biz sadece kapanışı alıyoruz)
-- emir motorunu ve portföy hesabını dolar tabanına geçirme
-- `TRY`'yi işlem görebilir varlık olarak ekleme (aşağıya bak)
+  açılış/yüksek/düşük/kapanış döndürüyor, biz yalnızca kapanışı alıyoruz)
 - mum/çizgi geçişli grafik
+- `retention.ts` — eski satırların özetlenip temizlenmesi
 
-## Not: kullanıcı TL'de durmak isterse
+**Şu an bekleyemeden yaptığım iş:** altın ve gümüş adaptörü (LBMA).
+Migration gerektirmiyor, `price_try`'a yazıyor.
 
-Hesabın para birimini seçtirmiyoruz. Bunun yerine **TL'yi işlem görebilir bir
-varlık yapıyoruz** — kullanıcı TL'de durmak istiyorsa TL satın alıyor, tıpkı
-BTC alır gibi.
+## Sana ayrıca iletilecek bir bulgu
 
-Böylece iki tip hesap, aralarında dönüşüm kuralı ve "hangi bakiye doğru"
-sorusu hiç doğmuyor. Üstelik daha esnek: kullanıcı %60 dolar %40 TL de
-durabiliyor, hesap ayarıyla bunu yapamazdı.
+**TWR motoru bağlı değil.** `calculateTwr` yazılmış ve testleri geçiyor
+(`packages/contracts/src/twr.ts`), ama:
 
-## Açık kalan konu — senin şeridini de ilgilendiriyor
+- API'de hiçbir yerden çağrılmıyor — tek referansı bir yorum satırı
+- `portfolio_snapshots` tablosu var, **hiçbir şey yazmıyor**
+- `league_entries.twr_pct` okunuyor ama yazan yok — `upsertLeagueEntry`'nin
+  çağıranı yok
 
-**"Ya alsaydın" ekranı TÜFE kullanıyor, yani Türkiye enflasyonu.** Dolar
-bazlı getiriyi TL enflasyonuyla kıyaslamak elmayla armut olur. Üç seçenek
-görünüyor:
-
-1. O ekranı TL bazlı bırakmak (tutarsız ama en az iş)
-2. ABD TÜFE'sine geçmek (veri kaynağı araştırması gerek)
-3. "Dolar bazında şu kadar kazandın, aynı sürede TL şu kadar eridi" diye
-   ikisini yan yana göstermek
-
-Bence 3 en dürüstü ama en çok iş. Karar vermeden dolar geçişini bitirmeyelim,
-yoksa o ekran sessizce anlamsız bir sayı üretmeye başlar.
+Yani lig ekranı tabloda ne varsa onu gösteriyor; sıralamayı üreten motor
+yok. Parçalar hazır, boru bağlanmamış. **Faz 2'nin bitiş kriteri bu.**

@@ -20,6 +20,14 @@ export type WhatIfQueryInput = z.infer<typeof whatIfQuerySchema>;
 
 // Simülasyon sonuç DTO'su
 export type WhatIfResultDto = {
+  /**
+   * O tarihteki fiyatın dolar karşılığı ve çevrimde kullanılan kur.
+   *
+   * ⚠️ İkisi de `null` olabilir: USD serisinin başlangıcından önceki
+   * tarihler. Boş göndermek, bugünkü kurla uydurmaktan iyidir.
+   */
+  startPriceUsd: string | null;
+  startUsdTryRate: string | null;
   symbol: string;
   assetName: string;
   startDate: string;

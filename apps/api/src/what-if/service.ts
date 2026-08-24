@@ -54,6 +54,32 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
     throw new HistoricalPriceNotFoundError(input.symbol, input.date);
   }
 
+  /**
+   * 2b. O TARİHTEKİ DOLAR KURU.
+   *
+   * ⚠️ BUGÜNKÜ KUR DEĞİL, O GÜNKÜ KUR — ve fark devasa.
+   *
+   * 12 Mart 2020'de dolar ~6,28 ₺'ydi, bugün ~47,88. Bugünkü kurla
+   * çevirseydik "o gün BTC 620 dolardı" gibi tamamen yanlış bir sayı
+   * çıkardı (gerçeği ~4.700 dolar).
+   *
+   * Bunu doğru yapabiliyoruz çünkü USD sıradan bir varlık gibi
+   * `price_history`'de duruyor ve geri doldurma 2017'ye kadar günlük
+   * kuru yazdı. Ayrı bir kur tablosu olsaydı bu sorgu da ayrı olurdu.
+   *
+   * ⚠️ `null` olabilir: USD kaydının başlangıcından önceki tarihler.
+   * O durumda dolar alanları boş dönüyor — uydurulmuyor.
+   */
+  // ⚠️ `findAssetBySymbol` `undefined` döndürüyor, `null` değil —
+  // bulunamayan satır için Drizzle'ın `rows[0]` davranışı. `== null`
+  // ikisini birden yakalıyor.
+  const usdAsset = await findAssetBySymbol('USD');
+
+  const startUsdRate =
+    usdAsset == null
+      ? null
+      : (await findHistoricalPrice(usdAsset.id, input.date)) ?? null;
+
   // 3. Güncel canlı fiyatı bul
   const currentPriceRecord = await findLatestPrice(asset.id);
   if (!currentPriceRecord) {
@@ -122,6 +148,20 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
     assetName: asset.name,
     startDate: input.date,
     startPriceTry: formatKurus(startPriceFloat),
+    /**
+     * O günün fiyatının dolar karşılığı.
+     *
+     * Bölme burada `parseFloat` ile yapılıyor — bu dosyanın tamamı öyle
+     * (bilinçli borç, docs/batuhan.md §6). Gösterim için zararsız;
+     * emir motoru bu koda hiç dokunmuyor.
+     */
+    startPriceUsd:
+      startUsdRate == null || parseFloat(startUsdRate.priceTry) <= 0
+        ? null
+        : (startPriceFloat / parseFloat(startUsdRate.priceTry)).toFixed(2),
+    /** Çevrimde kullanılan kur — ekranda dipnot olarak gösteriliyor. */
+    startUsdTryRate:
+      startUsdRate == null ? null : formatKurus(parseFloat(startUsdRate.priceTry)),
     currentDate: currentPriceRecord.ts.toISOString().slice(0, 10),
     currentPriceTry: formatKurus(currentPriceFloat),
     purchasedQuantity: purchasedQuantity.toFixed(8),

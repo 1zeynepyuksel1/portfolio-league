@@ -35,23 +35,30 @@ const SEED_ASSETS = [
   { symbol: "JPY", name: "Japon Yeni", kind: "fx" as const, sortOrder: 18 },
 
   // --- Maden ---
-  // Fiyat kaynağı henüz yok (Binance'te yok, TCMB XML'inde yok, EVDS'de
-  // ayrı seri). Aşağıda is_active=false yapılıyor.
+  //
+  // Kaynak: LBMA London fixing (market/lbma.ts). Anahtarsız, 1968'e kadar
+  // gidiyor. EVDS elendi: günlük altın serisi yok, hepsi aylık.
+  //
+  // ⚠️ LBMA **troy ons** fiyatlıyor, bu varlıklar **gram**. Çevrim
+  // lbma.ts'te tek yerde ve testli — 1 troy ons = 31,1034768 gram.
   { symbol: "GRAM_ALTIN", name: "Gram Altın", kind: "metal" as const, sortOrder: 90 },
+  { symbol: "GRAM_GUMUS", name: "Gram Gümüş", kind: "metal" as const, sortOrder: 91 },
 ];
 
 /**
- * Fiyat kaynağı olmayan varlıklar.
+ * Fiyat kaynağı olmayan varlıklar — şu an boş.
  *
- * NEDEN LİSTEDEN SİLMİYORUZ: `price_history` yabancı anahtarla varlığa
- * bağlı ve `onDelete: cascade`. Varlığı silmek geçmişini de siler. Kaynağı
- * yazdığımızda `is_active`'i true'ya çevirmek yeterli olacak.
+ * `GRAM_ALTIN` burada duruyordu; LBMA adaptörü yazılınca çıkarıldı.
  *
- * NEDEN LİSTEDE BIRAKIP AKTİF TUTMUYORUZ: fiyatı olmayan varlık ekranda ya
- * boş satır olur ya da — daha kötüsü — eski bir fiyat donmuş hâlde gerçek
- * gibi görünür.
+ * Düzenek yerinde kalsın: ileride kaynağı olmayan bir varlık eklenirse
+ * (BIST gibi) buraya yazılır. Silmek yerine pasifleştirmenin sebebi
+ * `price_history`'nin varlığa `onDelete: cascade` ile bağlı olması —
+ * varlığı silmek geçmişini de siler.
+ *
+ * ⚠️ Fiyatı olmayan varlık AKTİF BIRAKILMAZ: ekranda ya boş satır olur
+ * ya da — daha kötüsü — eski bir fiyat donmuş hâlde gerçek gibi görünür.
  */
-const INACTIVE_SYMBOLS = ["GRAM_ALTIN"];
+const INACTIVE_SYMBOLS: string[] = [];
 
 // TÜİK Resmi Tarihsel TÜFE Endeks Tohumları (2017 - 2026)
 const SEED_TUFE: Record<string, number> = {
@@ -148,16 +155,24 @@ export async function seedAssets(): Promise<void> {
   // onConflictDoNothing: mevcut satırlar korunur, yenileri eklenir.
   await db.insert(assets).values(SEED_ASSETS).onConflictDoNothing();
 
-  // 2. Kaynağı olmayan varlıkları kapat.
+  // 2. Aktiflik durumunu AÇIKÇA yaz — iki yönlü.
   //
-  // ⚠️ Bu neden ayrı bir UPDATE: yukarıdaki insert `onConflictDoNothing`
-  // olduğu için GRAM_ALTIN zaten kayıtlıysa hiçbir alanı güncellenmez —
-  // is_active dahil. Açık UPDATE olmadan eski kayıt aktif kalırdı.
-  for (const symbol of INACTIVE_SYMBOLS) {
+  // ⚠️ NEDEN AYRI UPDATE'LER: yukarıdaki insert `onConflictDoNothing`
+  // olduğu için zaten kayıtlı bir varlığın hiçbir alanı güncellenmez —
+  // `is_active` dahil.
+  //
+  // ⚠️ VE NEDEN AÇMA YÖNÜ DE VAR: `GRAM_ALTIN` uzun süre bu listedeydi
+  // ve veritabanında `is_active = false` olarak duruyor. Listeden
+  // çıkarmak TEK BAŞINA onu geri açmaz — kimse `true` yazmadığı için
+  // sonsuza kadar kapalı kalırdı. Tohumu çalıştırıp "neden altın hâlâ
+  // yok" diye aramak saatler yiyebilirdi.
+  const inactive = new Set(INACTIVE_SYMBOLS);
+
+  for (const asset of SEED_ASSETS) {
     await db
       .update(assets)
-      .set({ isActive: false })
-      .where(eq(assets.symbol, symbol));
+      .set({ isActive: !inactive.has(asset.symbol) })
+      .where(eq(assets.symbol, asset.symbol));
   }
 
   // 3. TÜFE Endeks Tablosunu doldur
