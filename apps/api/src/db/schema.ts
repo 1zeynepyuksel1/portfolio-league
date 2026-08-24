@@ -22,6 +22,8 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name').notNull(),
   username: text('username'),
+  isEmailVerified: boolean('is_email_verified').default(false).notNull(),
+  verificationCode: text('verification_code'),
   isPublic: boolean('is_public').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -65,12 +66,10 @@ export function LeaderboardScreen() {
     }
   }
 
-  // Sekme değiştiğinde veya sayfa ilk açıldığında veriyi yükle
   useEffect(() => {
     loadData();
   }, [activeTab]);
 
-  // Kalan saniyeyi okunabilir saate/güne çeviren yardımcı
   function formatRemainingTime(seconds: number): string {
     if (seconds <= 0) return 'Bitti';
     const days = Math.floor(seconds / (3600 * 24));
@@ -82,28 +81,28 @@ export function LeaderboardScreen() {
     return `${mins}dk`;
   }
 
-  // Podyum için İlk 3 Yarışmacı
   const top1 = entries.find((e) => e.rank === 1);
   const top2 = entries.find((e) => e.rank === 2);
   const top3 = entries.find((e) => e.rank === 3);
 
-  // 4. ve sonraki sıralamadaki yarışmacılar
   const restEntries = entries.filter((e) => e.rank > 3);
 
   return (
     <View style={styles.container}>
       {/* 1. Üst Başlık & Geri Sayım Rozeti */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>🏆 {leagueInfo?.name || 'Haftalık Lig'}</Text>
+      <View style={styles.headerContainer}>
+        <View style={styles.headerMain}>
+          <Text style={styles.title} numberOfLines={1}>
+            🏆 {leagueInfo?.name || 'Haftalık Şampiyonluk Ligi'}
+          </Text>
           <Text style={styles.participantCount}>
-            👥 {leagueInfo?.totalParticipants || entries.length} Yarışmacı
+            👥 {leagueInfo?.totalParticipants || entries.length} Aktif Yarışmacı
           </Text>
         </View>
 
         {leagueInfo && (
           <View style={styles.countdownBadge}>
-            <Text style={styles.countdownLabel}>Bitişe Kalan</Text>
+            <Text style={styles.countdownLabel}>BİTİŞE KALAN</Text>
             <Text style={styles.countdownValue}>
               ⏱️ {formatRemainingTime(leagueInfo.remainingSeconds)}
             </Text>
@@ -116,6 +115,7 @@ export function LeaderboardScreen() {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'global' && styles.tabButtonActive]}
           onPress={() => setActiveTab('global')}
+          activeOpacity={0.8}
         >
           <Text style={[styles.tabText, activeTab === 'global' && styles.tabTextActive]}>
             🌍 Genel Süper Lig
@@ -125,6 +125,7 @@ export function LeaderboardScreen() {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'friends' && styles.tabButtonActive]}
           onPress={() => setActiveTab('friends')}
+          activeOpacity={0.8}
         >
           <Text style={[styles.tabText, activeTab === 'friends' && styles.tabTextActive]}>
             👥 Arkadaşlarım
@@ -144,20 +145,21 @@ export function LeaderboardScreen() {
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>📊</Text>
-          <Text style={styles.emptyTitle}>Henüz Sıralama Oluşmadı</Text>
-          <Text style={styles.emptyText}>
-            {activeTab === 'friends'
-              ? 'Arkadaşlarınız henüz işlem yapmadı veya arkadaş listeniz boş.'
-              : 'Bu haftaki ligde henüz yarışmacı skoru girilmedi.'}
-          </Text>
+          <View style={styles.glassCard}>
+            <Text style={styles.emptyEmoji}>📊</Text>
+            <Text style={styles.emptyTitle}>Henüz Sıralama Oluşmadı</Text>
+            <Text style={styles.emptyText}>
+              {activeTab === 'friends'
+                ? 'Arkadaşlarınız henüz işlem yapmadı veya arkadaş listeniz boş.'
+                : 'Bu haftaki ligde henüz yarışmacı skoru girilmedi.'}
+            </Text>
+          </View>
         </View>
       ) : (
         <FlatList
           data={restEntries}
           keyExtractor={(item) => item.userId}
           contentContainerStyle={styles.listContent}
-          // Podyumu Listenin Başına (Header) Koyuyoruz
           ListHeaderComponent={
             top1 || top2 || top3 ? (
               <View style={styles.podiumContainer}>
@@ -182,7 +184,7 @@ export function LeaderboardScreen() {
                   )}
                 </View>
 
-                {/* 1. Sıra (Altın Podyum - En Yüksek) */}
+                {/* 1. Sıra (Altın Podyum) */}
                 <View style={[styles.podiumColumn, styles.podiumCol1]}>
                   {top1 ? (
                     <>
@@ -226,11 +228,10 @@ export function LeaderboardScreen() {
               </View>
             ) : null
           }
-          // 4., 5., 6... Sıradaki Kullanıcı Satırları
           renderItem={({ item }) => {
             const isPositive = item.twrPercentRaw >= 0;
             return (
-              <View style={styles.userRow}>
+              <View style={styles.glassUserRow}>
                 <View style={styles.rankCircle}>
                   <Text style={styles.rankText}>{item.rank}</Text>
                 </View>
@@ -256,70 +257,79 @@ export function LeaderboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
+    backgroundColor: '#081226',
   },
-  header: {
+  headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: 14,
+    paddingBottom: 10,
+    gap: 12,
+  },
+  headerMain: {
+    flex: 1,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
   participantCount: {
     fontSize: 12,
     color: '#94A3B8',
-    marginTop: 2,
+    marginTop: 3,
   },
   countdownBadge: {
-    backgroundColor: '#1C2541',
-    borderColor: '#F59E0B',
-    borderWidth: 1,
-    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderWidth: 1.5,
+    borderRadius: 12,
     paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     alignItems: 'center',
   },
   countdownLabel: {
     color: '#F59E0B',
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   countdownValue: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
-    marginTop: 1,
+    marginTop: 2,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1C2541',
-    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 14,
     padding: 4,
     marginHorizontal: 20,
-    marginVertical: 10,
+    marginVertical: 8,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
   },
   tabButtonActive: {
     backgroundColor: '#10B981',
   },
   tabText: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontWeight: '600',
     fontSize: 13,
   },
   tabTextActive: {
     color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   loadingContainer: {
     flex: 1,
@@ -332,10 +342,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
     borderColor: '#EF4444',
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 14,
     margin: 20,
   },
@@ -348,11 +358,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 20,
+  },
+  glassCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1.5,
+    borderRadius: 26,
+    padding: 24,
+    alignItems: 'center',
+    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
   },
   emptyEmoji: {
     fontSize: 48,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   emptyTitle: {
     fontSize: 18,
@@ -364,7 +385,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     textAlign: 'center',
     marginTop: 6,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -394,7 +415,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#1C2541',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
@@ -459,7 +480,7 @@ const styles = StyleSheet.create({
   },
   podiumStand: {
     width: '100%',
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
@@ -491,11 +512,13 @@ const styles = StyleSheet.create({
   podiumPlaceholder: {
     height: 40,
   },
-  userRow: {
+  glassUserRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C2541',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1.2,
+    borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginVertical: 4,
@@ -504,7 +527,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#0B132B',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -525,13 +548,13 @@ const styles = StyleSheet.create({
   twrBadge: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   twrBadgePositive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
   },
   twrBadgeNegative: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
   },
   twrBadgeText: {
     fontWeight: 'bold',

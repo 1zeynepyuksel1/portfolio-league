@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -144,8 +145,8 @@ export function FriendsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 1. Üst Kısım: Arkadaş Ekleme Formu */}
-      <View style={styles.addSection}>
+      {/* 1. Üst Kısım: BUZLU CAM ARKADAŞ EKLEME KARTI */}
+      <View style={styles.glassCard}>
         <Text style={styles.sectionTitle}>👥 Arkadaş Ekle</Text>
         <Text style={styles.sectionSubtitle}>
           E-posta adresi yazarak arkadaşınızı ligde yarışmaya davet edin.
@@ -153,7 +154,7 @@ export function FriendsScreen() {
 
         <View style={styles.formRow}>
           <TextInput
-            style={styles.input}
+            style={styles.pillInput}
             placeholder="ornek@gmail.com"
             placeholderTextColor="#64748B"
             value={emailInput}
@@ -163,14 +164,15 @@ export function FriendsScreen() {
           />
 
           <TouchableOpacity
-            style={[styles.addButton, actionLoading && styles.buttonDisabled]}
+            style={[styles.glowingPillButton, actionLoading && styles.buttonDisabled]}
             onPress={handleSendRequest}
             disabled={actionLoading}
+            activeOpacity={0.85}
           >
             {actionLoading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.addButtonText}>İstek Gönder</Text>
+              <Text style={styles.glowingPillButtonText}>İstek Gönder</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -188,6 +190,7 @@ export function FriendsScreen() {
             setErrorMsg(null);
             setSuccessMsg(null);
           }}
+          activeOpacity={0.8}
         >
           <Text style={[styles.subTabText, activeTab === 'list' && styles.subTabTextActive]}>
             👥 Arkadaşlarım ({friends.length})
@@ -201,6 +204,7 @@ export function FriendsScreen() {
             setErrorMsg(null);
             setSuccessMsg(null);
           }}
+          activeOpacity={0.8}
         >
           <View style={styles.tabBadgeRow}>
             <Text style={[styles.subTabText, activeTab === 'requests' && styles.subTabTextActive]}>
@@ -228,11 +232,13 @@ export function FriendsScreen() {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🤝</Text>
-              <Text style={styles.emptyTitle}>Henüz Arkadaşınız Yok</Text>
-              <Text style={styles.emptyText}>
-                Yukarıdan arkadaşınızın e-postasını yazarak ekleyin ve Haftalık Ligde yarışmaya başlayın!
-              </Text>
+              <View style={styles.glassEmptyCard}>
+                <Text style={styles.emptyEmoji}>🤝</Text>
+                <Text style={styles.emptyTitle}>Henüz Arkadaşınız Yok</Text>
+                <Text style={styles.emptyText}>
+                  Yukarıdan arkadaşınızın e-postasını yazarak ekleyin ve Haftalık Ligde yarışmaya başlayın!
+                </Text>
+              </View>
             </View>
           }
           renderItem={({ item }) => {
@@ -241,7 +247,7 @@ export function FriendsScreen() {
             const removeId = item.friendshipId || item.id || '';
 
             return (
-              <View style={styles.friendCard}>
+              <View style={styles.glassFriendCard}>
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarText}>{initials}</Text>
                 </View>
@@ -284,7 +290,7 @@ export function FriendsScreen() {
             const initials = name.slice(0, 2).toUpperCase();
 
             return (
-              <View style={styles.requestCard}>
+              <View style={styles.glassRequestCard}>
                 <View style={styles.avatarCircleSmall}>
                   <Text style={styles.avatarTextSmall}>{initials}</Text>
                 </View>
@@ -319,7 +325,7 @@ export function FriendsScreen() {
                   📤 Gönderdiğiniz Bekleyen İstekler ({outgoingRequests.length})
                 </Text>
                 {outgoingRequests.map((outReq) => (
-                  <View key={outReq.requestId} style={styles.outgoingCard}>
+                  <View key={outReq.requestId} style={styles.glassOutgoingCard}>
                     <View style={styles.requestInfo}>
                       <Text style={styles.requestName}>
                         {outReq.recipientDisplayName || outReq.recipientEmail}
@@ -348,14 +354,22 @@ export function FriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
+    backgroundColor: '#081226',
   },
-  addSection: {
-    backgroundColor: '#1C2541',
-    padding: 16,
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1.5,
+    borderRadius: 22,
+    padding: 18,
     marginHorizontal: 16,
     marginTop: 10,
-    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
   },
   sectionTitle: {
     color: '#FFFFFF',
@@ -365,33 +379,38 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     color: '#94A3B8',
     fontSize: 12,
-    marginTop: 2,
-    marginBottom: 12,
+    marginTop: 3,
+    marginBottom: 14,
   },
   formRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  input: {
+  pillInput: {
     flex: 1,
-    backgroundColor: '#0B132B',
-    borderColor: '#334155',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1.2,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     color: '#FFFFFF',
     fontSize: 14,
   },
-  addButton: {
+  glowingPillButton: {
     backgroundColor: '#10B981',
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 6,
   },
-  addButtonText: {
-    color: '#FFFFFF',
+  glowingPillButtonText: {
+    color: '#022C22',
     fontWeight: 'bold',
     fontSize: 13,
   },
@@ -410,23 +429,25 @@ const styles = StyleSheet.create({
   },
   subTabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1C2541',
-    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 14,
     padding: 4,
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 14,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
   },
   subTabButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 9,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
   },
   subTabButtonActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#38BDF8',
   },
   subTabText: {
-    color: '#94A3B8',
+    color: '#64748B',
     fontWeight: '600',
     fontSize: 13,
   },
@@ -473,21 +494,21 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: 16,
   },
-  requestCard: {
-    backgroundColor: '#1C2541',
-    borderRadius: 12,
+  glassRequestCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderWidth: 1.2,
   },
   avatarCircleSmall: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#334155',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -518,13 +539,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   rejectButton: {
     backgroundColor: '#EF4444',
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   actionButtonText: {
     color: '#FFFFFF',
@@ -534,14 +555,16 @@ const styles = StyleSheet.create({
   outgoingSection: {
     marginTop: 20,
   },
-  outgoingCard: {
-    backgroundColor: '#1C2541',
-    borderRadius: 12,
+  glassOutgoingCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 16,
     padding: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
   },
   waitingBadge: {
     color: '#F59E0B',
@@ -554,15 +577,17 @@ const styles = StyleSheet.create({
     borderColor: '#64748B',
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   cancelButtonText: {
     color: '#94A3B8',
     fontSize: 11,
   },
-  friendCard: {
-    backgroundColor: '#1C2541',
-    borderRadius: 12,
+  glassFriendCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1.2,
+    borderRadius: 16,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -572,7 +597,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#334155',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: '#10B981',
+    borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -598,7 +625,7 @@ const styles = StyleSheet.create({
   removeButton: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 6,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#EF4444',
   },
@@ -609,8 +636,16 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    marginTop: 40,
-    paddingHorizontal: 20,
+    marginTop: 30,
+  },
+  glassEmptyCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 1.5,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    width: '100%',
   },
   emptyEmoji: {
     fontSize: 48,

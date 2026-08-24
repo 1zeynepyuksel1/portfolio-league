@@ -10,6 +10,7 @@ import type {
   LeaderboardQuery,
   LeagueInfoDto,
 } from './leagues.schema.js';
+import { syncAllLeagueEntriesAndRanks } from './twr-engine.js';
 
 // Aktif lig bilgisini ve kalan süreyi döner
 export async function getCurrentLeagueInfo(): Promise<LeagueInfoDto> {
@@ -37,6 +38,9 @@ export async function getCurrentLeagueInfo(): Promise<LeagueInfoDto> {
 export async function getGlobalLeaderboard(
   query: LeaderboardQuery,
 ): Promise<{ league: LeagueInfoDto; leaderboard: LeaderboardEntryDto[] }> {
+  // Liderlik tablosu çağrıldığında tüm katılımcıların TWR hesaplarını ve derecelerini canlı senkronize et
+  await syncAllLeagueEntriesAndRanks();
+
   const league = await getCurrentLeagueInfo();
   const rawEntries = await getLeaderboardByLeagueId(
     league.id,
@@ -69,6 +73,9 @@ export async function getGlobalLeaderboard(
 export async function getFriendsLeaderboard(
   userId: string,
 ): Promise<{ league: LeagueInfoDto; leaderboard: LeaderboardEntryDto[] }> {
+  // Canlı TWR senkronizasyonu
+  await syncAllLeagueEntriesAndRanks();
+
   const league = await getCurrentLeagueInfo();
   const rawEntries = await getFriendsLeaderboardByLeagueId(league.id, userId);
 

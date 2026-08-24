@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -59,30 +60,22 @@ const PRESET_DATES = [
 ];
 
 export function WhatIfScreen() {
-  // 1. Varlık Seçimi ve Dropdown Menü Açık/Kapalı Durumu
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // 2. Kaydırmalı Tarih Seçimi (Yıl, Ay, Gün)
   const [selectedYear, setSelectedYear] = useState('2020');
   const [selectedMonth, setSelectedMonth] = useState('03');
   const [selectedDay, setSelectedDay] = useState('12');
 
-  // 3. Tutar
   const [amountTry, setAmountTry] = useState('10000');
 
-  // İstek Durumları
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WhatIfResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Seçilen Varlık Bilgisi
   const currentAsset = ASSETS.find((a) => a.symbol === selectedSymbol) || ASSETS[0]!;
-
-  // Birleşik Tarih Stringi (YYYY-MM-DD)
   const dateString = `${selectedYear}-${selectedMonth}-${selectedDay.padStart(2, '0')}`;
 
-  // Hesapla Butonuna Basıldığında
   async function handleCalculate() {
     setError(null);
     setLoading(true);
@@ -93,10 +86,8 @@ export function WhatIfScreen() {
         throw new Error('Lütfen geçerli bir TL tutarı giriniz.');
       }
 
-      // TL'yi Kuruşa çeviriyoruz (10.000 TL -> 1000000 kuruş)
       const amountKurus = BigInt(Math.round(tryNum * 100)).toString();
 
-      // Backend'deki GET /what-if kapısına istek atıyoruz
       const data = await apiFetch<WhatIfResult>(
         `/what-if?symbol=${selectedSymbol}&date=${dateString}&amountKurus=${amountKurus}`,
       );
@@ -111,161 +102,164 @@ export function WhatIfScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      {/* Başlık */}
       <View style={styles.header}>
         <Text style={styles.title}>🔮 Ya Alsaydın?</Text>
         <Text style={styles.subtitle}>
-          Geçmiş Yatırım & Enflasyondan Arındırılmış Reel Getiri
+          Geçmiş Yatırım & Enflasyondan Arındırılmış Reel Getiri Simülatörü
         </Text>
       </View>
 
-      {/* 1. VARLIK SEÇİMİ (AÇILIR DROPDOWN MENÜ) */}
-      <Text style={styles.sectionLabel}>1. Varlık Seçin (Dropdown)</Text>
-      <View style={styles.dropdownWrapper}>
+      {/* BUZLU CAM PARAMETRE KARTI */}
+      <View style={styles.glassCard}>
+        {/* 1. VARLIK SEÇİMİ (DROPDOWN MENÜ) */}
+        <Text style={styles.sectionLabel}>1. Varlık Seçin</Text>
+        <View style={styles.dropdownWrapper}>
+          <TouchableOpacity
+            style={styles.dropdownHeader}
+            onPress={() => setDropdownOpen(!dropdownOpen)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.selectedAssetRow}>
+              <Text style={styles.assetIcon}>{currentAsset.icon}</Text>
+              <Text style={styles.selectedAssetText}>
+                {currentAsset.name} ({currentAsset.symbol})
+              </Text>
+            </View>
+            <Text style={styles.dropdownArrow}>{dropdownOpen ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+
+          {dropdownOpen && (
+            <View style={styles.dropdownList}>
+              {ASSETS.map((item) => (
+                <TouchableOpacity
+                  key={item.symbol}
+                  style={[
+                    styles.dropdownItem,
+                    selectedSymbol === item.symbol && styles.dropdownItemActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedSymbol(item.symbol);
+                    setDropdownOpen(false);
+                  }}
+                >
+                  <Text style={styles.assetIcon}>{item.icon}</Text>
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      selectedSymbol === item.symbol && styles.dropdownItemTextActive,
+                    ]}
+                  >
+                    {item.name} ({item.symbol})
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* 2. KAYDIRMALI TARİH SEÇİMİ */}
+        <Text style={styles.sectionLabel}>2. Tarih Seçin</Text>
+
+        <View style={styles.presetDates}>
+          {PRESET_DATES.map((p) => (
+            <TouchableOpacity
+              key={p.date}
+              style={[
+                styles.presetButton,
+                dateString === p.date && styles.presetButtonActive,
+              ]}
+              onPress={() => {
+                setSelectedYear(p.year);
+                setSelectedMonth(p.month);
+                setSelectedDay(p.date.slice(8, 10));
+              }}
+            >
+              <Text
+                style={[
+                  styles.presetText,
+                  dateString === p.date && styles.presetTextActive,
+                ]}
+              >
+                {p.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Yıl Kaydırma Çubuğu */}
+        <Text style={styles.subLabel}>🗓️ Yıl Seçin:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          {YEARS.map((y) => (
+            <TouchableOpacity
+              key={y}
+              style={[styles.yearChip, selectedYear === y && styles.yearChipActive]}
+              onPress={() => setSelectedYear(y)}
+            >
+              <Text style={[styles.yearChipText, selectedYear === y && styles.yearChipTextActive]}>
+                {y}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Ay Kaydırma Çubuğu */}
+        <Text style={styles.subLabel}>📅 Ay Seçin:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          {MONTHS.map((m) => (
+            <TouchableOpacity
+              key={m.num}
+              style={[styles.monthChip, selectedMonth === m.num && styles.monthChipActive]}
+              onPress={() => setSelectedMonth(m.num)}
+            >
+              <Text style={[styles.monthChipText, selectedMonth === m.num && styles.monthChipTextActive]}>
+                {m.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Seçilen Tarih Özeti Kartı */}
+        <View style={styles.datePreviewCard}>
+          <Text style={styles.datePreviewLabel}>🎯 Simülasyon Tarihi:</Text>
+          <Text style={styles.datePreviewValue}>{dateString}</Text>
+        </View>
+
+        {/* 3. Tutar Girişi */}
+        <Text style={styles.sectionLabel}>3. Yatırılan Tutar (TL)</Text>
+        <TextInput
+          style={styles.pillInput}
+          placeholder="Örn: 10000"
+          placeholderTextColor="#64748B"
+          value={amountTry}
+          onChangeText={setAmountTry}
+          keyboardType="numeric"
+        />
+
+        {/* Hesapla Butonu */}
         <TouchableOpacity
-          style={styles.dropdownHeader}
-          onPress={() => setDropdownOpen(!dropdownOpen)}
+          style={[styles.glowingPillButton, loading && styles.buttonDisabled]}
+          onPress={handleCalculate}
+          disabled={loading}
+          activeOpacity={0.85}
         >
-          <View style={styles.selectedAssetRow}>
-            <Text style={styles.assetIcon}>{currentAsset.icon}</Text>
-            <Text style={styles.selectedAssetText}>
-              {currentAsset.name} ({currentAsset.symbol})
-            </Text>
-          </View>
-          <Text style={styles.dropdownArrow}>{dropdownOpen ? '▲' : '▼'}</Text>
+          {loading ? (
+            <ActivityIndicator color="#022C22" />
+          ) : (
+            <Text style={styles.glowingPillButtonText}>🚀 Simülasyonu Hesapla</Text>
+          )}
         </TouchableOpacity>
 
-        {dropdownOpen && (
-          <View style={styles.dropdownList}>
-            {ASSETS.map((item) => (
-              <TouchableOpacity
-                key={item.symbol}
-                style={[
-                  styles.dropdownItem,
-                  selectedSymbol === item.symbol && styles.dropdownItemActive,
-                ]}
-                onPress={() => {
-                  setSelectedSymbol(item.symbol);
-                  setDropdownOpen(false);
-                }}
-              >
-                <Text style={styles.assetIcon}>{item.icon}</Text>
-                <Text
-                  style={[
-                    styles.dropdownItemText,
-                    selectedSymbol === item.symbol && styles.dropdownItemTextActive,
-                  ]}
-                >
-                  {item.name} ({item.symbol})
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {/* Hata Kutusu */}
+        {error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>⚠️ {error}</Text>
           </View>
         )}
       </View>
-
-      {/* 2. KAYDIRMALI TARİH SEÇİMİ (YATAY ZAMAN ÇİZELGESİ) */}
-      <Text style={styles.sectionLabel}>2. Tarih Seçin (Kaydırmalı Çizelge)</Text>
-
-      {/* Hızlı Atlayış Butonları */}
-      <View style={styles.presetDates}>
-        {PRESET_DATES.map((p) => (
-          <TouchableOpacity
-            key={p.date}
-            style={[
-              styles.presetButton,
-              dateString === p.date && styles.presetButtonActive,
-            ]}
-            onPress={() => {
-              setSelectedYear(p.year);
-              setSelectedMonth(p.month);
-              setSelectedDay(p.date.slice(8, 10));
-            }}
-          >
-            <Text
-              style={[
-                styles.presetText,
-                dateString === p.date && styles.presetTextActive,
-              ]}
-            >
-              {p.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Yıl Kaydırma Çubuğu */}
-      <Text style={styles.subLabel}>🗓️ Yıl Seçin:</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-        {YEARS.map((y) => (
-          <TouchableOpacity
-            key={y}
-            style={[styles.yearChip, selectedYear === y && styles.yearChipActive]}
-            onPress={() => setSelectedYear(y)}
-          >
-            <Text style={[styles.yearChipText, selectedYear === y && styles.yearChipTextActive]}>
-              {y}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Ay Kaydırma Çubuğu */}
-      <Text style={styles.subLabel}>📅 Ay Seçin:</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-        {MONTHS.map((m) => (
-          <TouchableOpacity
-            key={m.num}
-            style={[styles.monthChip, selectedMonth === m.num && styles.monthChipActive]}
-            onPress={() => setSelectedMonth(m.num)}
-          >
-            <Text style={[styles.monthChipText, selectedMonth === m.num && styles.monthChipTextActive]}>
-              {m.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Seçilen Tarih Özeti Kartı */}
-      <View style={styles.datePreviewCard}>
-        <Text style={styles.datePreviewLabel}>🎯 Seçilen Simülasyon Tarihi:</Text>
-        <Text style={styles.datePreviewValue}>{dateString}</Text>
-      </View>
-
-      {/* 3. Tutar Girişi */}
-      <Text style={styles.sectionLabel}>3. Ne Kadar Yatırsaydınız? (TL)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Örn: 10000"
-        placeholderTextColor="#64748B"
-        value={amountTry}
-        onChangeText={setAmountTry}
-        keyboardType="numeric"
-      />
-
-      {/* Hesapla Butonu */}
-      <TouchableOpacity
-        style={[styles.calculateButton, loading && styles.buttonDisabled]}
-        onPress={handleCalculate}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.calculateButtonText}>🚀 Simülasyonu Hesapla</Text>
-        )}
-      </TouchableOpacity>
-
-      {/* Hata Kutusu */}
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-        </View>
-      )}
 
       {/* 4. SİMÜLASYON SONUÇ KARTI */}
       {result && (
-        <View style={styles.resultCard}>
+        <View style={styles.resultGlassCard}>
           <Text style={styles.resultCardTitle}>📊 Simülasyon Sonucu</Text>
           
           <View style={styles.priceRow}>
@@ -281,7 +275,7 @@ export function WhatIfScreen() {
           <View style={styles.divider} />
 
           {/* Bugünkü Toplam Para */}
-          <Text style={styles.totalValueLabel}>Bugünkü Toplam Paranız:</Text>
+          <Text style={styles.totalValueLabel}>Bugünkü Toplam Değeriniz:</Text>
           <Text style={styles.totalValueAmount}>{result.currentValueTry}</Text>
           <Text style={styles.profitText}>Net Kâr: {result.nominalProfitTry}</Text>
 
@@ -321,11 +315,12 @@ export function WhatIfScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
+    backgroundColor: '#081226',
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
+    alignItems: 'center',
   },
   header: {
     alignItems: 'center',
@@ -333,9 +328,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 13,
@@ -343,11 +339,26 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
+  glassCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1.5,
+    borderRadius: 26,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 12,
+    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
+  },
   sectionLabel: {
-    color: '#E2E8F0',
+    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
-    marginTop: 18,
+    fontWeight: 'bold',
+    marginTop: 14,
     marginBottom: 8,
   },
   subLabel: {
@@ -365,12 +376,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1C2541',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
     borderColor: '#10B981',
     borderWidth: 1.5,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   selectedAssetRow: {
     flexDirection: 'row',
@@ -391,10 +402,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   dropdownList: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: '#0F172A',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     marginTop: 6,
     overflow: 'hidden',
   },
@@ -404,14 +415,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 10,
-    borderBottomColor: '#334155',
-    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomWidth: 1,
   },
   dropdownItemActive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
   },
   dropdownItemText: {
-    color: '#E2E8F0',
+    color: '#CBD5E1',
     fontSize: 14,
   },
   dropdownItemTextActive: {
@@ -425,16 +436,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   presetButton: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   presetButtonActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#38BDF8',
+    borderColor: '#38BDF8',
   },
   presetText: {
     color: '#94A3B8',
@@ -449,8 +460,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   yearChip: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1,
     paddingVertical: 8,
     paddingHorizontal: 14,
@@ -471,8 +482,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   monthChip: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -480,8 +491,8 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   monthChipActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#38BDF8',
+    borderColor: '#38BDF8',
   },
   monthChipText: {
     color: '#94A3B8',
@@ -495,19 +506,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderColor: 'rgba(59, 130, 246, 0.4)',
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderColor: 'rgba(56, 189, 248, 0.4)',
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginTop: 10,
     marginBottom: 4,
   },
   datePreviewLabel: {
-    color: '#93C5FD',
+    color: '#7DD3FC',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   datePreviewValue: {
     color: '#FFFFFF',
@@ -515,36 +526,41 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
-  input: {
-    backgroundColor: '#1C2541',
-    borderColor: '#334155',
-    borderWidth: 1,
-    borderRadius: 10,
+  pillInput: {
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1.2,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: '#FFFFFF',
     fontSize: 15,
   },
-  calculateButton: {
+  glowingPillButton: {
     backgroundColor: '#10B981',
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 28,
     alignItems: 'center',
     marginTop: 20,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
+    elevation: 8,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  calculateButtonText: {
-    color: '#FFFFFF',
+  glowingPillButtonText: {
+    color: '#022C22',
     fontSize: 16,
     fontWeight: 'bold',
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
     borderColor: '#EF4444',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
     marginTop: 16,
   },
@@ -552,13 +568,21 @@ const styles = StyleSheet.create({
     color: '#F87171',
     fontSize: 13,
   },
-  resultCard: {
-    backgroundColor: '#1C2541',
+  resultGlassCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderColor: '#10B981',
     borderWidth: 1.5,
-    borderRadius: 16,
-    padding: 18,
-    marginTop: 24,
+    borderRadius: 26,
+    padding: 20,
+    marginTop: 20,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
+    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
   },
   resultCardTitle: {
     fontSize: 18,
@@ -583,7 +607,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#334155',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     marginVertical: 12,
   },
   totalValueLabel: {
@@ -593,7 +617,7 @@ const styles = StyleSheet.create({
   },
   totalValueAmount: {
     color: '#10B981',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
     marginVertical: 4,
@@ -612,16 +636,16 @@ const styles = StyleSheet.create({
   },
   nominalBadge: {
     flex: 1,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderRadius: 8,
-    padding: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderRadius: 10,
+    padding: 10,
     alignItems: 'center',
   },
   inflationBadge: {
     flex: 1,
-    backgroundColor: 'rgba(249, 115, 22, 0.12)',
-    borderRadius: 8,
-    padding: 8,
+    backgroundColor: 'rgba(249, 115, 22, 0.15)',
+    borderRadius: 10,
+    padding: 10,
     alignItems: 'center',
   },
   badgeLabel: {
@@ -641,23 +665,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   realBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: '#3B82F6',
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderColor: '#38BDF8',
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 12,
+    padding: 12,
     alignItems: 'center',
     marginBottom: 12,
   },
   realBadgeTitle: {
-    color: '#93C5FD',
+    color: '#7DD3FC',
     fontSize: 11,
     fontWeight: 'bold',
     letterSpacing: 0.5,
   },
   realBadgeValue: {
-    color: '#60A5FA',
-    fontSize: 22,
+    color: '#38BDF8',
+    fontSize: 24,
     fontWeight: 'bold',
     marginTop: 4,
   },

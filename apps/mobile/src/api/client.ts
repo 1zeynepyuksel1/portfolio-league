@@ -1,13 +1,19 @@
+import Constants from 'expo-constants';
+
 /**
  * api/client.ts — Mobil uygulamanın Backend ile konuşma köprüsü
  * 
  * Bu dosya:
- * 1. Backend sunucusunun yerel geliştirme adresini (http://localhost:3000) tutar.
+ * 1. Hem Bilgisayar Web Tarayıcısında (localhost) hem de Gerçek Telefonda (Expo Go / IP) sorunsuz çalışır.
  * 2. Giriş yapınca gelen JWT Access Token'ı hafızada saklar.
  * 3. Sunucuya giden her isteğin başlığına "Authorization: Bearer <token>" ekler.
  */
 
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+// Expo Go telefonda çalışırken bilgisayarınızın yerel IP'sini (192.168.x.x) otomatik algılar
+const debuggerHost = Constants.expoConfig?.hostUri;
+const hostIp = debuggerHost ? debuggerHost.split(':')[0] : 'localhost';
+
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? `http://${hostIp}:3000`;
 
 let currentAccessToken: string | null = null;
 
