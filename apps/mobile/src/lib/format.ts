@@ -113,7 +113,30 @@ export function formatQuantity(decimal: string): string {
 
   const trimmed = fracPart.replace(/0+$/, '');
 
-  return trimmed.length > 0 ? `${intPart},${trimmed}` : intPart;
+  if (trimmed.length === 0) return intPart;
+
+  /**
+   * ⚠️ ANLAMLI BASAMAKLA KISALTMA — sabit basamak sayısıyla değil.
+   *
+   * Sunucu 10 ondalık döndürüyor (AMOUNT_SCALE). "0,0060889495" ekranda
+   * okunmuyor: göz basamakları sayamıyor ve satır taşıyor.
+   *
+   * Sabit 4 basamağa yuvarlasaydık küçük miktarlar YOK OLURDU:
+   * 0,0000123 BTC "0,0000" diye görünür, kullanıcı hiç almadığını
+   * sanardı. Bunun yerine ilk anlamlı basamaktan itibaren 4 basamak
+   * alıyoruz — büyük miktarda kısa, küçük miktarda hassas.
+   *
+   *   1,2345678900  -> "1,2345"
+   *   0,0060889495  -> "0,006088"
+   *   0,0000123456  -> "0,00001234"
+   *
+   * ⚠️ Bu YALNIZCA GÖSTERİM. Sunucuya giden miktar hiç kırpılmıyor;
+   * emir hep tam değerle gidiyor (order-math.ts).
+   */
+  const leadingZeros = trimmed.length - trimmed.replace(/^0+/, '').length;
+  const keep = Math.min(leadingZeros + 4, trimmed.length);
+
+  return `${intPart},${trimmed.slice(0, keep)}`;
 }
 
 /**

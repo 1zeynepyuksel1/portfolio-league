@@ -257,7 +257,22 @@
     const availH = window.innerHeight - 100;   // üst çubuk + boşluklar
     const availW = window.innerWidth  - 60;
 
-    const scale = Math.min(availH / 868, availW / 414, 1);
+    /*
+     * ⚠️ ARTIK BÜYÜTEBİLİYORUZ — VE BU, ZOOM'A GEÇMENİN ASIL KAZANCI.
+     *
+     * Eskiden üst sınır 1'di: `transform: scale()` ile büyütmek görüntüyü
+     * esnetiyor, yani bulanıklaştırıyordu. `zoom` düzeni yeniden
+     * hesapladığı için büyütme de KESKİN çiziliyor.
+     *
+     * Bunun okunabilirliğe etkisi doğrudan: tasarım 390px genişliğindeki
+     * bir telefon için yapıldı ve gerçek telefonda ekran yoğunluğu 3x.
+     * Masaüstünde 1:1 CSS pikselinde 9px etiket gerçekten 9px kalıyor ve
+     * okunmuyor. 1,5 kat büyütmek onu 13-14px'e çıkarıyor.
+     *
+     * Üst sınır 1,6: daha fazlası telefonu ekrana sığmayan bir tablet
+     * gibi gösteriyor ve sunumda orantısız duruyor.
+     */
+    const scale = Math.min(availH / 868, availW / 414, 1.6);
 
     /*
      * ⚠️ `zoom` KULLANILIYOR, `transform: scale()` DEĞİL — ve fark

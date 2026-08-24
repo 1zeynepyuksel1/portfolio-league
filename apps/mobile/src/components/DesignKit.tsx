@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { ReactNode } from 'react';
-import { colors, fonts, rowMetrics, sectionLabel } from '../theme';
+import { colors, fonts, sectionLabel } from '../theme';
+import { AssetLogo } from './AssetLogo';
 
 /**
  * DesignKit — `docs/export/*.html` tasarımında tekrar eden parçalar.
@@ -185,37 +186,24 @@ export function ChangeText({
 // ---------------------------------------------------------------------------
 
 /**
- * Logo yuvası. Tasarımda gerçek logolar var (`<image-slot>`), bizde henüz
- * yok — sembolün ilk üç harfi yuvarlak bir zeminde duruyor.
+ * Varlık simgesi.
  *
- * Aynı ölçü ve biçimde olduğu için logolar geldiğinde yalnızca bu
- * bileşenin içi değişecek, çağıran hiçbir ekran değişmeyecek.
+ * ⚠️ İÇİ BOŞALDI, ADI KALDI. Gerçek çizim artık `AssetLogo`'da; bu
+ * fonksiyon yalnızca ona yönlendiriyor.
+ *
+ * Neden silinmedi: altı ekran `AssetBadge` çağırıyor. Hepsini tek
+ * commit'te değiştirmek gereksiz bir yayılma olurdu ve tek bir yerde
+ * yapılan hata altı ekranı birden bozardı. Yönlendirme, çağıranlar
+ * kendi zamanında geçene kadar duruyor.
  */
 export function AssetBadge({
   symbol,
-  /**
-   * Kenar rengi — dağılım çubuğundaki dilimle eşleşsin diye.
-   *
-   * ⚠️ DOLGU DEĞİL KENAR boyanıyor. Dolguyu boyasaydık rozetin içindeki
-   * yazı bazı renklerde okunmaz olurdu ve her renk için ayrı bir metin
-   * rengi hesaplamak gerekirdi. Kenar hem eşleştiriyor hem okunurluğu
-   * bozmuyor.
-   */
   tint,
 }: {
   symbol: string;
   tint?: string | undefined;
 }) {
-  return (
-    <View
-      style={[
-        styles.badge,
-        tint !== undefined && { borderColor: tint, borderWidth: 2 },
-      ]}
-    >
-      <Text style={styles.badgeText}>{symbol.slice(0, 3)}</Text>
-    </View>
-  );
+  return <AssetLogo symbol={symbol} tint={tint} />;
 }
 
 const styles = StyleSheet.create({
@@ -278,15 +266,4 @@ const styles = StyleSheet.create({
 
   change: { fontFamily: fonts.monoSemibold },
 
-  badge: {
-    width: rowMetrics.logoSize,
-    height: rowMetrics.logoSize,
-    borderRadius: rowMetrics.logoSize / 2,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: { fontFamily: fonts.bold, fontSize: 10, color: colors.inkMuted },
 });

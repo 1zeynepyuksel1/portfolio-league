@@ -57,10 +57,26 @@ export const colors = {
   inkBright: '#E9E9EA',
   /** Gövde metni. */
   inkMuted: '#A6A6AC',
-  /** Etiket, birim, bölüm başlığı. */
-  inkFaint: '#79797F',
-  /** Devre dışı. */
-  inkDisabled: '#4E4E53',
+  /**
+   * Etiket, birim, bölüm başlığı.
+   *
+   * ⚠️ TASARIMDAKİ #79797F'DEN AÇILDI — okunabilirlik için.
+   *
+   * Tasarımın rengi koyu zeminde ~4,4:1 kontrast veriyor. Bu, normal
+   * boyutta yeterli ama bu renk 9-11px etiketlerde kullanılıyor ve
+   * o boyutta harfler inceldiği için gözle görülür şekilde soluyor.
+   * #8E8E96 kontrastı ~5,6:1'e çıkarıyor; ton aynı kalıyor, sadece
+   * bir kademe açık.
+   */
+  inkFaint: '#8E8E96',
+  /**
+   * Devre dışı / üçüncül.
+   *
+   * ⚠️ #4E4E53 kontrastı ~2,2:1 idi — okunabilir değil, "var ama
+   * okunmasın" demek. Takvimdeki kapalı günler için doğruydu ama
+   * zaman damgası gibi GERÇEK bilgi de bu renkteydi. Açıldı.
+   */
+  inkDisabled: '#6A6A71',
 
   // ---------------------------------------------------------------------
   // YÖN
@@ -150,29 +166,44 @@ export const colors = {
  * benzemiyor" olarak görünür, ki bulması en zor hata türü.
  */
 export const fonts = {
-  regular: 'Archivo_400Regular',
-  medium: 'Archivo_500Medium',
-  semibold: 'Archivo_600SemiBold',
-  bold: 'Archivo_700Bold',
+  /**
+   * ⚠️ ARCHIVO'DAN RUBIK'E GEÇİLDİ.
+   *
+   * Archivo dar bir grotesk: harfleri sıkışık ve köşeli, küçük
+   * boyutlarda okumak yoruyor. Rubik'in harf uçları yuvarlatılmış ve
+   * gövdeler daha geniş — aynı punto daha rahat okunuyor.
+   *
+   * Rubik seçildi, Nunito değil: Nunito daha da yuvarlak ama bir finans
+   * uygulaması için fazla yumuşak, oyun arayüzü gibi duruyor. Rubik
+   * yuvarlak ama ciddi kalıyor ve rakamları net.
+   */
+  regular: 'Rubik_400Regular',
+  medium: 'Rubik_500Medium',
+  semibold: 'Rubik_600SemiBold',
+  bold: 'Rubik_700Bold',
 
   /**
    * ⚠️ RAKAMLAR MONOSPACE — VE BU TASARIMIN EN ÖNEMLİ KARARI.
    *
-   * Fiyat, miktar, yüzde: hepsi IBM Plex Mono. Sebebi estetik değil
+   * Fiyat, miktar, yüzde: hepsi tek genişlikte. Sebebi estetik değil
    * OKUNABİLİRLİK: orantılı bir fontta "1" ile "8" farklı genişlikte
-   * olduğu için alt alta duran fiyatların ondalık noktaları kayar ve
-   * liste titrek görünür. Monospace'te her rakam aynı genişlikte,
-   * sütun hizalı kalıyor.
+   * olduğu için alt alta duran fiyatların ondalık noktaları kayar.
+   * Ayrıca canlı fiyat değişince sayının GENİŞLİĞİ de değişir ve satır
+   * oynar — liste titrer. Monospace ikisini de bitiriyor.
    *
-   * Ayrıca canlı fiyat saniyede değiştiği için orantılı fontta sayının
-   * GENİŞLİĞİ de değişir ve satır oynar. Monospace bunu da bitiriyor.
+   * ⚠️ IBM PLEX MONO'DAN DM MONO'YA GEÇİLDİ. Plex Mono köşeli ve
+   * teknik; Rubik'in yanında yabancı duruyordu. DM Mono geometrik ve
+   * yuvarlak, aynı aileden gelmiş gibi oturuyor.
    *
-   * KURAL: değişen sayı -> mono. Sabit metin -> Archivo.
+   * KURAL: değişen sayı -> mono. Sabit metin -> Rubik.
    */
-  mono: 'IBMPlexMono_400Regular',
-  monoMedium: 'IBMPlexMono_500Medium',
-  monoSemibold: 'IBMPlexMono_600SemiBold',
-  monoBold: 'IBMPlexMono_700Bold',
+  mono: 'DMMono_400Regular',
+  monoMedium: 'DMMono_500Medium',
+  // ⚠️ DM Mono'nun 600/700 kesimi YOK — en kalını 500.
+  // Aynı adları koruyup 500'e yönlendiriyoruz ki çağıran ekranların
+  // hiçbiri değişmesin; ileride başka bir mono seçilirse tek yer burası.
+  monoSemibold: 'DMMono_500Medium',
+  monoBold: 'DMMono_500Medium',
 } as const;
 
 /**
