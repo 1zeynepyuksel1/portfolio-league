@@ -8,6 +8,12 @@ import {
   Archivo_700Bold,
   useFonts,
 } from '@expo-google-fonts/archivo';
+import {
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+  IBMPlexMono_700Bold,
+} from '@expo-google-fonts/ibm-plex-mono';
 import { FriendsScreen } from './src/screens/FriendsScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { MarketScreen } from './src/screens/MarketScreen';
@@ -122,11 +128,24 @@ function AppShell() {
    * sonra zıplayarak düzelir — ve bir hata görmediğimiz için "tasarım
    * neden tutmuyor" diye kodda ararız.
    */
+  /**
+   * ⚠️ BURAYA EKLENMEYEN FONT SESSİZCE ÇALIŞMAZ.
+   *
+   * `fontFamily: 'IBMPlexMono_500Medium'` yazıp burada yüklemezsen React
+   * Native hata FIRLATMAZ — sistem fontuna düşer. Yani "çalışıyor ama
+   * tasarıma benzemiyor" olur ve sebebi hiçbir yerde yazmaz.
+   *
+   * theme.ts'teki `fonts` nesnesindeki her ad burada karşılığını bulmalı.
+   */
   const [fontsLoaded] = useFonts({
     Archivo_400Regular,
     Archivo_500Medium,
     Archivo_600SemiBold,
     Archivo_700Bold,
+    IBMPlexMono_400Regular,
+    IBMPlexMono_500Medium,
+    IBMPlexMono_600SemiBold,
+    IBMPlexMono_700Bold,
   });
 
   // Açılışta diskteki token'la oturumu geri yükle.

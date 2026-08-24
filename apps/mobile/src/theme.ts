@@ -25,81 +25,120 @@ function ink(alpha: number): string {
 }
 
 export const colors = {
+  // ---------------------------------------------------------------------
+  // YÜZEYLER — beş kademe, hepsi ölçülü
+  // ---------------------------------------------------------------------
+  //
+  // ⚠️ TASARIM GÖLGE KULLANMIYOR. Derinlik yüzey TONUYLA anlatılıyor:
+  // her kademe bir öncekinden hafifçe açık. Gölge eklemek tasarımı
+  // "bozmaz" ama ona ait olmayan bir dil katar — kartlar yüzmeye başlar.
+
   /** Ekran arka planı. */
-  surface: '#111112',
+  surface: '#0F0F10',
+  /** Kart, satır dolgusu, ikon düğmesi. */
+  surfaceRaised: '#1A1A1C',
+  /** Ekrandan DAHA KOYU — girintili alanlar (arama kutusu, boş durum). */
+  surfaceSunken: '#141415',
+  /** Basılı/seçili hâldeki yüzey. */
+  surfacePressed: '#202022',
 
-  ink: INK,
+  /** Ayraç ve kart kenarı. */
+  border: '#2B2B2E',
+  /** Vurgulu kenar — seçili kart, odaklı alan. */
+  borderStrong: '#3A3A3E',
+
+  // ---------------------------------------------------------------------
+  // METİN — dört kademe
+  // ---------------------------------------------------------------------
+
+  /** Başlık ve rakam. */
+  ink: '#FFFFFF',
+  /** Ters zeminde metin, ve ikincil başlık. */
+  inkBright: '#E9E9EA',
   /** Gövde metni. */
-  inkMuted: ink(0.55),
-  /** İkincil metin. */
-  inkDim: ink(0.5),
-  /** Üçüncül metin, ikonlar. */
-  inkFaint: ink(0.45),
-  /** Yasal not gibi en soluk metinler. */
-  inkGhost: ink(0.35),
-  /** Yer tutucu (placeholder) metni. */
-  inkPlaceholder: ink(0.32),
+  inkMuted: '#A6A6AC',
+  /** Etiket, birim, bölüm başlığı. */
+  inkFaint: '#79797F',
+  /** Devre dışı. */
+  inkDisabled: '#4E4E53',
 
-  /** Alan dolgusu ve hayalet düğme hover'ı. */
-  fieldFill: ink(0.06),
+  // ---------------------------------------------------------------------
+  // YÖN
+  // ---------------------------------------------------------------------
 
-  /** Kıl çizgiler — sırasıyla alan kenarı, ayraç, düğme kenarı. */
-  hairlineSoft: ink(0.09),
-  hairline: ink(0.14),
-  hairlineStrong: ink(0.18),
-  /** Odaklanmış alanın kenarı. */
-  hairlineFocus: ink(0.4),
-
-  /** Marka rengi. Aynı zamanda düşüş rengi — tasarımın kararı. */
-  accent: '#ec3013',
-  /** Hata metni. accent'ten farkı: kırmızı ama okunabilir kalıyor. */
-  error: '#ff8a72',
   /** Yükseliş. */
-  gain: '#43b56f',
-
-  /** Arka plan dokusundaki ızgara çizgileri. */
-  gridLine: ink(0.04),
-  /** Hacim çubukları. */
-  volumeBar: ink(0.07),
-  /** Grafik etiketleri (XU100, BIST...). */
-  chartLabel: ink(0.08),
-
-  // -------------------------------------------------------------------------
-  // AŞAĞISI TASARIM TESLİMİNDE YOKTU — SONRADAN EKLENDİ
-  // -------------------------------------------------------------------------
-  //
-  // Teslim yalnızca giriş ekranlarını kapsıyordu; orada rozet, uyarı kutusu
-  // ya da eksen etiketi yok. Uygulama ekranları bunlara ihtiyaç duyuyor.
-  //
-  // ⚠️ HEPSİ MEVCUT ÜÇ RENKTEN TÜRETİLDİ, yeni renk uydurulmadı. Palete
-  // dördüncü bir ton eklemek tasarımı sessizce bozmanın en kolay yolu:
-  // tek tek bakınca hepsi makul görünür, yan yana gelince dağılır.
-
-  /** Yükseliş rozetinin dolgusu — `gain`in %15'i. */
-  gainSoft: 'rgba(67, 181, 111, 0.15)',
-  /** Düşüş rozetinin dolgusu — `accent`in %15'i. */
-  accentSoft: 'rgba(236, 48, 19, 0.15)',
+  gain: '#34C28A',
+  /** Düşüş. */
+  loss: '#E5484D',
 
   /**
-   * Uyarı. Ne yükseliş ne düşüş — "dikkat et" demek.
+   * Marka rengi — giriş ekranlarından geliyor (design_handoff §Brand row).
    *
-   * Tasarımda karşılığı yok. `accent` kullanamazdık: kullanıcı kırmızıyı
-   * "düşüş" diye okumayı öğrendi, uyarıyı da kırmızı yapsaydık "fiyat
-   * eski" mesajı zarar sanılırdı.
+   * ⚠️ DÜŞÜŞ RENGİ DEĞİL. Uygulama tasarımı düşüş için #E5484D kullanıyor;
+   * ikisi farklı kırmızı ve karıştırılmamalı. Marka kırmızısı yalnızca
+   * logo noktası ve birincil düğme hover'ında.
    */
+  accent: '#ec3013',
+  /** Hata metni — kırmızı ama okunabilir kalıyor. */
+  error: '#ff8a72',
+
+  /** Uyarı. Ne yükseliş ne düşüş — "dikkat et". */
   warn: '#d9a441',
+
+  // ---------------------------------------------------------------------
+  // TERS ZEMİN — seçili çip ve birincil düğme
+  // ---------------------------------------------------------------------
+  //
+  // Tasarımda seçili durum renkle değil TERS ZEMİNLE anlatılıyor:
+  // açık dolgu + koyu metin. Seçiliyi vurgu rengiyle boyamak yaygın çözüm
+  // ama bu tasarımda vurgu rengi yön için ayrılmış — seçili çipi kırmızı
+  // yapsaydık "düşüş" gibi okunurdu.
+
+  /** Seçili çipin / birincil düğmenin dolgusu. */
+  inverse: '#E9E9EA',
+  /** Ters zemin üzerindeki metin. */
+  onInverse: '#0F0F10',
+  /** Ters zemin üzerindeki ikincil metin. */
+  onInverseMuted: '#4E4E53',
+
+  // ---------------------------------------------------------------------
+  // ROZET DOLGULARI
+  // ---------------------------------------------------------------------
+
+  gainSoft: 'rgba(52, 194, 138, 0.15)',
+  lossSoft: 'rgba(229, 72, 77, 0.15)',
   warnSoft: 'rgba(217, 164, 65, 0.15)',
 
-  /** Grafik ekseni: çizgiler ve rakamlar. */
-  axisLine: ink(0.10),
-  axisText: ink(0.40),
-  /** Izgara — eksen çizgisinden daha soluk, arka planda kalmalı. */
-  axisGrid: ink(0.06),
-  /**
-   * Dokunma imlecinin fiyat balonu. Yarı saydam DEĞİL, opak:
-   * altındaki çizgi rakamın içinden geçerse rakam okunmaz.
-   */
-  readoutFill: '#1b1b1d',
+  // ---------------------------------------------------------------------
+  // GRAFİK
+  // ---------------------------------------------------------------------
+
+  axisLine: '#2B2B2E',
+  axisText: '#79797F',
+  axisGrid: 'rgba(121, 121, 127, 0.14)',
+  /** Dokunma imlecinin fiyat balonu — opak, altındaki çizgi görünmesin. */
+  readoutFill: '#202022',
+
+  // ---------------------------------------------------------------------
+  // ESKİ ADLAR — giriş ekranları hâlâ bunları kullanıyor
+  // ---------------------------------------------------------------------
+  //
+  // Tek seferde hepsini değiştirmek yerine köprü bırakıldı: giriş
+  // ekranları çalışmaya devam ediyor, yeni ekranlar yukarıdaki adları
+  // kullanıyor. Giriş ekranları da geçince bu blok silinecek.
+
+  inkDim: '#A6A6AC',
+  inkGhost: '#5C5C61',
+  inkPlaceholder: '#5C5C61',
+  fieldFill: '#1A1A1C',
+  hairlineSoft: '#2B2B2E',
+  hairline: '#2B2B2E',
+  hairlineStrong: '#3A3A3E',
+  hairlineFocus: '#4E4E53',
+  gridLine: 'rgba(121, 121, 127, 0.10)',
+  volumeBar: 'rgba(121, 121, 127, 0.14)',
+  chartLabel: 'rgba(121, 121, 127, 0.16)',
+  accentSoft: 'rgba(229, 72, 77, 0.15)',
 } as const;
 
 /**
@@ -115,6 +154,25 @@ export const fonts = {
   medium: 'Archivo_500Medium',
   semibold: 'Archivo_600SemiBold',
   bold: 'Archivo_700Bold',
+
+  /**
+   * ⚠️ RAKAMLAR MONOSPACE — VE BU TASARIMIN EN ÖNEMLİ KARARI.
+   *
+   * Fiyat, miktar, yüzde: hepsi IBM Plex Mono. Sebebi estetik değil
+   * OKUNABİLİRLİK: orantılı bir fontta "1" ile "8" farklı genişlikte
+   * olduğu için alt alta duran fiyatların ondalık noktaları kayar ve
+   * liste titrek görünür. Monospace'te her rakam aynı genişlikte,
+   * sütun hizalı kalıyor.
+   *
+   * Ayrıca canlı fiyat saniyede değiştiği için orantılı fontta sayının
+   * GENİŞLİĞİ de değişir ve satır oynar. Monospace bunu da bitiriyor.
+   *
+   * KURAL: değişen sayı -> mono. Sabit metin -> Archivo.
+   */
+  mono: 'IBMPlexMono_400Regular',
+  monoMedium: 'IBMPlexMono_500Medium',
+  monoSemibold: 'IBMPlexMono_600SemiBold',
+  monoBold: 'IBMPlexMono_700Bold',
 } as const;
 
 /**
@@ -126,6 +184,14 @@ export const fonts = {
 export const spacing = {
   gutter: 26,
   bottom: 24,
+  /**
+   * Uygulama ekranlarının kenar boşluğu — giriş ekranlarından FARKLI.
+   *
+   * Giriş 26px kullanıyor (nefes alan, tek sütun). Uygulama 22px:
+   * liste satırları ve veri tablosu daha dar boşlukla daha çok bilgi
+   * taşıyor. `docs/export/5a` bu değerle ölçülmüş.
+   */
+  screen: 22,
 } as const;
 
 export const radius = {
@@ -142,4 +208,33 @@ export const sizes = {
   control: 58,
   /** OAuth düğmeleri. */
   oauth: 56,
+} as const;
+
+
+/**
+ * Bölüm başlığı stili — tasarımda ONLARCA yerde tekrarlanıyor.
+ *
+ *     CÜZDAN · TRY     ÖZEL GÜNLER     NAKİT     VARLIK
+ *
+ * Ortak özellik: çok küçük, çok kalın, harf arası GENİŞ, soluk renk.
+ * Harf arası olmadan 9px metin okunmaz bir leke olur; asıl işi o yapıyor.
+ */
+export const sectionLabel = {
+  fontFamily: fonts.bold,
+  fontSize: 9,
+  letterSpacing: 1.5,
+  color: colors.inkFaint,
+} as const;
+
+/** Liste ve tablo satırlarının ortak ölçüleri. */
+export const rowMetrics = {
+  paddingVertical: 13,
+  logoSize: 32,
+  /** Değişim sütunu — sabit genişlik, sayılar hizalansın diye. */
+  changeWidth: 62,
+  /** Değer sütunu. */
+  valueWidth: 104,
+  /** Satır içi mini grafik. */
+  sparkWidth: 46,
+  sparkHeight: 22,
 } as const;
