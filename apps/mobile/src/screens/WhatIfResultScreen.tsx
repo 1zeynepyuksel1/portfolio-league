@@ -184,7 +184,7 @@ export function WhatIfResultScreen({
   const realMultiple = 1 + result.realReturnPercentRaw;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView showsVerticalScrollIndicator={false} style={styles.screen} contentContainerStyle={styles.content}>
       {/* --- üst çubuk --- */}
       <View style={styles.topBar}>
         <TouchableOpacity

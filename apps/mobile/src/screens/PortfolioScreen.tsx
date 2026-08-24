@@ -380,6 +380,7 @@ export function PortfolioScreen({
 
   return (
     <FlatList
+        showsVerticalScrollIndicator={false}
       style={styles.screen}
       data={positions}
       keyExtractor={(item) => item.symbol}

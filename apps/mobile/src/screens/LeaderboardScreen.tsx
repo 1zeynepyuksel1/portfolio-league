@@ -198,6 +198,7 @@ export function LeaderboardScreen() {
         </View>
       ) : (
         <FlatList
+        showsVerticalScrollIndicator={false}
           data={restEntries}
           keyExtractor={(item) => item.userId}
           contentContainerStyle={styles.listContent}

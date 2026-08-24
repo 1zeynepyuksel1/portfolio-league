@@ -91,9 +91,30 @@
     background: #111112;
   }
 
+  /*
+   * ⚠️ IFRAME ÇENTİĞİN ALTINDAN BAŞLIYOR — VE BU BİR SİMÜLASYON DEĞİL,
+   * GERÇEK CİHAZ DAVRANIŞININ TAKLİDİ.
+   *
+   * Gerçek telefonda uygulama çentiğin ARKASINA da çiziyor; içeriğin
+   * üstüne binmemesi için işletim sistemi "güvenli alan" boşluğu
+   * bildiriyor ve `SafeAreaView` onu uyguluyor.
+   *
+   * Web'de böyle bir bildirim YOK: `react-native-web`'in SafeAreaView'i
+   * düz bir View. Yani tarayıcıda uygulama en üstten başlıyor ve burada
+   * çizdiğimiz sahte çentik "YA ALSAYDIN" başlığını örtüyordu.
+   *
+   * Boşluğu iframe'e vererek gerçek cihazdaki görüntüyü elde ediyoruz.
+   * Uygulama kodunda çözmek YANLIŞ olurdu: oraya sabit bir üst boşluk
+   * koysaydık gerçek iPhone'da güvenli alan boşluğuyla ÜST ÜSTE biner,
+   * içerik gereksiz yere aşağı kayardı.
+   */
   .screen iframe {
+    position: absolute;
+    /* Dynamic Island: top 11px + height 33px = 44px, üstüne 3px nefes. */
+    top: 47px;
+    left: 0;
     width: 100%;
-    height: 100%;
+    height: calc(100% - 47px);
     border: 0;
     display: block;
   }

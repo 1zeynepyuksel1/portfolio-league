@@ -196,7 +196,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {/* Başlık */}
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={12}>
