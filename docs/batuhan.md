@@ -222,6 +222,62 @@ metin değişimi kırılgan — ve tip kontrolü bu kırılganlığın ağıdır
 karışık görünüyor — kendi ekranlarım kömür grisi, onunkiler lacivert. Bu
 bilinçli: başkasının şeridine izinsiz girmek, karışık görünmekten kötü.
 
+### 11. Tasarım entegrasyonu ve ürün eksikleri — 24 Ağu 2026
+
+Bu tur `docs/export/`'taki dört ekranı uygulamaya taşıdı ve senin
+bildirdiğin eksikleri kapattı. En büyük dosya yığını burada.
+
+#### Tasarım sistemi
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/theme.ts` | Renkler neden **anlamsal** (`gain`) değil birebir (`#10B981`) adlandırıldı? "Yükseliş yeşilini değiştir" isteği eskiden kaç dosyaya dokunurdu? Yeni renkler neden mevcut üçünden **türetildi**, palete dördüncü ton eklenmedi? `inkFaint` ve `inkDisabled` tasarımdakinden neden **açıldı** — hangi kontrast oranları? |
+| `mobile/src/components/DesignKit.tsx` | Seçili çip neden vurgu rengiyle değil **ters zeminle** anlatılıyor? Kırmızı yapsaydık kullanıcı ne okurdu? `BigAmount` tam kısmı ve kuruşu neden farklı puntoda? |
+| `mobile/src/components/TabBar.tsx` | Sekme neden üstten **alta** taşındı? Beşten dörde inişin gerekçesi ne? İkonlar neden **emoji değil SVG** — emoji hangi üç platformda nasıl bozuluyor? |
+| `mobile/src/components/AllocationBar.tsx` | Pasta değil **çubuk**: üç gerekçe neydi? Renkler önce **gri**ydi, neden değişti — ve karışma riski nasıl kapatıldı? `colorForLabel` neden indis değil **etiket** alıyor? |
+| `mobile/src/components/AssetLogo.tsx` | ⚠️ `require` neden **dinamik olamaz**? Metro hangi anda karar veriyor? Elle eklenen logo hazır seti neden **eziyor**? Madeni paranın degrade `id`'si neden benzersiz olmak zorunda — aynı olsaydı ne görünürdü? |
+| `mobile/scripts/prepare-logos.mjs` | İndirilen dosyalar neden **olduğu gibi kullanılamadı** — iki ayrı sebep? `WHITE_CUTOFF` neden 250 değil **230**? İki eşik arasındaki bant ne işe yarıyor? ⚠️ Fonksiyon adı neden `process` **olamaz**? |
+
+#### Ekranlar
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/components/Calendar.tsx` | Verisi olmayan gün neden **silinmiyor da soluklaşıyor**? Dokunulunca neden sessiz kalmıyor? Ayın gün sayısı neden elle 28/30/31 tablosuyla değil `Date` ile bulunuyor? Çift ok neden var? |
+| `mobile/src/screens/WhatIfScreen.tsx` | ⚠️ **Enflasyon eşiği** ne anlatıyor — 2020 için hangi varlıklar altında kaldı ve bu ne demek? Çizgi neden sabit konumda değil **hesaplanıyor**? Kat listesi neden tarihe bağlı ama **tutara bağlı değil**? Buton neden sabit? |
+| `mobile/src/screens/WhatIfResultScreen.tsx` | Sonuç neden **ayrı ekran**? `104× ÷ 12,8× = 8,1×` üçlüsü neyi anlatıyor? Grafikte iki çizgi neden **aynı ölçekte** olmak zorunda? Enflasyon çizgisi neden **yaklaşım** olarak işaretli? Okuma satırı neden grafiğin **üstünde**? `pointsRef` olmasaydı hangi hata çıkardı? |
+| `mobile/src/screens/PortfolioScreen.tsx` (sıralama) | Sıralama neden **üç durumlu**? `null` yüzdeler neden hep sona düşüyor — sıfır saysaydık hangi iki şey karışırdı? Sıralama neden `[...]` kopyası üzerinde? Değer neden `Number` değil `BigInt` ile karşılaştırılıyor? |
+| `mobile/src/screens/LeaderboardScreen.tsx` | Başlık neden lig adı değil **tarih aralığı** gösteriyor? ⚠️ Bu dosya kimin şeridinde — hangi kısmına dokunuldu, hangisine dokunulmadı? |
+| `mobile/src/components/AddFriend.tsx` | Davet düğmesi neden **boş durumda da** var? Kullanıcı adı değil **e-posta** ile olmasının sebebi ne? |
+
+#### Sunucu
+| Dosya | Ne sorulacak |
+|---|---|
+| `market/repository.ts` (`getDailyStats`) | 24 saat özeti neden **migration gerektirmiyor** ama mum grafiği gerektiriyor — aradaki ölçek farkı ne? Açılış/kapanış neden `MIN`/`MAX` ile alınamıyor? |
+| `market/repository.ts` (24s değişim) | Neden **tam eşleşme** aranmıyor? Alt sınır neden 48 saat? ⚠️ SQL yorumunda **ters tırnak** neden kullanılamıyor? |
+| `what-if/repository.ts` (`findMultiplesForDate`) | Tek sorgu neden şart — N+1 burada kaç sorgu ederdi? |
+| `what-if/service.ts` (`calculateMultiples`) | Enflasyon katı nasıl hesaplanıyor? Liste neden **büyükten küçüğe** sıralı dönüyor? |
+| `what-if/service.ts` (iki kur) | ⚠️ Başlangıç ve bugün kuru neden **ayrı** okunuyor? Tek kur kullansaydık 12 Mart 2020 bitcoin'i kaç dolar çıkardı? |
+| `orders/router.ts` (`GET /orders`) | `limit` neden üst sınırlı? Bu sorgu maliyet defterinden neden **ayrı** — birleştirseydik hangi hesap bozulurdu? |
+| `portfolio/repository.ts` (`getRecentOrders`) | İkincil sıralama ölçütü `id` neden var? |
+
+**Ölçülen sonuçlar:**
+- Enflasyon eşiği 2020-03-12 için **9,1×**. Üstünde 10 kripto/maden, altında
+  **sekiz dövizin hepsi** — dolar tutmak o dönem alım gücü kaybettirmiş.
+- BTC: lirada **128×**, dolarda **16×**. İkisini yan yana göstermenin sebebi.
+- 12 Mart 2020 BTC = **4.800,00 $** (kur 6,15 ₺). Bugünkü kurla çevirseydik
+  620 $ çıkardı.
+- Altın 2017 Ocak **133,77 ₺/gram**, gerçeği ~137 ₺.
+
+**Yol boyunca çıkan üç hata:**
+1. SQL yorumundaki **ters tırnak** JS şablon dizesini erken kapattı; hata
+   mesajı SQL'i değil TypeScript'i işaret ettiği için kaynağı bulmak sürdü.
+2. Betikte `function process(...)` Node'un global `process` nesnesini
+   gölgeledi — `process.argv` sessizce çökerdi.
+3. Sunum penceresindeki bulanıklık **uygulamada değildi**: `demo.html`
+   `transform: scale()` kullanıyordu, yazıyı çizip sonra küçültüyordu.
+
+⚠️ **Bilerek yapılmayanlar** (hepsi migration bekliyor): satır içi mini
+grafik (20 varlık × 7 gün ≈ 800.000 satır/5 sn), mum grafiği, `retention.ts`.
+Ve CHF logosu — dosyada Shutterstock filigranı var.
+
 ### Küçük değişiklikler
 - `mobile/src/screens/WhatIfScreen.tsx` — sabit 5 varlıklık liste kaldırıldı,
   `/assets`'ten çekiliyor. **Ne sorulacak:** liste koda gömülüyken sunucuya
