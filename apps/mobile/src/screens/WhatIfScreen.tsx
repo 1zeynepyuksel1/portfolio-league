@@ -1,21 +1,39 @@
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
-import { colors, fonts } from '../theme';
+import { Calendar } from '../components/Calendar';
+import { AssetBadge, Chip, SectionLabel } from '../components/DesignKit';
+import { colors, fonts, spacing } from '../theme';
+
+/**
+ * WhatIfScreen — `docs/export/7a-varlik-secimi.html`
+ *
+ * Tasarımın açılış hamlesi ekranı bir FORM olmaktan çıkarıp bir CÜMLE
+ * yapmak:
+ *
+ *     "10.000 ₺"yi "12 Mart 2020"de hangi varlığa koysaydım?
+ *
+ * Altı çizili iki parça dokunulabilir. Etiketli giriş kutuları da aynı
+ * bilgiyi toplardı ama kullanıcı ne sorduğunu değil neyi doldurduğunu
+ * görürdü. Cümle sorunun kendisini gösteriyor.
+ */
 
 type WhatIfResult = {
   symbol: string;
   assetName: string;
   startDate: string;
   startPriceTry: string;
+  /** O günün fiyatının dolar karşılığı. `null` = USD serisi o kadar geriye gitmiyor. */
+  startPriceUsd: string | null;
+  /** Çevrimde kullanılan O GÜNKÜ kur. */
+  startUsdTryRate: string | null;
   currentDate: string;
   currentPriceTry: string;
   purchasedQuantity: string;
@@ -25,435 +43,356 @@ type WhatIfResult = {
   nominalReturnPercentFormatted: string;
   cumulativeInflationPercentFormatted: string;
   realReturnPercentFormatted: string;
+  tufeStartMonth: string;
+  tufeEndMonth: string;
   summary: string;
 };
 
 type Asset = {
   symbol: string;
   name: string;
-  /** Bu varlığın en eski fiyat kaydı. Tarih seçici buradan sınırlanıyor. */
+  kind?: string;
+  /** Bu varlığın en eski fiyat kaydı — takvimin alt sınırı. */
   firstAvailable: string | null;
 };
 
-/**
- * Sembole göre simge.
- *
- * ⚠️ VARLIK LİSTESİ ARTIK BURADA DEĞİL — API'den geliyor.
- * Eskiden bu dosyada beş varlıklık sabit bir dizi vardı. Sunucuya on üç
- * varlık daha eklendiğinde bu ekran hâlâ beş tanesini gösteriyordu; kimse
- * hata almadı, liste sessizce eskidi.
- *
- * Simge tablosu kalabilir çünkü yalnızca görsel: bilinmeyen bir sembol
- * gelirse aşağıdaki varsayılan kullanılır, liste yine de eksiksiz görünür.
- * Kural: veri sunucudan, süs istemciden.
- */
-const ICONS: Record<string, string> = {
-  BTC: '🟡', ETH: '🔷', BNB: '🟨', SOL: '🟣', XRP: '⚫',
-  ADA: '🔵', DOGE: '🐕', AVAX: '🔺', LINK: '🔗', LTC: '⚪',
-  USD: '💵', EUR: '💶', GBP: '💷', CHF: '🇨🇭',
-  CAD: '🍁', AUD: '🇦🇺', SEK: '🇸🇪', JPY: '💴',
-  GRAM_ALTIN: '🪙',
-};
-
-const DEFAULT_ICON = '📈';
-
-function iconOf(symbol: string): string {
-  return ICONS[symbol] ?? DEFAULT_ICON;
-}
+/** Hazır tutarlar — tasarımdaki dört düğme. */
+const AMOUNTS = ['1000', '5000', '10000', '50000'] as const;
 
 /**
- * Seçilebilir yıllar — varlığın ilk kaydından bu yıla kadar.
+ * Hazır tarihler.
  *
- * ⚠️ BU FONKSİYON BİR HATA MESAJINI ORTADAN KALDIRIYOR.
- *
- * Eskiden liste sabitti: 2017-2026. SOL 11 Ağustos 2020'de listelendiği
- * için kullanıcı SOL + 2017 seçebiliyor ve "o tarihli kayıt bulunamadı"
- * hatası alıyordu. Hata mesajı DOĞRUYDU — ama asıl sorun o seçeneğin en
- * baştan sunulmuş olmasıydı.
- *
- * Doğru çözüm hatayı güzelleştirmek değil, imkânsız seçimi kaldırmak.
+ * ⚠️ TARİHLER GERÇEK OLAYLARA DENK GELİYOR ve bu ekranın anlattığı hikâye
+ * bu. Rastgele tarihler seçseydik sonuçlar "ilginç" olmazdı.
+ *   2020-03-12  Kara Perşembe, kriptonun pandemi dibi
+ *   2021-11-10  BTC'nin tarihi zirvesi
+ *   2022-11-09  FTX çöküşü
  */
-function yearsFor(firstAvailable: string | null): string[] {
-  const currentYear = new Date().getFullYear();
+const EVENTS = [
+  { date: '2020-03-12', label: 'Pandemi dibi' },
+  { date: '2021-11-10', label: 'Kasım zirvesi' },
+  { date: '2022-11-09', label: 'FTX çöküşü' },
+] as const;
 
-  // Varlığın ilk kaydı bilinmiyorsa elimizdeki en geniş aralığı ver.
-  const startYear =
-    firstAvailable === null
-      ? 2017
-      : new Date(firstAvailable).getFullYear();
+/** "2020-03-12" -> "12 Mart 2020" */
+const MONTH_NAMES = [
+  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
+] as const;
 
-  const years: string[] = [];
-  for (let y = startYear; y <= currentYear; y++) {
-    years.push(String(y));
-  }
-
-  return years;
+function humanDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  const monthIndex = Number(m) - 1;
+  return `${Number(d)} ${MONTH_NAMES[monthIndex] ?? m} ${y}`;
 }
 
-const MONTHS = [
-  { num: '01', label: 'Oca' },
-  { num: '02', label: 'Şub' },
-  { num: '03', label: 'Mar' },
-  { num: '04', label: 'Nis' },
-  { num: '05', label: 'May' },
-  { num: '06', label: 'Haz' },
-  { num: '07', label: 'Tem' },
-  { num: '08', label: 'Ağu' },
-  { num: '09', label: 'Eyl' },
-  { num: '10', label: 'Eki' },
-  { num: '11', label: 'Kas' },
-  { num: '12', label: 'Ara' },
-];
-
-const PRESET_DATES = [
-  { label: '🦠 2020 Pandemi', date: '2020-03-12', year: '2020', month: '03' },
-  { label: '🚀 2021 Zirve', date: '2021-11-10', year: '2021', month: '11' },
-  { label: '❄️ 2023 Dip', date: '2023-01-01', year: '2023', month: '01' },
-];
+/** "10000" -> "10.000" */
+function groupThousands(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
 
 export function WhatIfScreen() {
-  // 1. Varlık Seçimi ve Dropdown Menü Açık/Kapalı Durumu
-  const [selectedSymbol, setSelectedSymbol] = useState('BTC');
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  // Varlıklar sunucudan geliyor — bkz. ICONS üstündeki not.
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [symbol, setSymbol] = useState('BTC');
+  const [date, setDate] = useState('2020-03-12');
+  const [amount, setAmount] = useState('10000');
+
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<WhatIfResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Liste bir kez çekiliyor: varlıklar fiyat gibi saniyede değişmiyor.
-    // Hata durumunda ekranı kilitlemiyoruz — dizi boş kalır, kullanıcı
-    // yine de seçili varlıkla hesap yapabilir.
-    // ⚠️ Zarflı nesne — bkz. market/router.ts, `currency` alanı eklendi.
     apiFetch<{ assets: Asset[] }>('/assets')
       .then((data) => setAssets(data.assets))
       .catch(() => setAssets([]));
   }, []);
 
-  // 2. Kaydırmalı Tarih Seçimi (Yıl, Ay, Gün)
-  const [selectedYear, setSelectedYear] = useState('2020');
-  const [selectedMonth, setSelectedMonth] = useState('03');
-  const [selectedDay, setSelectedDay] = useState('12');
+  const asset = useMemo(
+    () => assets.find((a) => a.symbol === symbol) ?? null,
+    [assets, symbol],
+  );
 
-  // 3. Tutar
-  const [amountTry, setAmountTry] = useState('10000');
+  /** Takvimin alt sınırı — bu varlığın ilk fiyat kaydı. */
+  const minDate = asset?.firstAvailable?.slice(0, 10);
 
-  // İstek Durumları
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<WhatIfResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Seçilen Varlık Bilgisi
-  // Liste henüz gelmediyse seçili sembolü yine de göster — ekran boş kalmasın.
-  const currentAsset =
-    assets.find((a) => a.symbol === selectedSymbol) ??
-    { symbol: selectedSymbol, name: selectedSymbol, firstAvailable: null };
-
-  // Seçilebilir yıllar seçili varlığa göre değişiyor.
-  const years = yearsFor(currentAsset.firstAvailable);
-
-  /** Varlığın işlem görmeye başladığı gün, "YYYY-MM-DD". */
-  const earliest =
-    currentAsset.firstAvailable !== null
-      ? currentAsset.firstAvailable.slice(0, 10)
-      : null;
-
-
-  // Birleşik Tarih Stringi (YYYY-MM-DD)
-  const dateString = `${selectedYear}-${selectedMonth}-${selectedDay.padStart(2, '0')}`;
+  /** Üst sınır bugün. Gelecekte bir tarih seçmenin anlamı yok. */
+  const today = new Date().toISOString().slice(0, 10);
 
   /**
-   * Seçilen tarih varlığın başlangıcından önce mi?
+   * Varlık değişince seçili tarih sınırın dışında kalabilir.
    *
-   * ⚠️ `dateString` TANIMLANDIKTAN SONRA hesaplanıyor. JS'te `const`
-   * bildirimleri yukarı taşınır ama DEĞERLERİ taşınmaz — önce kullanılırsa
-   * "used before being assigned" hatası alınır. TypeScript bunu derlemede
-   * yakaladı; JavaScript'te çalışma anında ReferenceError olurdu.
-   *
-   * Metin karşılaştırması yeterli: "YYYY-MM-DD" biçiminde sözlük sırası
-   * takvim sırasıyla aynı. Date nesnesi kurmaya gerek yok.
+   * ⚠️ Kullanıcı BTC'de 2018'i seçip SOL'e geçerse tarih artık geçersiz.
+   * Sessizce bırakırsak sorgu hata döner ve kullanıcı neden olduğunu
+   * anlamaz — tarihi sınıra ÇEKİP söylüyoruz.
    */
-  const tooEarly = earliest !== null && dateString < earliest;
+  useEffect(() => {
+    if (minDate !== undefined && date < minDate) {
+      setDate(minDate);
+      setNotice(
+        `${symbol} verisi ${humanDate(minDate)} tarihinde başlıyor, tarih oraya çekildi.`,
+      );
+    }
+  }, [minDate, date, symbol]);
 
-  // Hesapla Butonuna Basıldığında
-  async function handleCalculate() {
-    setError(null);
+  const run = useCallback(async () => {
     setLoading(true);
+    setError(null);
+    setNotice(null);
 
     try {
-      const tryNum = parseFloat(amountTry);
-      if (isNaN(tryNum) || tryNum <= 0) {
-        throw new Error('Lütfen geçerli bir TL tutarı giriniz.');
-      }
+      // ⚠️ Kuruş çevrimi: tutar tam sayı TL olarak tutuluyor, ondalık yok.
+      // Hazır düğmeler ve elle giriş hep tam TL — `Number` burada güvenli.
+      const amountKurus = `${amount}00`;
 
-      // TL'yi Kuruşa çeviriyoruz (10.000 TL -> 1000000 kuruş)
-      const amountKurus = BigInt(Math.round(tryNum * 100)).toString();
-
-      // Backend'deki GET /what-if kapısına istek atıyoruz
       const data = await apiFetch<WhatIfResult>(
-        `/what-if?symbol=${selectedSymbol}&date=${dateString}&amountKurus=${amountKurus}`,
+        `/what-if?symbol=${symbol}&date=${date}&amountKurus=${amountKurus}`,
       );
 
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Hesaplama başarısız.');
+      setError(err instanceof Error ? err.message : 'Hesaplanamadı.');
+      setResult(null);
     } finally {
       setLoading(false);
     }
-  }
+  }, [symbol, date, amount]);
+
+  const gaining = !result?.nominalProfitTry.startsWith('-');
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      {/* Başlık */}
-      <View style={styles.header}>
-        <Text style={styles.title}>🔮 Ya Alsaydın?</Text>
-        <Text style={styles.subtitle}>
-          Geçmiş Yatırım & Enflasyondan Arındırılmış Reel Getiri
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <SectionLabel>YA ALSAYDIN</SectionLabel>
+
+      {/* --- soru cümlesi --- */}
+      <Text style={styles.question}>
+        <Text
+          style={styles.underlined}
+          onPress={() => setCalendarOpen(false)}
+        >
+          {groupThousands(amount)} ₺
         </Text>
+        <Text>'yi </Text>
+        <Text
+          style={styles.underlined}
+          onPress={() => setCalendarOpen((open) => !open)}
+        >
+          {humanDate(date)}
+        </Text>
+        <Text>'de{'\n'}hangi varlığa koysaydım?</Text>
+      </Text>
+
+      {/* --- özel günler --- */}
+      <View style={styles.block}>
+        <SectionLabel>ÖZEL GÜNLER</SectionLabel>
+
+        <View style={styles.chipWrap}>
+          {EVENTS.map((event) => {
+            // Varlığın verisi o tarihe gitmiyorsa düğme kapalı.
+            const blocked = minDate !== undefined && event.date < minDate;
+
+            return (
+              <Chip
+                key={event.date}
+                label={event.label}
+                selected={date === event.date}
+                onPress={() => {
+                  if (blocked) {
+                    setNotice(
+                      `${symbol} verisi ${humanDate(minDate)} tarihinde başlıyor — ${event.label} daha eski.`,
+                    );
+                    return;
+                  }
+                  setNotice(null);
+                  setDate(event.date);
+                }}
+              />
+            );
+          })}
+        </View>
       </View>
 
-      {/* 1. VARLIK SEÇİMİ (AÇILIR DROPDOWN MENÜ) */}
-      <Text style={styles.sectionLabel}>1. Varlık Seçin (Dropdown)</Text>
-      <View style={styles.dropdownWrapper}>
+      {/* --- takvim --- */}
+      <View style={styles.block}>
         <TouchableOpacity
-          style={styles.dropdownHeader}
-          onPress={() => setDropdownOpen(!dropdownOpen)}
+          style={styles.calendarToggle}
+          onPress={() => setCalendarOpen((open) => !open)}
         >
-          <View style={styles.selectedAssetRow}>
-            <Text style={styles.assetIcon}>{iconOf(currentAsset.symbol)}</Text>
-            <Text style={styles.selectedAssetText}>
-              {currentAsset.name} ({currentAsset.symbol})
-            </Text>
-          </View>
-          <Text style={styles.dropdownArrow}>{dropdownOpen ? '▲' : '▼'}</Text>
+          <Text style={styles.calendarToggleText}>
+            {calendarOpen ? 'Takvimi kapat' : 'Takvimden seç'}
+          </Text>
         </TouchableOpacity>
 
-        {dropdownOpen && (
-          <View style={styles.dropdownList}>
-            {assets.map((item) => (
-              <TouchableOpacity
-                key={item.symbol}
-                style={[
-                  styles.dropdownItem,
-                  selectedSymbol === item.symbol && styles.dropdownItemActive,
-                ]}
-                onPress={() => {
-                  setSelectedSymbol(item.symbol);
-                  setDropdownOpen(false);
-                  setResult(null);
-                  setError(null);
-
-                  // ⚠️ Varlık değişince seçili yıl geçersiz kalabilir:
-                  // BTC'de 2017 seçiliyken SOL'a geçilirse o yıl artık
-                  // listede yok. Sessizce bırakırsak seçici boş bir
-                  // seçeneği "seçili" gösterir. Sınırın içine çekiyoruz.
-                  const validYears = yearsFor(item.firstAvailable);
-                  if (!validYears.includes(selectedYear)) {
-                    setSelectedYear(validYears[0] as string);
-                  }
-                }}
-              >
-                <Text style={styles.assetIcon}>{iconOf(item.symbol)}</Text>
-                <Text
-                  style={[
-                    styles.dropdownItemText,
-                    selectedSymbol === item.symbol && styles.dropdownItemTextActive,
-                  ]}
-                >
-                  {item.name} ({item.symbol})
-                </Text>
-              </TouchableOpacity>
-            ))}
+        {calendarOpen && (
+          <View style={styles.calendarBox}>
+            <Calendar
+              value={date}
+              onChange={(iso) => {
+                setNotice(null);
+                setDate(iso);
+              }}
+              min={minDate}
+              max={today}
+              onRejected={(iso, reason) =>
+                setNotice(
+                  reason === 'early'
+                    ? `${symbol} için ${humanDate(iso)} tarihinde veri yok — en eskisi ${minDate === undefined ? '?' : humanDate(minDate)}.`
+                    : 'Gelecekteki bir tarih seçilemez.',
+                )
+              }
+            />
           </View>
         )}
       </View>
 
-      {/* 2. KAYDIRMALI TARİH SEÇİMİ (YATAY ZAMAN ÇİZELGESİ) */}
-      <Text style={styles.sectionLabel}>2. Tarih Seçin (Kaydırmalı Çizelge)</Text>
+      {/* --- tutar --- */}
+      <View style={styles.block}>
+        <SectionLabel>TUTAR</SectionLabel>
 
-      {/* Hızlı Atlayış Butonları */}
-      <View style={styles.presetDates}>
-        {PRESET_DATES.map((p) => (
-          <TouchableOpacity
-            key={p.date}
-            style={[
-              styles.presetButton,
-              dateString === p.date && styles.presetButtonActive,
-            ]}
-            onPress={() => {
-              setSelectedYear(p.year);
-              setSelectedMonth(p.month);
-              setSelectedDay(p.date.slice(8, 10));
-            }}
-          >
-            <Text
-              style={[
-                styles.presetText,
-                dateString === p.date && styles.presetTextActive,
-              ]}
-            >
-              {p.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        <View style={styles.amountRow}>
+          {AMOUNTS.map((value) => {
+            const on = value === amount;
 
-      {/* Yıl Kaydırma Çubuğu */}
-      <Text style={styles.subLabel}>🗓️ Yıl Seçin:</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-        {years.map((y) => (
-          <TouchableOpacity
-            key={y}
-            style={[styles.yearChip, selectedYear === y && styles.yearChipActive]}
-            onPress={() => setSelectedYear(y)}
-          >
-            <Text style={[styles.yearChipText, selectedYear === y && styles.yearChipTextActive]}>
-              {y}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Ay Kaydırma Çubuğu */}
-      <Text style={styles.subLabel}>📅 Ay Seçin:</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-        {MONTHS.map((m) => (
-          <TouchableOpacity
-            key={m.num}
-            style={[styles.monthChip, selectedMonth === m.num && styles.monthChipActive]}
-            onPress={() => setSelectedMonth(m.num)}
-          >
-            <Text style={[styles.monthChipText, selectedMonth === m.num && styles.monthChipTextActive]}>
-              {m.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Elle Tarih Girişi */}
-      <Text style={styles.subLabel}>✍️ Ya da tarihi elle yazın:</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="YYYY-AA-GG (örn: 2020-03-12)"
-        placeholderTextColor={colors.inkFaint}
-        value={dateString}
-        onChangeText={(text) => {
-          // Girilen metni parçalara ayırıp state'e dağıtıyoruz; böylece
-          // kaydırmalı seçici ile elle giriş TEK kaynaktan besleniyor ve
-          // biri değişince diğeri de güncelleniyor.
-          const m = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-          if (m) {
-            setSelectedYear(m[1] as string);
-            setSelectedMonth(m[2] as string);
-            setSelectedDay(m[3] as string);
-            setError(null);
-          }
-        }}
-        autoCapitalize="none"
-      />
-
-      {/* Seçilen Tarih Özeti Kartı */}
-      <View style={styles.datePreviewCard}>
-        <Text style={styles.datePreviewLabel}>🎯 Seçilen Simülasyon Tarihi:</Text>
-        <Text style={styles.datePreviewValue}>{dateString}</Text>
-      </View>
-
-      {/*
-        ⚠️ SINIR UYARISI — hatayı sunucudan beklemek yerine önden söylüyoruz.
-        Sunucu zaten "kayıt bulunamadı" derdi ama kullanıcı o noktaya kadar
-        formu doldurup düğmeye basmış olurdu.
-      */}
-      {tooEarly && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>
-            ⚠️ {currentAsset.symbol} verisi {earliest} tarihinde başlıyor.
-            Daha eski bir tarih seçilemez.
-          </Text>
+            return (
+              <TouchableOpacity
+                key={value}
+                style={[styles.amountButton, on && styles.amountButtonOn]}
+                onPress={() => setAmount(value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.amountText, on && styles.amountTextOn]}>
+                  {groupThousands(value)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
-      )}
+      </View>
 
-      {/* 3. Tutar Girişi */}
-      <Text style={styles.sectionLabel}>3. Ne Kadar Yatırsaydınız? (TL)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Örn: 10000"
-        placeholderTextColor={colors.inkFaint}
-        value={amountTry}
-        onChangeText={setAmountTry}
-        keyboardType="numeric"
-      />
+      {/* --- varlık --- */}
+      <View style={styles.block}>
+        <SectionLabel>VARLIK</SectionLabel>
 
-      {/* Hesapla Butonu */}
+        <View style={styles.assetWrap}>
+          {assets.map((item) => (
+            <TouchableOpacity
+              key={item.symbol}
+              style={[
+                styles.assetRow,
+                item.symbol === symbol && styles.assetRowOn,
+              ]}
+              onPress={() => setSymbol(item.symbol)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: item.symbol === symbol }}
+            >
+              <AssetBadge symbol={item.symbol} />
+
+              <View style={styles.assetNames}>
+                <Text style={styles.assetName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={styles.assetMeta}>
+                  {item.symbol}
+                  {item.firstAvailable !== null &&
+                    ` · ${item.firstAvailable.slice(0, 4)}'ten beri`}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {notice !== null && <Text style={styles.notice}>{notice}</Text>}
+
       <TouchableOpacity
-        style={[
-          styles.calculateButton,
-          (loading || tooEarly) && styles.buttonDisabled,
-        ]}
-        onPress={handleCalculate}
-        disabled={loading || tooEarly}
+        style={styles.submit}
+        onPress={() => void run()}
+        disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color={colors.ink} />
+          <ActivityIndicator color={colors.onInverse} />
         ) : (
-          <Text style={styles.calculateButtonText}>🚀 Simülasyonu Hesapla</Text>
+          <Text style={styles.submitText}>Hesapla</Text>
         )}
       </TouchableOpacity>
 
-      {/* Hata Kutusu */}
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-        </View>
-      )}
+      {error !== null && <Text style={styles.error}>{error}</Text>}
 
-      {/* 4. SİMÜLASYON SONUÇ KARTI */}
-      {result && (
-        <View style={styles.resultCard}>
-          <Text style={styles.resultCardTitle}>📊 Simülasyon Sonucu</Text>
-          
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>O Günki Fiyat:</Text>
-            <Text style={styles.priceValue}>{result.startPriceTry}</Text>
-          </View>
+      {/* --- sonuç --- */}
+      {result !== null && (
+        <View style={styles.result}>
+          <SectionLabel>SONUÇ</SectionLabel>
 
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Bugünkü Canlı Fiyat:</Text>
-            <Text style={styles.priceValue}>{result.currentPriceTry}</Text>
+          <Text style={styles.resultValue}>{result.currentValueTry}</Text>
+
+          <View style={styles.resultRow}>
+            <Text
+              style={[
+                styles.resultProfit,
+                { color: gaining ? colors.gain : colors.loss },
+              ]}
+            >
+              {result.nominalProfitTry}
+            </Text>
+            <Text
+              style={[
+                styles.resultProfit,
+                { color: gaining ? colors.gain : colors.loss },
+              ]}
+            >
+              {result.nominalReturnPercentFormatted}
+            </Text>
+            <Text style={styles.resultLabel}>NOMİNAL</Text>
           </View>
 
           <View style={styles.divider} />
 
-          {/* Bugünkü Toplam Para */}
-          <Text style={styles.totalValueLabel}>Bugünkü Toplam Paranız:</Text>
-          <Text style={styles.totalValueAmount}>{result.currentValueTry}</Text>
-          <Text style={styles.profitText}>Net Kâr: {result.nominalProfitTry}</Text>
-
-          {/* Rozetler */}
-          <View style={styles.badgeContainer}>
-            <View style={styles.nominalBadge}>
-              <Text style={styles.badgeLabel}>Nominal Getiri</Text>
-              <Text style={styles.nominalBadgeValue}>
-                {result.nominalReturnPercentFormatted}
-              </Text>
-            </View>
-
-            <View style={styles.inflationBadge}>
-              <Text style={styles.badgeLabel}>TÜFE Enflasyonu</Text>
-              <Text style={styles.inflationBadgeValue}>
-                {result.cumulativeInflationPercentFormatted}
-              </Text>
-            </View>
+          <View style={styles.statRow}>
+            <Text style={styles.statKey}>Enflasyon</Text>
+            <Text style={styles.statValue}>
+              {result.cumulativeInflationPercentFormatted}
+            </Text>
           </View>
 
-          {/* REEL GETİRİ VURGUSU */}
-          <View style={styles.realBadge}>
-            <Text style={styles.realBadgeTitle}>🏆 ENFLASYONDAN ARINDIRILMIŞ REEL GETİRİ</Text>
-            <Text style={styles.realBadgeValue}>
+          <View style={styles.statRow}>
+            <Text style={styles.statKey}>Reel getiri</Text>
+            <Text style={[styles.statValue, styles.statStrong]}>
               {result.realReturnPercentFormatted}
             </Text>
           </View>
 
-          {/* Özet Hikâye */}
-          <Text style={styles.summaryText}>{result.summary}</Text>
+          <View style={styles.divider} />
+
+          <View style={styles.statRow}>
+            <Text style={styles.statKey}>O günkü fiyat</Text>
+            <Text style={styles.statValue}>
+              {result.startPriceTry}
+              {result.startPriceUsd !== null && `  ·  ${result.startPriceUsd} $`}
+            </Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <Text style={styles.statKey}>Aldığın miktar</Text>
+            <Text style={styles.statValue}>{result.purchasedQuantity}</Text>
+          </View>
+
+          {/*
+            ⚠️ DİPNOT — kullanıcının sorduğu soru buydu.
+            Dolar fiyatı BUGÜNKÜ kurla değil O GÜNKÜ kurla hesaplanıyor.
+            Söylemezsek kullanıcı doğal olarak bugünkü kuru varsayar ve
+            sayıyı yanlış sanar.
+          */}
+          {result.startUsdTryRate !== null && (
+            <Text style={styles.footnote}>
+              Dolar fiyatı o tarihteki TCMB kuruyla hesaplandı
+              (1 $ = {result.startUsdTryRate}), bugünkü kurla değil.
+              Reel getiri {result.tufeStartMonth} → {result.tufeEndMonth} TÜFE
+              endeksine dayanıyor.
+            </Text>
+          )}
         </View>
       )}
     </ScrollView>
@@ -461,354 +400,141 @@ export function WhatIfScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: { flex: 1, backgroundColor: colors.surface },
+  content: { paddingHorizontal: spacing.screen, paddingTop: 20, paddingBottom: 40 },
+
+  question: {
+    fontFamily: fonts.semibold,
+    fontSize: 21,
+    lineHeight: 30,
+    color: colors.inkFaint,
+    marginTop: 9,
+    letterSpacing: -0.2,
+  },
+  underlined: {
+    fontFamily: fonts.bold,
+    color: colors.ink,
+    // Tasarımda altı çizili: dokunulabilir olduğunu söyleyen tek işaret.
+    textDecorationLine: 'underline',
+  },
+
+  block: { marginTop: 20, gap: 10 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+
+  calendarToggle: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  calendarToggleText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    color: colors.inkMuted,
+  },
+  calendarBox: { marginTop: 4 },
+
+  amountRow: { flexDirection: 'row', gap: 7 },
+  amountButton: {
     flex: 1,
-    backgroundColor: colors.surface,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  header: {
     alignItems: 'center',
-    marginBottom: 16,
-    marginTop: 6,
-  },
-  title: {
-    fontSize: 26,
-    fontFamily: fonts.bold,
-    color: colors.ink,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: colors.inkMuted,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  sectionLabel: {
-    color: colors.ink,
-    fontSize: 14,
-    fontFamily: fonts.semibold,
-    marginTop: 18,
-    marginBottom: 8,
-  },
-  subLabel: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    marginTop: 10,
-    marginBottom: 6,
-  },
-  dropdownWrapper: {
-    position: 'relative',
-    zIndex: 10,
-  },
-  dropdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.fieldFill,
-    borderColor: colors.gain,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  selectedAssetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  assetIcon: {
-    fontSize: 18,
-  },
-  selectedAssetText: {
-    color: colors.ink,
-    fontSize: 15,
-    fontFamily: fonts.bold,
-  },
-  dropdownArrow: {
-    color: colors.gain,
-    fontSize: 12,
-    fontFamily: fonts.bold,
-  },
-  dropdownList: {
-    backgroundColor: colors.fieldFill,
-    borderColor: colors.hairline,
-    borderWidth: 1,
-    borderRadius: 12,
-    marginTop: 6,
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 10,
-    borderBottomColor: colors.hairline,
-    borderBottomWidth: 0.5,
-  },
-  dropdownItemActive: {
-    backgroundColor: colors.gainSoft,
-  },
-  dropdownItemText: {
-    color: colors.ink,
-    fontSize: 14,
-  },
-  dropdownItemTextActive: {
-    color: colors.gain,
-    fontFamily: fonts.bold,
-  },
-  presetDates: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 10,
-  },
-  presetButton: {
-    backgroundColor: colors.fieldFill,
-    borderColor: colors.hairline,
-    borderWidth: 1,
     paddingVertical: 6,
-    paddingHorizontal: 10,
     borderRadius: 8,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  presetButtonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  presetText: {
-    color: colors.inkMuted,
-    fontSize: 12,
-  },
-  presetTextActive: {
-    color: colors.ink,
-    fontFamily: fonts.bold,
-  },
-  horizontalScroll: {
+  amountButtonOn: { backgroundColor: colors.inverse, borderColor: colors.inverse },
+  amountText: { fontFamily: fonts.monoSemibold, fontSize: 11, color: colors.inkMuted },
+  amountTextOn: { fontFamily: fonts.monoBold, color: colors.onInverse },
+
+  assetWrap: { borderTopWidth: 1, borderTopColor: colors.surfacePressed },
+  assetRow: {
     flexDirection: 'row',
-    marginBottom: 6,
-  },
-  yearChip: {
-    backgroundColor: colors.fieldFill,
-    borderColor: colors.hairline,
-    borderWidth: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    marginRight: 8,
-  },
-  yearChipActive: {
-    backgroundColor: colors.gain,
-    borderColor: colors.gain,
-  },
-  yearChipText: {
-    color: colors.inkMuted,
-    fontSize: 13,
-    fontFamily: fonts.semibold,
-  },
-  yearChipTextActive: {
-    color: colors.ink,
-    fontFamily: fonts.bold,
-  },
-  monthChip: {
-    backgroundColor: colors.fieldFill,
-    borderColor: colors.hairline,
-    borderWidth: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginRight: 6,
-  },
-  monthChipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  monthChipText: {
-    color: colors.inkMuted,
-    fontSize: 12,
-  },
-  monthChipTextActive: {
-    color: colors.ink,
-    fontFamily: fonts.bold,
-  },
-  datePreviewCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.hairlineStrong,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginTop: 10,
-    marginBottom: 4,
+    gap: 12,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfacePressed,
   },
-  datePreviewLabel: {
-    color: colors.inkMuted,
+  assetRowOn: { backgroundColor: colors.surfaceRaised },
+  assetNames: { flex: 1 },
+  assetName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
+  assetMeta: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
+    marginTop: 2,
+  },
+
+  notice: {
+    fontFamily: fonts.regular,
     fontSize: 12,
-    fontFamily: fonts.medium,
-  },
-  datePreviewValue: {
-    color: colors.ink,
-    fontSize: 14,
-    fontFamily: fonts.bold,
-    letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: colors.fieldFill,
-    borderColor: colors.hairline,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: colors.ink,
-    fontSize: 15,
-  },
-  calculateButton: {
-    backgroundColor: colors.gain,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  calculateButtonText: {
-    color: colors.ink,
-    fontSize: 16,
-    fontFamily: fonts.bold,
-  },
-  errorBox: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
+    color: colors.warn,
     marginTop: 16,
   },
-  errorText: {
+
+  submit: {
+    marginTop: 20,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.inverse,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.onInverse },
+
+  error: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
     color: colors.error,
-    fontSize: 13,
+    marginTop: 14,
   },
-  resultCard: {
-    backgroundColor: colors.fieldFill,
-    borderColor: colors.gain,
-    borderWidth: 1.5,
-    borderRadius: 16,
-    padding: 18,
-    marginTop: 24,
-  },
-  resultCardTitle: {
-    fontSize: 18,
-    fontFamily: fonts.bold,
+
+  result: { marginTop: 26 },
+  resultValue: {
+    fontFamily: fonts.monoBold,
+    fontSize: 32,
     color: colors.ink,
-    marginBottom: 12,
-    textAlign: 'center',
+    marginTop: 8,
+    letterSpacing: -1,
   },
-  priceRow: {
+  resultRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 3,
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
   },
-  priceLabel: {
-    color: colors.inkMuted,
-    fontSize: 13,
+  resultProfit: { fontFamily: fonts.monoBold, fontSize: 13 },
+  resultLabel: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    letterSpacing: 1.1,
+    color: colors.inkFaint,
   },
-  priceValue: {
-    color: colors.ink,
-    fontSize: 13,
-    fontFamily: fonts.semibold,
-  },
+
   divider: {
     height: 1,
-    backgroundColor: colors.hairline,
-    marginVertical: 12,
+    backgroundColor: colors.border,
+    marginVertical: 14,
   },
-  totalValueLabel: {
-    color: colors.inkMuted,
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  totalValueAmount: {
-    color: colors.gain,
-    fontSize: 28,
-    fontFamily: fonts.bold,
-    textAlign: 'center',
-    marginVertical: 4,
-  },
-  profitText: {
-    color: colors.gain,
-    fontSize: 14,
-    textAlign: 'center',
-    fontFamily: fonts.semibold,
-    marginBottom: 14,
-  },
-  badgeContainer: {
+  statRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  nominalBadge: {
-    flex: 1,
-    backgroundColor: colors.gainSoft,
-    borderRadius: 8,
-    padding: 8,
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 5,
   },
-  inflationBadge: {
-    flex: 1,
-    backgroundColor: colors.warnSoft,
-    borderRadius: 8,
-    padding: 8,
-    alignItems: 'center',
-  },
-  badgeLabel: {
-    color: colors.inkMuted,
+  statKey: { fontFamily: fonts.regular, fontSize: 13, color: colors.inkMuted },
+  statValue: { fontFamily: fonts.monoSemibold, fontSize: 13, color: colors.inkBright },
+  statStrong: { color: colors.ink, fontSize: 15 },
+
+  footnote: {
+    fontFamily: fonts.regular,
     fontSize: 11,
-  },
-  nominalBadgeValue: {
-    color: colors.gain,
-    fontSize: 15,
-    fontFamily: fonts.bold,
-    marginTop: 2,
-  },
-  inflationBadgeValue: {
-    color: colors.warn,
-    fontSize: 15,
-    fontFamily: fonts.bold,
-    marginTop: 2,
-  },
-  realBadge: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  realBadgeTitle: {
-    color: colors.inkMuted,
-    fontSize: 11,
-    fontFamily: fonts.bold,
-    letterSpacing: 0.5,
-  },
-  realBadgeValue: {
-    color: colors.accent,
-    fontSize: 22,
-    fontFamily: fonts.bold,
-    marginTop: 4,
-  },
-  summaryText: {
-    color: colors.ink,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: 6,
+    lineHeight: 17,
+    color: colors.inkFaint,
+    marginTop: 14,
   },
 });
