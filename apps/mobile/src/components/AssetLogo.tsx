@@ -46,12 +46,12 @@ const CRYPTO_LOGOS: Record<string, ImageSourcePropType> = {
 /**
  * Elle eklenen logolar — `assets/logos/`.
  *
- * ⚠️ ŞU AN BOŞ VE BU KASITLI. Dosyalar `apps/mobile/assets/logos/`
- * klasörüne bırakılınca buraya birer satır ekleniyor:
+ * ⚠️ DOSYALAR `scripts/prepare-logos.mjs` İLE HAZIRLANDI, ham hâlleriyle
+ * değil. İndirilen simgeler beyaz zeminde siyahtı: koyu arayüzde hem
+ * beyaz kare olarak görünürlerdi hem de simge okunmazdı. Betik zemini
+ * saydamlaştırıp çizimi açık renge boyuyor.
  *
- *     USD: require('../../assets/logos/usd.png'),
- *
- * Boş bırakılamayan tek şey `require` yolu: Metro paketlenecek dosyaları
+ * ⚠️ `require` yolu STATİK METİN OLMAK ZORUNDA: Metro paketlenecek dosyaları
  * DERLEME ANINDA, statik metinlere bakarak buluyor. `require(yol)` gibi
  * değişkenli bir çağrı çözümlenemez ve çalışma anında "unknown module"
  * hatası verir. O yüzden tablo elle büyüyor.
@@ -59,7 +59,20 @@ const CRYPTO_LOGOS: Record<string, ImageSourcePropType> = {
  * Tablo boşken aşağıdaki simge/harf yolu devreye giriyor — yani eksik
  * dosya ekranı bozmuyor, sadece o varlık eski görünümde kalıyor.
  */
-const CUSTOM_LOGOS: Record<string, ImageSourcePropType> = {};
+const CUSTOM_LOGOS: Record<string, ImageSourcePropType> = {
+  USD: require('../../assets/logos/usd.png'),
+  EUR: require('../../assets/logos/eur.png'),
+  GBP: require('../../assets/logos/gbp.png'),
+  JPY: require('../../assets/logos/jpy.png'),
+  CAD: require('../../assets/logos/cad.png'),
+  AUD: require('../../assets/logos/aud.png'),
+  SEK: require('../../assets/logos/sek.png'),
+
+  // ⚠️ CHF BİLEREK YOK. Elimizdeki dosyada Shutterstock filigranı var —
+  // hem lisans sorunu hem görsel kirlilik. Tablodan çıkarılınca aşağıdaki
+  // `₣` simgesi devreye giriyor, yani liste eksiksiz görünmeye devam
+  // ediyor. Filigransız bir dosya gelince buraya bir satır eklenecek.
+};
 
 /**
  * Döviz simgeleri — elle logo YOKKEN kullanılan yedek.
