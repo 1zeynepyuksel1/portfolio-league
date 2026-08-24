@@ -98,6 +98,11 @@ const FX_SYMBOLS: Record<string, string> = {
 /**
  * Madenler — İNDİRİLMEDİ, ÇİZİLDİ.
  *
+ * ⚠️ ÜZERİNDE YAZI YOK. Önce "Au"/"Ag" vardı; kaldırıldı. Diğer varlıkların
+ * logolarında da yazı yok — yazılı iki daire aralarında yabancı duruyordu.
+ * Altın sarısı ile gümüş grisi zaten karıştırılamaz; adı da hemen yanında
+ * yazıyor.
+ *
  * Altın ve gümüş için hazır dosya gelmedi. İnternetten indirmek yerine
  * SVG ile çiziliyor; üç sebeple:
  *
@@ -115,12 +120,12 @@ const FX_SYMBOLS: Record<string, string> = {
  */
 const METALS: Record<
   string,
-  { text: string; from: string; to: string; ink: string }
+  { key: string; from: string; to: string; ink: string }
 > = {
   // Sıcak sarıdan koyu altına — tek renk düz bir daire verirdi.
-  GRAM_ALTIN: { text: 'Au', from: '#F7D774', to: '#B8860B', ink: '#4A3608' },
+  GRAM_ALTIN: { key: 'altin', from: '#F7D774', to: '#B8860B', ink: '#4A3608' },
   // Gümüşte kontrast daha düşük; metal zaten soğuk ve soluk bir yüzey.
-  GRAM_GUMUS: { text: 'Ag', from: '#F2F2F7', to: '#9096A0', ink: '#33353B' },
+  GRAM_GUMUS: { key: 'gumus', from: '#F2F2F7', to: '#9096A0', ink: '#33353B' },
 };
 
 /** Degrade dolgulu madeni para. */
@@ -128,7 +133,7 @@ function MetalCoin({
   metal,
   size,
 }: {
-  metal: { text: string; from: string; to: string; ink: string };
+  metal: { key: string; from: string; to: string; ink: string };
   size: number;
 }) {
   /**
@@ -137,9 +142,9 @@ function MetalCoin({
    * SVG'de `id` belge genelinde geçerli. İki madeni para aynı ekranda
    * çizilirken ikisi de "coin" kimliğini kullansaydı, ikincisi
    * birincinin degradesini alırdı — gümüş altın rengi çıkardı.
-   * Sembolü kimliğe katmak bunu kapatıyor.
+   * Anahtarı kimliğe katmak bunu kapatıyor.
    */
-  const id = `coin-${metal.text}`;
+  const id = `coin-${metal.key}`;
 
   return (
     <View style={{ width: size, height: size }}>
@@ -168,20 +173,6 @@ function MetalCoin({
         />
       </Svg>
 
-      {/*
-        ⚠️ YAZI SVG İÇİNDE DEĞİL, ÜSTÜNDE.
-        `react-native-svg`'nin `Text` öğesi yazı tipini platforma göre
-        farklı çözüyor ve web'de Rubik'e ulaşamıyor. Normal RN `Text`
-        her yerde aynı fontu kullanıyor.
-      */}
-      <Text
-        style={[
-          styles.coinText,
-          { color: metal.ink, fontSize: size * 0.36, lineHeight: size },
-        ]}
-      >
-        {metal.text}
-      </Text>
     </View>
   );
 }
@@ -284,15 +275,4 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   text: { fontFamily: fonts.bold, textAlign: 'center' },
-  coinText: {
-    // ⚠️ `StyleSheet.absoluteFillObject` DEĞİL — bu sürümde tanımlı değil;
-    // dört kenarı elle sıfırlamak aynı işi yapıyor ve her sürümde çalışır.
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    fontFamily: fonts.bold,
-    textAlign: 'center',
-  },
 });
