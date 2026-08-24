@@ -197,8 +197,9 @@ export function WhatIfScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <SectionLabel>YA ALSAYDIN</SectionLabel>
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <SectionLabel>YA ALSAYDIN</SectionLabel>
 
       {/* --- soru cümlesi --- */}
       <Text style={styles.question}>
@@ -398,16 +399,29 @@ export function WhatIfScreen() {
         </View>
       )}
 
-      {/* --- dinamik buton --- */}
-      <TouchableOpacity
-        style={styles.cta}
-        onPress={() => setShowResult(true)}
-        disabled={loading}
-        accessibilityRole="button"
-      >
-        <Text style={styles.ctaText}>{selectedName}'i gör →</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+
+      {/*
+        --- dinamik buton: SABİT, kaydırmıyor ---
+
+        ⚠️ ÖNCE LİSTENİN ALTINDAYDI ve bildirilen sorun buydu: kullanıcı
+        BNB'yi seçtikten sonra onu görmek için yirmi varlık boyunca aşağı
+        kaydırmak zorundaydı. Seçim yukarıda, eylem aşağıdaydı.
+
+        Şimdi ekranın altına sabit. Hangi varlık seçili olursa olsun
+        düğme hep aynı yerde ve adı seçilenle birlikte değişiyor.
+      */}
+      <View style={styles.ctaBar}>
+        <TouchableOpacity
+          style={styles.cta}
+          onPress={() => setShowResult(true)}
+          disabled={loading}
+          accessibilityRole="button"
+        >
+          <Text style={styles.ctaText}>{selectedName}'i gör →</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -416,7 +430,16 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.screen,
     paddingTop: 20,
-    paddingBottom: 32,
+    // Sabit düğmenin altında kalan son satır görünsün diye ek boşluk.
+    paddingBottom: 24,
+  },
+  ctaBar: {
+    paddingHorizontal: spacing.screen,
+    paddingTop: 10,
+    paddingBottom: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
 
   question: {
@@ -525,7 +548,6 @@ const styles = StyleSheet.create({
   thresholdValue: { fontFamily: fonts.monoBold, fontSize: 13, color: colors.loss },
 
   cta: {
-    marginTop: 24,
     height: 56,
     borderRadius: 14,
     backgroundColor: colors.inverse,

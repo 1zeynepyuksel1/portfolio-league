@@ -3,6 +3,7 @@ import { requireAccessToken } from '../auth/middleware.js';
 import { toAmount } from '../lib/money.js';
 import { OrderValidationError } from './calculate.js';
 import { createOrderSchema, idempotencyKeySchema } from './orders.schema.js';
+import { getRecentOrders } from '../portfolio/repository.js';
 import { executeOrder } from './repository.js';
 
 export const ordersRouter = Router();
@@ -41,6 +42,47 @@ const STATUS_BY_CODE: Record<string, number> = {
   STALE_PRICE: 503,
   NO_PRICE: 503,
 };
+
+/**
+ * GET /orders?limit=20 — kullanıcının son işlemleri.
+ *
+ * Cüzdan ekranındaki "SON İŞLEMLER" bloğunu besliyor.
+ *
+ * ⚠️ Tutarlar STRING. JSON'da sayı yazsaydık istemcide `number` olarak
+ * okunur ve float'a düşerdi; money.ts'ten buraya taşınan bigint disiplini
+ * ağın öbür ucunda çökerdi.
+ */
+ordersRouter.get('/', requireAccessToken, async (request, response) => {
+  const userId = response.locals.userId as string;
+
+  const raw = Number(request.query.limit ?? 20);
+
+  // ⚠️ Üst sınır ŞART. Sınırsız bırakırsak `?limit=1000000` tek istekle
+  // bütün emir tablosunu okutur.
+  const limit = Number.isFinite(raw) ? Math.min(Math.max(raw, 1), 100) : 20;
+
+  try {
+    const rows = await getRecentOrders(userId, limit);
+
+    return response.json({
+      orders: rows.map((row) => ({
+        id: row.id,
+        symbol: row.symbol,
+        name: row.name,
+        side: row.side,
+        quantity: row.quantity,
+        priceTry: row.priceTry,
+        netCents: row.netCents.toString(),
+        executedAt: row.executedAt.toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error('[GET /orders] beklenmeyen hata:', error);
+    return response.status(500).json({
+      error: { code: 'INTERNAL_ERROR', message: 'İşlemler okunamadı.' },
+    });
+  }
+});
 
 ordersRouter.post('/', requireAccessToken, async (request, response) => {
   const userId = response.locals.userId as string;

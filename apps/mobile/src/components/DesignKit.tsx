@@ -191,9 +191,28 @@ export function ChangeText({
  * Aynı ölçü ve biçimde olduğu için logolar geldiğinde yalnızca bu
  * bileşenin içi değişecek, çağıran hiçbir ekran değişmeyecek.
  */
-export function AssetBadge({ symbol }: { symbol: string }) {
+export function AssetBadge({
+  symbol,
+  /**
+   * Kenar rengi — dağılım çubuğundaki dilimle eşleşsin diye.
+   *
+   * ⚠️ DOLGU DEĞİL KENAR boyanıyor. Dolguyu boyasaydık rozetin içindeki
+   * yazı bazı renklerde okunmaz olurdu ve her renk için ayrı bir metin
+   * rengi hesaplamak gerekirdi. Kenar hem eşleştiriyor hem okunurluğu
+   * bozmuyor.
+   */
+  tint,
+}: {
+  symbol: string;
+  tint?: string | undefined;
+}) {
   return (
-    <View style={styles.badge}>
+    <View
+      style={[
+        styles.badge,
+        tint !== undefined && { borderColor: tint, borderWidth: 2 },
+      ]}
+    >
       <Text style={styles.badgeText}>{symbol.slice(0, 3)}</Text>
     </View>
   );

@@ -392,3 +392,56 @@ export async function latestUsdTryRate(): Promise<{
 
   return { rate: row.priceTry, asOf };
 }
+
+/**
+ * Bir varlığın son 24 saatteki açılış / yüksek / düşük / kapanış değerleri.
+ *
+ * ⚠️ MIGRATION GEREKTİRMİYOR — ve bu, mum grafiği için istediğimiz OHLC
+ * kolonlarıyla KARIŞTIRILMAMALI.
+ *
+ * Aradaki fark ölçek: burada TEK varlığın TEK penceresi hesaplanıyor
+ * (~5.760 satır), yani tarama ucuz. Mum grafiği ise her kova için ayrı
+ * OHLC istiyor — bir yıllık grafikte 365 pencere, 20 varlık için
+ * milyonlarca satır. O yüzden mum kolonları hâlâ gerekli; bu sorgu
+ * onların yerini tutmuyor.
+ *
+ * ⚠️ HACİM YOK. Binance mumları hacmi de veriyor (dizinin 5. elemanı) ama
+ * biz yalnızca kapanışı saklıyoruz. Hacim eklemek `price_history`'ye
+ * kolon demek — yani migration. Uydurmak yerine `null` dönüyor.
+ */
+export async function getDailyStats(assetId: string): Promise<{
+  high: string;
+  low: string;
+  open: string;
+  close: string;
+} | null> {
+  const rows = await db.execute<{
+    high: string | null;
+    low: string | null;
+    open_price: string | null;
+    close_price: string | null;
+  }>(sql`
+    SELECT
+      max(price_try)::text AS high,
+      min(price_try)::text AS low,
+      -- ⚠️ İlk ve son değeri MIN/MAX ile alamayız: onlar en KÜÇÜK ve en
+      -- BÜYÜK fiyatı verir, en ESKİ ve en YENİ olanı değil. Pencere
+      -- fonksiyonu zamana göre sıralayıp uçları çekiyor.
+      (array_agg(price_try ORDER BY ts ASC))[1]::text  AS open_price,
+      (array_agg(price_try ORDER BY ts DESC))[1]::text AS close_price
+    FROM price_history
+    WHERE asset_id = ${assetId}
+      AND ts >= now() - interval '24 hours'
+  `);
+
+  const row = rows[0];
+
+  if (row === undefined || row.high === null || row.low === null) return null;
+
+  return {
+    high: row.high,
+    low: row.low,
+    open: row.open_price ?? row.low,
+    close: row.close_price ?? row.high,
+  };
+}
