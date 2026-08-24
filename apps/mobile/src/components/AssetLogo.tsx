@@ -44,7 +44,25 @@ const CRYPTO_LOGOS: Record<string, ImageSourcePropType> = {
 };
 
 /**
- * Döviz simgeleri.
+ * Elle eklenen logolar — `assets/logos/`.
+ *
+ * ⚠️ ŞU AN BOŞ VE BU KASITLI. Dosyalar `apps/mobile/assets/logos/`
+ * klasörüne bırakılınca buraya birer satır ekleniyor:
+ *
+ *     USD: require('../../assets/logos/usd.png'),
+ *
+ * Boş bırakılamayan tek şey `require` yolu: Metro paketlenecek dosyaları
+ * DERLEME ANINDA, statik metinlere bakarak buluyor. `require(yol)` gibi
+ * değişkenli bir çağrı çözümlenemez ve çalışma anında "unknown module"
+ * hatası verir. O yüzden tablo elle büyüyor.
+ *
+ * Tablo boşken aşağıdaki simge/harf yolu devreye giriyor — yani eksik
+ * dosya ekranı bozmuyor, sadece o varlık eski görünümde kalıyor.
+ */
+const CUSTOM_LOGOS: Record<string, ImageSourcePropType> = {};
+
+/**
+ * Döviz simgeleri — elle logo YOKKEN kullanılan yedek.
  *
  * ⚠️ BAYRAK DEĞİL, PARA SİMGESİ — ve bu bilinçli.
  *
@@ -91,7 +109,10 @@ export function AssetLogo({
     ...(tint !== undefined ? { borderColor: tint, borderWidth: 2 } : null),
   };
 
-  const logo = CRYPTO_LOGOS[symbol];
+  // ⚠️ SIRA ÖNEMLİ: elle eklenen logo, hazır kripto setini EZER.
+  // Bir varlığın logosunu beğenmezsek klasöre kendi dosyamızı koyup
+  // koddan hiçbir şey silmeden değiştirebiliyoruz.
+  const logo = CUSTOM_LOGOS[symbol] ?? CRYPTO_LOGOS[symbol];
 
   if (logo !== undefined) {
     return (
