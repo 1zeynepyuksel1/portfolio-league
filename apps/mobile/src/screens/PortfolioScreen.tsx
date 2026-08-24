@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
@@ -10,26 +10,35 @@ import {
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
-import { useCurrency } from '../lib/currency';
-import { CurrencyToggle } from '../components/CurrencyToggle';
 import {
   formatCentsString,
   formatPrice,
   formatQuantity,
   formatRelativeTime,
 } from '../lib/format';
-import { colors, fonts } from '../theme';
+import { useCurrency } from '../lib/currency';
+import { CurrencyToggle } from '../components/CurrencyToggle';
+import { AllocationBar, type Slice } from '../components/AllocationBar';
+import {
+  AssetBadge,
+  BigAmount,
+  ChangeText,
+  Chip,
+  SectionLabel,
+} from '../components/DesignKit';
+import { colors, fonts, rowMetrics, spacing } from '../theme';
 
 /**
- * PORTFÖY EKRANI — GET /portfolio
+ * PortfolioScreen — `docs/export/5a-filtre-logo.html`
  *
- * Sunucudaki hesap: toplam değer = nakit + Σ(miktar × güncel fiyat)
- * (apps/api/src/portfolio/calculate.ts)
+ * Tasarımın adı "Filtreli liste + logo yuvaları" ama asıl kararı şu:
+ * **cüzdan bir kart yığını değil, bir VERİ TABLOSU.**
  *
- * ⚠️ Toplamı BURADA hesaplamıyoruz. Sunucu zaten hesaplayıp gönderiyor.
- * Burada toplasaydık aynı formül iki yerde olurdu ve bir gün ayrışırlardı —
- * üstelik istemcide `number` ile toplamak float hatası demek olurdu.
- * Bu ekranın işi sadece BİÇİMLENDİRMEK.
+ * Eski hâlde her pozisyon gölgeli bir kartın içindeydi. Tasarım kartları
+ * atıp satırları ince ayraçlarla ayırıyor ve üstlerine sütun başlığı
+ * koyuyor. Sebebi: kullanıcı burada tek tek varlıklara bakmıyor, onları
+ * KARŞILAŞTIRIYOR. Kart karşılaştırmayı zorlaştırır — her kartın kendi
+ * çerçevesi göz için bir duraktır. Hizalı sütunlar gözü aşağı akıtır.
  */
 
 type Position = {
@@ -37,32 +46,25 @@ type Position = {
   name: string;
   quantity: string;
   priceTry: string | null;
-  /** Dolar görünümünde dolu, TL görünümünde null — çevrimi sunucu yapar. */
   priceUsd: string | null;
   valueCents: string | null;
   valueUsdCents: string | null;
   sharePercent: string | null;
   asOf: string | null;
 
-  /** Bu pozisyona ödenen toplam para (komisyon dahil), kuruş. */
   costCents: string;
-  /** Güncel değer − maliyet. Negatif olabilir. */
+  costUsdCents: string | null;
   profitCents: string;
   profitUsdCents: string | null;
-  costUsdCents: string | null;
   /**
-   * Yüzde getiri, iki ondalıklı metin ("12.34" / "-5.10").
-   *
-   * ⚠️ `null` OLABİLİR ve bu "sıfır" demek DEĞİL: fiyat okunamamış ya da
-   * maliyet sıfır olduğu için hesaplanamamış demek. Sıfır göstermek
-   * "kâr yok" derdi; oysa bilmiyoruz.
+   * ⚠️ `null` "sıfır" DEĞİL: fiyat okunamamış ya da maliyet sıfır olduğu
+   * için hesaplanamamış demek. Sıfır göstermek "kâr yok" derdi.
    */
   profitPercent: string | null;
 };
 
 type Portfolio = {
   currency: 'try' | 'usd';
-  /** Çevrimde kullanılan kur. TL görünümünde null. */
   usdTryRate: string | null;
   rateAsOf: string | null;
 
@@ -78,14 +80,6 @@ type Portfolio = {
   depositedUsdCents: string | null;
   profitUsdCents: string | null;
 
-  /**
-   * ⚠️ YÜZDE İKİ GÖRÜNÜMDE DE AYNI — ve bu doğru.
-   *
-   * Hem pay hem payda aynı kurla bölününce kur sadeleşir. Ayrı bir
-   * "dolar yüzdesi" beklemek yanlış: o ancak her işlemin KENDİ GÜNÜNDEKİ
-   * kurla hesaplanırsa anlamlı olurdu, bu ise TL bazlı getirinin dolar
-   * gösterimidir.
-   */
   profitPercent: string | null;
   hasIncompletePrices: boolean;
   positions: Position[];
@@ -94,18 +88,44 @@ type Portfolio = {
 /** Piyasa ekranıyla aynı sebeple cron aralığından farklı — faz kilitlenmesin. */
 const REFRESH_MS = 10_000;
 
-export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
+/**
+ * Filtre çipleri.
+ *
+ * ⚠️ `kind` sunucudan GELMİYOR — `/portfolio` varlık türünü döndürmüyor.
+ * Sembolden çıkarım yapmak ("GRAM_ ile başlıyorsa maden") kırılgan olurdu:
+ * yeni bir maden farklı adlansa sessizce yanlış kutuya düşerdi.
+ *
+ * Bu yüzden şimdilik yalnızca "Tümü" var. Sunucu `kind` alanını
+ * eklediğinde diğer çipler açılacak — tasarımdaki hâlleriyle.
+ */
+type Filter = 'all';
+
+export function PortfolioScreen({
+  onLogout,
+  onSelectAsset,
+}: {
+  onLogout?: () => void;
+  /**
+   * Pozisyona dokununca piyasa detayına götürür.
+   *
+   * İsteğe bağlı: ekran bu prop olmadan da çalışıyor, satırlar sadece
+   * tıklanamaz oluyor. Zorunlu yapsaydık ekranı tek başına denemek
+   * imkânsızlaşırdı.
+   */
+  onSelectAsset?: (symbol: string, name: string) => void;
+}) {
   const { currency, query } = useCurrency();
 
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter] = useState<Filter>('all');
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Bkz. MarketScreen'deki aynı ref — zamanlayıcının içindeki `load`
-  // kurulduğu andaki `query`'yi hatırlar, ref bunu kırıyor.
+  // Zamanlayıcının içindeki `load` kurulduğu andaki `query`'yi hatırlar;
+  // ref bunu kırıyor (bkz. MarketScreen'deki aynı desen).
   const queryRef = useRef(query);
 
   useEffect(() => {
@@ -130,48 +150,29 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
   /**
    * Seçili para birimine göre doğru alanı seçip biçimlendirir.
    *
-   * NEDEN YARDIMCI FONKSİYON: ekranda on ayrı yerde para yazıyor. Her
-   * birine `currency === 'usd' ? ... : ...` üçlüsü yazsaydık biri
-   * atlanır ve o tek satır TL rakamını $ simgesiyle gösterirdi — sayı
-   * makul görünür, kimse fark etmez.
-   *
-   * ⚠️ Dolar alanı boşsa TL'ye DÜŞÜLMÜYOR, '—' gösteriliyor. Düşmek
-   * sessiz bir yalan olurdu.
+   * ⚠️ `== null` bilerek: alan sunucudan hiç gelmezse `undefined` olur ve
+   * `=== null` onu kaçırır; sonra `BigInt(undefined)` çizim sırasında
+   * hata fırlatır ve React bütün ağacı söker (ekran kararır).
    */
   const money = useCallback(
     (tryCents: string, usdCents: string | null): string => {
       if (currency === 'try') return formatCentsString(tryCents);
 
-      /**
-       * ⚠️ `=== null` DEĞİL, `== null` — VE BU FARK BİR ÇÖKME DEMEK.
-       *
-       * Alan sunucudan hiç GELMEZSE değeri `null` değil `undefined` olur.
-       * `undefined === null` yanlıştır, yani kontrol geçilir ve
-       * `BigInt(undefined)` çağrılır — bu bir TypeError fırlatır, React
-       * bütün ağacı söker ve ekran KAPKARA kalır. Hata mesajı hiçbir
-       * yerde görünmez.
-       *
-       * `== null` ikisini birden yakalıyor. Tip sistemi sunucunun alanı
-       * her zaman göndereceğini SÖYLÜYOR ama bu bir söz, garanti değil:
-       * eski bir sunucu sürümü ya da yarım dağıtım bu sözü bozar.
-       */
       return usdCents == null ? '—' : formatCentsString(usdCents, 'usd');
     },
     [currency],
   );
 
-  // Para birimi değişince hemen tazele — 10 saniye bekletme.
   useEffect(() => {
     void load();
   }, [query, load]);
 
-  // Fiyatlar değiştikçe portföy değeri de değişiyor -> periyodik yenileme.
-  // Arka planda durur (pil + sunucu yükü), öne gelince hemen tazeler.
   useEffect(() => {
     function start() {
       if (intervalRef.current !== null) return;
       intervalRef.current = setInterval(() => void load(), REFRESH_MS);
     }
+
     function stop() {
       if (intervalRef.current === null) return;
       clearInterval(intervalRef.current);
@@ -199,8 +200,7 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.gain} />
-        <Text style={styles.mutedText}>Portföy yükleniyor...</Text>
+        <ActivityIndicator color={colors.inkMuted} />
       </View>
     );
   }
@@ -208,423 +208,353 @@ export function PortfolioScreen({ onLogout }: { onLogout?: () => void }) {
   if (error || !portfolio) {
     return (
       <View style={styles.centered}>
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>⚠️ {error ?? 'Portföy okunamadı.'}</Text>
-        </View>
-        <TouchableOpacity style={styles.retryButton} onPress={() => void load()}>
+        <Text style={styles.errorText}>{error ?? 'Portföy okunamadı.'}</Text>
+        <TouchableOpacity style={styles.retry} onPress={() => void load()}>
           <Text style={styles.retryText}>Tekrar dene</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  // Kâr mı zarar mı — string'den bigint'e, number'a DEĞİL.
-  const isProfit = BigInt(portfolio.profitCents) >= 0n;
+  const positions = portfolio.positions;
+
+  /**
+   * Dağılım dilimleri — pozisyonlar + nakit.
+   *
+   * ⚠️ NAKİT DE BİR DİLİM. Atlasaydık yüzdeler toplamı 100 etmez ve çubuk
+   * "hepsi yatırımda" yalanını söylerdi. Nakitte durmak da bir pozisyon.
+   */
+  const slices: Slice[] = [];
+
+  for (const p of positions) {
+    if (p.sharePercent === null || p.valueCents === null) continue;
+
+    slices.push({
+      label: p.symbol,
+      percent: Number(p.sharePercent),
+      detail: `${money(p.valueCents, p.valueUsdCents)} · ${formatQuantity(p.quantity)} adet`,
+    });
+  }
+
+  // Nakit yüzdesi: toplamdan pozisyonların payı düşülerek. Ayrıca
+  // hesaplamıyoruz — sunucunun payda kullandığı toplamla aynı kalsın.
+  const cashPercent =
+    100 - slices.reduce((sum, s) => sum + s.percent, 0);
+
+  if (cashPercent > 0.05) {
+    slices.push({
+      label: 'NAKİT',
+      percent: cashPercent,
+      detail: money(portfolio.cashCents, portfolio.cashUsdCents),
+    });
+  }
+
+  const gaining = !portfolio.profitCents.startsWith('-');
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={portfolio.positions}
-        keyExtractor={(item) => item.symbol}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void load(true)}
-            tintColor={colors.gain}
-          />
-        }
-        ListHeaderComponent={
-          <View>
-            {/* Toplam değer kartı */}
-            <View style={styles.summaryCard}>
-              <View style={styles.summaryLabelRow}>
-                <Text style={styles.summaryLabel}>💼 Toplam Portföy Değeri</Text>
-                <CurrencyToggle />
-              </View>
+    <FlatList
+      style={styles.screen}
+      data={positions}
+      keyExtractor={(item) => item.symbol}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void load(true)}
+          tintColor={colors.inkMuted}
+        />
+      }
+      ListHeaderComponent={
+        <View>
+          {/* --- başlık --- */}
+          <View style={styles.topRow}>
+            <SectionLabel>
+              CÜZDAN · {currency === 'usd' ? 'USD' : 'TRY'}
+            </SectionLabel>
+            <CurrencyToggle />
+          </View>
 
-              {/* Kur görünür olmalı: kullanıcı dolar tutarını kendi
-                  doğrulayabilsin. */}
-              {currency === 'usd' && portfolio.usdTryRate != null && (
-                <Text style={styles.disclaimer}>
-                  1 $ = {formatPrice(portfolio.usdTryRate)} · bugünün kuruyla
-                </Text>
+          {/* --- toplam --- */}
+          <View style={styles.totalBlock}>
+            <BigAmount
+              value={money(
+                portfolio.totalValueCents,
+                portfolio.totalValueUsdCents,
               )}
-              <Text style={styles.summaryValue}>
-                {money(portfolio.totalValueCents, portfolio.totalValueUsdCents)}
-              </Text>
+            />
 
-              <View
+            <View style={styles.deltaRow}>
+              <Text
                 style={[
-                  styles.profitBadge,
-                  isProfit ? styles.profitBadgePositive : styles.profitBadgeNegative,
+                  styles.delta,
+                  { color: gaining ? colors.gain : colors.loss },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.profitText,
-                    isProfit ? styles.profitTextPositive : styles.profitTextNegative,
-                  ]}
-                >
-                  {isProfit ? '▲' : '▼'}{' '}
-                  {money(portfolio.profitCents, portfolio.profitUsdCents)}
-                  {portfolio.profitPercent !== null &&
-                    `  (%${portfolio.profitPercent})`}
-                </Text>
-              </View>
-
-              {/* ⚠️ Bu kâr/zarar LİG SIRALAMASI DEĞİL. Lig TWR ile hesaplanıyor
-                  ve para girişlerinin zamanını da hesaba katıyor. Buradaki sayı
-                  "toplam ne kazandım" sorusunun cevabı. */}
-              <Text style={styles.disclaimer}>
-                Yatırılan {money(portfolio.depositedCents, portfolio.depositedUsdCents)} · Lig
-                sıralaması TWR ile hesaplanır
+                {gaining ? '+' : ''}
+                {money(portfolio.profitCents, portfolio.profitUsdCents)}
               </Text>
+
+              <ChangeText percent={portfolio.profitPercent} />
+
+              <Text style={styles.deltaLabel}>TÜM ZAMANLAR</Text>
             </View>
 
-            {/* Nakit / pozisyon dağılımı */}
-            <View style={styles.splitRow}>
-              <View style={styles.splitCard}>
-                <Text style={styles.splitLabel}>💵 Nakit</Text>
-                <Text style={styles.splitValue}>
-                  {money(portfolio.cashCents, portfolio.cashUsdCents)}
-                </Text>
-              </View>
-              <View style={styles.splitCard}>
-                <Text style={styles.splitLabel}>📊 Varlıklar</Text>
-                <Text style={styles.splitValue}>
-                  {money(portfolio.positionsValueCents, portfolio.positionsValueUsdCents)}
-                </Text>
-              </View>
-            </View>
-
-            {/* ⚠️ Fiyatı okunamayan varlık varsa toplam EKSİK. Kullanıcı
-                bunu bilmeli — sessizce düşük bir toplam göstermek yanıltıcı. */}
-            {portfolio.hasIncompletePrices && (
-              <View style={styles.warningBox}>
-                <Text style={styles.warningText}>
-                  ⚠️ Bazı varlıkların fiyatı alınamadı. Toplam değer eksik
-                  hesaplanmış olabilir.
-                </Text>
-              </View>
+            {currency === 'usd' && portfolio.usdTryRate != null && (
+              <Text style={styles.rateNote}>
+                1 $ = {formatPrice(portfolio.usdTryRate)} · bugünün kuruyla
+              </Text>
             )}
-
-            <Text style={styles.sectionTitle}>Pozisyonlar</Text>
           </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyEmoji}>🪙</Text>
-            <Text style={styles.emptyTitle}>Henüz varlığın yok</Text>
-            <Text style={styles.mutedText}>
-              Piyasa sekmesinden ilk alımını yapabilirsin.
+
+          {/* --- dağılım --- */}
+          <View style={styles.allocation}>
+            <AllocationBar slices={slices} />
+          </View>
+
+          {/* --- filtre --- */}
+          <View style={styles.chipRow}>
+            <Chip label="Tümü" count={positions.length} selected={filter === 'all'} />
+          </View>
+
+          {/* --- nakit / varlık --- */}
+          <View style={styles.statGrid}>
+            <View style={[styles.statCell, styles.statDivider]}>
+              <SectionLabel>NAKİT</SectionLabel>
+              <Text style={styles.statValue}>
+                {money(portfolio.cashCents, portfolio.cashUsdCents)}
+              </Text>
+            </View>
+
+            <View style={styles.statCell}>
+              <SectionLabel>VARLIK</SectionLabel>
+              <Text style={styles.statValue}>
+                {money(
+                  portfolio.positionsValueCents,
+                  portfolio.positionsValueUsdCents,
+                )}
+              </Text>
+            </View>
+          </View>
+
+          {portfolio.hasIncompletePrices && (
+            <Text style={styles.warning}>
+              Bazı varlıkların fiyatı okunamadı — toplam eksik olabilir.
             </Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <View style={styles.positionRow}>
-            <View style={styles.symbolCircle}>
-              <Text style={styles.symbolText}>{item.symbol.slice(0, 3)}</Text>
+          )}
+
+          {/* --- tablo başlığı --- */}
+          {positions.length > 0 && (
+            <View style={styles.tableHead}>
+              <Text style={[styles.headCell, styles.headAsset]}>VARLIK</Text>
+              <Text style={[styles.headCell, styles.headChange]}>DEĞİŞİM</Text>
+              <Text style={[styles.headCell, styles.headValue]}>DEĞER</Text>
             </View>
+          )}
+        </View>
+      }
+      ListEmptyComponent={
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>Henüz varlığın yok</Text>
+          <Text style={styles.emptyText}>
+            Piyasa sekmesinden ilk alımını yapabilirsin.
+          </Text>
+        </View>
+      }
+      renderItem={({ item }) => (
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => onSelectAsset?.(item.symbol, item.name)}
+          disabled={onSelectAsset === undefined}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.name} detayını aç`}
+        >
+          <View style={styles.rowAsset}>
+            <AssetBadge symbol={item.symbol} />
 
-            <View style={styles.positionInfo}>
-              <Text style={styles.positionSymbol}>{item.symbol}</Text>
-              <Text style={styles.positionQuantity}>
-                {formatQuantity(item.quantity)} adet
-                {currency === 'usd'
-                  ? item.priceUsd != null && ` · ${formatPrice(item.priceUsd, 'usd')}`
-                  : item.priceTry != null && ` · ${formatPrice(item.priceTry)}`}
+            <View style={styles.rowNames}>
+              <Text style={styles.rowName} numberOfLines={1}>
+                {item.name}
               </Text>
-              <Text style={styles.positionAsOf}>
-                {formatRelativeTime(item.asOf)}
+              <Text style={styles.rowQuantity}>
+                {formatQuantity(item.quantity)}
               </Text>
-            </View>
-
-            <View style={styles.positionValueColumn}>
-              <Text style={styles.positionValue}>
-                {item.valueCents === null
-                  ? '—'
-                  : money(item.valueCents, item.valueUsdCents)}
-              </Text>
-
-              {/*
-                Aldığından beri kâr/zarar.
-
-                ⚠️ KARŞILAŞTIRMA `BigInt` İLE.
-                `Number(item.profitCents) >= 0` yazmak çalışırdı ama
-                projenin kuralını kırardı ve büyük tutarlarda hassasiyet
-                kaybederdi. Metin doğrudan bigint'e çevriliyor.
-              */}
-              {item.profitPercent !== null && (
-                <Text
-                  style={[
-                    styles.positionProfit,
-                    {
-                      color:
-                        BigInt(item.profitCents) >= 0n ? colors.gain : colors.accent,
-                    },
-                  ]}
-                >
-                  {/* ⚠️ YEŞİL/KIRMIZI KARARI HER ZAMAN TL DEĞERİNE BAKIYOR.
-                      Çevrim işareti koruduğu için sonuç aynı; dolar alanı
-                      null gelse bile renk doğru kalsın diye TL okunuyor. */}
-                  {BigInt(item.profitCents) >= 0n ? '+' : ''}
-                  {money(item.profitCents, item.profitUsdCents)}
-                  {'  '}
-                  ({BigInt(item.profitCents) >= 0n ? '+' : ''}
-                  %{item.profitPercent.replace('.', ',').replace('-', '')})
-                </Text>
-              )}
-
-              {item.sharePercent !== null && (
-                <Text style={styles.positionShare}>
-                  Portföyün %{item.sharePercent}'i
-                </Text>
-              )}
             </View>
           </View>
-        )}
-        ListFooterComponent={
-          onLogout ? (
-            <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-              <Text style={styles.logoutText}>Çıkış Yap</Text>
-            </TouchableOpacity>
-          ) : null
-        }
-      />
-    </View>
+
+          {/*
+            ⚠️ BU SÜTUN "24 SAATLİK DEĞİŞİM" DEĞİL, "ALIMDAN BERİ".
+            Tasarımda günlük değişim var ama sunucu onu hesaplamıyor.
+            Elimizdeki gerçek sayıyı göstermek, olmayan bir sayıyı
+            uydurmaktan iyidir. Sunucu 24s değişimi eklediğinde burası
+            değişecek — başlık da.
+          */}
+          <View style={styles.rowChange}>
+            <ChangeText percent={item.profitPercent} />
+          </View>
+
+          <View style={styles.rowValue}>
+            <Text style={styles.rowValueText}>
+              {item.valueCents === null
+                ? '—'
+                : money(item.valueCents, item.valueUsdCents)}
+            </Text>
+            <Text style={styles.rowAsOf}>{formatRelativeTime(item.asOf)}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+      ListFooterComponent={
+        onLogout ? (
+          <TouchableOpacity style={styles.logout} onPress={onLogout}>
+            <Text style={styles.logoutText}>Çıkış yap</Text>
+          </TouchableOpacity>
+        ) : null
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
+  screen: { flex: 1, backgroundColor: colors.surface },
+
   centered: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: colors.surface,
-    paddingHorizontal: 30,
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 30,
-  },
-  summaryCard: {
-    backgroundColor: colors.fieldFill,
-    borderColor: colors.gain,
-    borderWidth: 1.5,
-    borderRadius: 16,
-    padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
   },
-  summaryLabelRow: {
+  errorText: { fontFamily: fonts.regular, fontSize: 14, color: colors.error },
+  retry: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+  },
+  retryText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.inkBright },
+
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: spacing.screen,
+    paddingTop: 20,
   },
-  summaryLabel: {
-    color: colors.inkMuted,
-    fontSize: 13,
-    fontFamily: fonts.medium,
-  },
-  summaryValue: {
-    color: colors.ink,
-    fontSize: 30,
-    fontFamily: fonts.bold,
-    marginTop: 6,
-  },
-  profitBadge: {
-    marginTop: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  profitBadgePositive: {
-    backgroundColor: colors.gainSoft,
-  },
-  profitBadgeNegative: {
-    backgroundColor: colors.accentSoft,
-  },
-  profitText: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-  },
-  profitTextPositive: {
-    color: colors.gain,
-  },
-  profitTextNegative: {
-    color: colors.accent,
-  },
-  disclaimer: {
-    color: colors.inkFaint,
-    fontSize: 11,
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  splitRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-  },
-  splitCard: {
-    flex: 1,
-    backgroundColor: colors.fieldFill,
-    borderWidth: 1,
-    borderColor: colors.hairlineSoft,
-    borderRadius: 12,
-    padding: 14,
-  },
-  splitLabel: {
-    color: colors.inkMuted,
-    fontSize: 12,
-  },
-  splitValue: {
-    color: colors.ink,
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    marginTop: 4,
-  },
-  warningBox: {
-    backgroundColor: colors.warnSoft,
-    borderColor: colors.warn,
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 12,
-  },
-  warningText: {
-    color: colors.warn,
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  sectionTitle: {
-    color: colors.ink,
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    marginTop: 20,
-    marginBottom: 6,
-  },
-  positionRow: {
+
+  totalBlock: { paddingHorizontal: spacing.screen, paddingTop: 14 },
+  deltaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.fieldFill,
-    borderWidth: 1,
-    borderColor: colors.hairlineSoft,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginVertical: 4,
+    gap: 14,
+    marginTop: 12,
   },
-  symbolCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  symbolText: {
-    color: colors.gain,
-    fontFamily: fonts.bold,
+  delta: { fontFamily: fonts.monoBold, fontSize: 13 },
+  deltaLabel: {
+    fontFamily: fonts.regular,
     fontSize: 11,
-  },
-  positionInfo: {
-    flex: 1,
-  },
-  positionSymbol: {
-    color: colors.ink,
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-  },
-  positionQuantity: {
-    color: colors.inkMuted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  positionAsOf: {
+    letterSpacing: 1.1,
     color: colors.inkFaint,
-    fontSize: 10,
-    marginTop: 2,
   },
-  positionValueColumn: {
-    alignItems: 'flex-end',
-  },
-  positionValue: {
-    color: colors.ink,
-    fontFamily: fonts.bold,
-    fontSize: 15,
-  },
-  positionProfit: {
-    fontSize: 12,
-    fontFamily: fonts.semibold,
-    marginTop: 2,
-  },
-  positionShare: {
-    color: colors.inkMuted,
+  rateNote: {
+    fontFamily: fonts.regular,
     fontSize: 11,
-    marginTop: 3,
-  },
-  emptyBox: {
-    alignItems: 'center',
-    paddingVertical: 30,
-  },
-  emptyEmoji: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-  emptyTitle: {
-    color: colors.ink,
-    fontSize: 16,
-    fontFamily: fonts.bold,
-  },
-  mutedText: {
-    color: colors.inkMuted,
-    fontSize: 13,
+    color: colors.inkFaint,
     marginTop: 8,
-    textAlign: 'center',
   },
-  errorBox: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 14,
+
+  allocation: { paddingHorizontal: spacing.screen, paddingTop: 18 },
+
+  chipRow: {
+    flexDirection: 'row',
+    gap: 7,
+    paddingHorizontal: spacing.screen,
+    paddingTop: 18,
   },
-  errorText: {
-    color: colors.error,
-    fontSize: 13,
-    textAlign: 'center',
+
+  statGrid: {
+    flexDirection: 'row',
+    marginTop: 20,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
   },
-  retryButton: {
-    marginTop: 14,
-    backgroundColor: colors.fieldFill,
-    borderWidth: 1,
-    borderColor: colors.hairlineSoft,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
+  statCell: { flex: 1, paddingHorizontal: spacing.screen, paddingVertical: 13 },
+  statDivider: { borderRightWidth: 1, borderRightColor: colors.border },
+  statValue: {
+    fontFamily: fonts.monoSemibold,
+    fontSize: 16,
+    color: colors.ink,
+    marginTop: 5,
   },
-  retryText: {
-    color: colors.gain,
-    fontFamily: fonts.semibold,
+
+  warning: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: colors.warn,
+    paddingHorizontal: spacing.screen,
+    paddingTop: 12,
   },
-  logoutButton: {
-    marginTop: 24,
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
+
+  tableHead: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: spacing.screen,
+    paddingTop: 14,
+    paddingBottom: 8,
   },
-  logoutText: {
-    color: colors.error,
+  headCell: {
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: colors.inkFaint,
   },
+  headAsset: { flex: 1 },
+  headChange: { width: rowMetrics.changeWidth, textAlign: 'right' },
+  headValue: {
+    width: rowMetrics.valueWidth,
+    textAlign: 'right',
+    color: colors.inkBright,
+  },
+
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.screen,
+    paddingVertical: rowMetrics.paddingVertical,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  rowAsset: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  rowNames: { flex: 1 },
+  rowName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
+  rowQuantity: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
+    marginTop: 2,
+  },
+  rowChange: { width: rowMetrics.changeWidth, alignItems: 'flex-end' },
+  rowValue: { width: rowMetrics.valueWidth, alignItems: 'flex-end' },
+  rowValueText: { fontFamily: fonts.monoSemibold, fontSize: 14, color: colors.ink },
+  rowAsOf: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    color: colors.inkDisabled,
+    marginTop: 2,
+  },
+
+  empty: { alignItems: 'center', paddingVertical: 48, gap: 6 },
+  emptyTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.inkBright },
+  emptyText: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkFaint },
+
+  logout: {
+    alignSelf: 'center',
+    marginTop: 28,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+  },
+  logoutText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.inkMuted },
 });

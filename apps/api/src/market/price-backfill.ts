@@ -32,6 +32,7 @@ import '../lib/env.js';
 import { type Price, formatScaled, PRICE_SCALE } from '../lib/money.js';
 import { usdToTry } from '../lib/fx.js';
 import { BinanceAdapter } from './binance.js';
+import { LbmaAdapter } from './lbma.js';
 import { fetchFxHistory } from './evds.js';
 import { insertPrices, listActiveAssets, type AssetRow } from './repository.js';
 
@@ -135,6 +136,69 @@ async function backfillFx(
 }
 
 /** Bir KRİPTO varlığının geçmişini yazar: Binance USD -> o günün kuruyla TL. */
+/**
+ * Maden geri doldurma — LBMA.
+ *
+ * ⚠️ KRİPTODAN TEK FARKI: LBMA yalnızca İŞ GÜNÜ yayımlıyor.
+ *
+ * Kripto 7/24 akıyor, her günün mumu var. LBMA'da hafta sonu ve tatil
+ * günleri seride HİÇ YOK — Mart 2020 için 31 değil 22 kayıt geliyor
+ * (ölçüldü). Bu bir eksiklik değil, piyasanın kendisi.
+ *
+ * Boşlukları burada doldurmuyoruz: grafik sorgusu (`getPriceSeries`) kova
+ * mantığıyla çalışıyor ve boş kovayı zaten atlıyor. Hafta sonu için yapay
+ * satır üretseydik "o gün fiyat vardı" demiş olurduk — olmadı.
+ *
+ * ⚠️ Kur eşleşmesi de aynı sebeple kaçabilir: LBMA'nın yayımladığı bir gün
+ * TCMB'nin tatil olduğu bir güne denk gelebilir (farklı ülkeler, farklı
+ * takvimler). O günler `missingRate` olarak sayılıp raporlanıyor.
+ */
+async function backfillMetal(
+  asset: AssetRow,
+  usdRates: Map<string, Price>,
+  endDate: string,
+): Promise<{
+  written: number;
+  missingRate: number;
+  first?: string | undefined;
+  last?: string | undefined;
+}> {
+  const lbma = new LbmaAdapter();
+  const points = await lbma.getHistory(asset.symbol, START_DATE, endDate);
+
+  if (points.length === 0) {
+    return { written: 0, missingRate: 0 };
+  }
+
+  let missingRate = 0;
+  const rows = [];
+
+  for (const point of points) {
+    const rate = usdRates.get(point.date);
+
+    if (rate === undefined) {
+      missingRate++;
+      continue;
+    }
+
+    rows.push({
+      assetId: asset.id,
+      ts: new Date(`${point.date}T00:00:00Z`),
+      // point.price zaten USD/GRAM — ons çevrimi lbma.ts'te yapıldı.
+      priceTry: formatScaled(usdToTry(point.price, rate), PRICE_SCALE),
+    });
+  }
+
+  await writeInChunks(rows);
+
+  return {
+    written: rows.length,
+    missingRate,
+    first: rows[0] ? points.find((p) => usdRates.has(p.date))?.date : undefined,
+    last: rows.length > 0 ? points[points.length - 1]?.date : undefined,
+  };
+}
+
 async function backfillCrypto(
   asset: AssetRow,
   usdRates: Map<string, Price>,
@@ -197,8 +261,9 @@ async function main(): Promise<void> {
   const assets = await listActiveAssets();
   const fxAssets = assets.filter((a) => a.kind === 'fx');
   const cryptoAssets = assets.filter((a) => a.kind === 'crypto');
+  const metalAssets = assets.filter((a) => a.kind === 'metal');
   const skipped = assets.filter(
-    (a) => a.kind !== 'fx' && a.kind !== 'crypto',
+    (a) => a.kind !== 'fx' && a.kind !== 'crypto' && a.kind !== 'metal',
   );
 
   // --- 1. AŞAMA: döviz ---
@@ -246,7 +311,7 @@ async function main(): Promise<void> {
   }
 
   // --- 2. AŞAMA: kripto ---
-  console.log(`\n[2/2] ${cryptoAssets.length} kripto (Binance)...`);
+  console.log(`\n[2/3] ${cryptoAssets.length} kripto (Binance)...`);
 
   for (const asset of cryptoAssets) {
     try {
@@ -266,6 +331,33 @@ async function main(): Promise<void> {
         `  ${asset.symbol}: BAŞARISIZ —`,
         error instanceof Error ? error.message : error,
       );
+    }
+  }
+
+  // --- 3. AŞAMA: maden ---
+  if (metalAssets.length > 0) {
+    console.log(`
+[3/3] ${metalAssets.length} maden (LBMA)...`);
+
+    for (const asset of metalAssets) {
+      try {
+        const r = await backfillMetal(asset, usdRates, endDate);
+
+        if (r.written === 0) {
+          console.warn(`  ${asset.symbol}: veri gelmedi, atlandı`);
+          continue;
+        }
+
+        console.log(
+          `  ${asset.symbol}: ${r.written} gün yazıldı (${r.first} -> ${r.last})` +
+            (r.missingRate > 0 ? `, ${r.missingRate} gün kursuz atlandı` : ''),
+        );
+      } catch (error) {
+        console.error(
+          `  ${asset.symbol}: BAŞARISIZ —`,
+          error instanceof Error ? error.message : error,
+        );
+      }
     }
   }
 

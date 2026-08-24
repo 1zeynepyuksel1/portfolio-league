@@ -18,6 +18,36 @@ import {
 export const marketRouter = Router();
 
 /**
+ * Yüzde değişim: (yeni − eski) ÷ eski × 100.
+ *
+ * ⚠️ BURADA `Number` SERBEST — VE SINIRI BİLİNMELİ.
+ *
+ * Projenin kuralı "para bigint, float yasak". Bu kural PARA için: tutar,
+ * bakiye, fiyat. Yüzde para değil, bir ORAN — ve zaten iki ondalığa
+ * yuvarlanıp ekranda gösteriliyor. Float'ın 15 anlamlı basamağı bunun
+ * için fazlasıyla yeterli.
+ *
+ * Sınır şurada: bu sayıyla asla bir tutar hesaplanmayacak. Hesaplansaydı
+ * kural gerçekten kırılırdı.
+ */
+function changePercent(
+  current: string | null,
+  previous: string | null,
+): string | null {
+  if (current === null || previous === null) return null;
+
+  const now = Number(current);
+  const before = Number(previous);
+
+  // Sıfıra bölme: fiyatı 0 olan bir kayıt teorik olarak mümkün.
+  if (!Number.isFinite(now) || !Number.isFinite(before) || before === 0) {
+    return null;
+  }
+
+  return (((now - before) / before) * 100).toFixed(2);
+}
+
+/**
  * GET /assets — işlem görebilir varlıklar ve güncel fiyatları.
  *
  * KARAR: fiyat JSON'a STRING olarak yazılıyor, sayı olarak değil.
@@ -85,6 +115,23 @@ marketRouter.get("/", async (request, response) => {
       assets: assets.map((asset) => ({
         symbol: asset.symbol,
         name: asset.name,
+        // Ekrandaki Kripto/Döviz/Metal filtresi bunu kullanıyor.
+        // Sembolden çıkarım yapmak ("GRAM_ ile başlıyorsa maden")
+        // kırılgan olurdu: farklı adlandırılmış bir varlık sessizce
+        // yanlış kutuya düşerdi.
+        kind: asset.kind,
+        /**
+         * Son 24 saatteki yüzde değişim, iki ondalıklı metin.
+         *
+         * ⚠️ SUNUCUDA HESAPLANIYOR, EKRANDA DEĞİL. İstemciye iki fiyat
+         * gönderip orada bölmek de olurdu ama o bölme `Number` ile
+         * yapılırdı — bigint zincirinin son halkası orada kırılırdı.
+         *
+         * ⚠️ `null` "değişim yok" DEĞİL, "bilinmiyor". Sıfır göndermek
+         * "fiyat hiç kıpırdamadı" iddiası olurdu; oysa 24 saat önceki
+         * kaydımız yok.
+         */
+        changePercent24h: changePercent(asset.priceTry, asset.priceTry24hAgo),
         // Fiyatı hiç çekilmemiş varlık olabilir — null geçilir, uydurulmaz.
         priceTry: asset.priceTry,
         /**

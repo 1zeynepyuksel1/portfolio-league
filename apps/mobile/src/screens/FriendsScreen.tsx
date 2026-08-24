@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -10,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
+import { colors, fonts } from '../theme';
 
 type Friend = {
   id?: string;
@@ -145,8 +145,8 @@ export function FriendsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 1. Üst Kısım: BUZLU CAM ARKADAŞ EKLEME KARTI */}
-      <View style={styles.glassCard}>
+      {/* 1. Üst Kısım: Arkadaş Ekleme Formu */}
+      <View style={styles.addSection}>
         <Text style={styles.sectionTitle}>👥 Arkadaş Ekle</Text>
         <Text style={styles.sectionSubtitle}>
           E-posta adresi yazarak arkadaşınızı ligde yarışmaya davet edin.
@@ -154,9 +154,9 @@ export function FriendsScreen() {
 
         <View style={styles.formRow}>
           <TextInput
-            style={styles.pillInput}
+            style={styles.input}
             placeholder="ornek@gmail.com"
-            placeholderTextColor="#64748B"
+            placeholderTextColor={colors.inkFaint}
             value={emailInput}
             onChangeText={setEmailInput}
             keyboardType="email-address"
@@ -164,15 +164,14 @@ export function FriendsScreen() {
           />
 
           <TouchableOpacity
-            style={[styles.glowingPillButton, actionLoading && styles.buttonDisabled]}
+            style={[styles.addButton, actionLoading && styles.buttonDisabled]}
             onPress={handleSendRequest}
             disabled={actionLoading}
-            activeOpacity={0.85}
           >
             {actionLoading ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={colors.ink} size="small" />
             ) : (
-              <Text style={styles.glowingPillButtonText}>İstek Gönder</Text>
+              <Text style={styles.addButtonText}>İstek Gönder</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -190,7 +189,6 @@ export function FriendsScreen() {
             setErrorMsg(null);
             setSuccessMsg(null);
           }}
-          activeOpacity={0.8}
         >
           <Text style={[styles.subTabText, activeTab === 'list' && styles.subTabTextActive]}>
             👥 Arkadaşlarım ({friends.length})
@@ -204,7 +202,6 @@ export function FriendsScreen() {
             setErrorMsg(null);
             setSuccessMsg(null);
           }}
-          activeOpacity={0.8}
         >
           <View style={styles.tabBadgeRow}>
             <Text style={[styles.subTabText, activeTab === 'requests' && styles.subTabTextActive]}>
@@ -222,7 +219,7 @@ export function FriendsScreen() {
       {/* 3. İçerik Alanı */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10B981" />
+          <ActivityIndicator size="large" color={colors.gain} />
         </View>
       ) : activeTab === 'list' ? (
         // SEKME 1: ARKADAŞLARIM LİSTESİ
@@ -232,13 +229,11 @@ export function FriendsScreen() {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <View style={styles.glassEmptyCard}>
-                <Text style={styles.emptyEmoji}>🤝</Text>
-                <Text style={styles.emptyTitle}>Henüz Arkadaşınız Yok</Text>
-                <Text style={styles.emptyText}>
-                  Yukarıdan arkadaşınızın e-postasını yazarak ekleyin ve Haftalık Ligde yarışmaya başlayın!
-                </Text>
-              </View>
+              <Text style={styles.emptyEmoji}>🤝</Text>
+              <Text style={styles.emptyTitle}>Henüz Arkadaşınız Yok</Text>
+              <Text style={styles.emptyText}>
+                Yukarıdan arkadaşınızın e-postasını yazarak ekleyin ve Haftalık Ligde yarışmaya başlayın!
+              </Text>
             </View>
           }
           renderItem={({ item }) => {
@@ -247,7 +242,7 @@ export function FriendsScreen() {
             const removeId = item.friendshipId || item.id || '';
 
             return (
-              <View style={styles.glassFriendCard}>
+              <View style={styles.friendCard}>
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarText}>{initials}</Text>
                 </View>
@@ -290,7 +285,7 @@ export function FriendsScreen() {
             const initials = name.slice(0, 2).toUpperCase();
 
             return (
-              <View style={styles.glassRequestCard}>
+              <View style={styles.requestCard}>
                 <View style={styles.avatarCircleSmall}>
                   <Text style={styles.avatarTextSmall}>{initials}</Text>
                 </View>
@@ -325,7 +320,7 @@ export function FriendsScreen() {
                   📤 Gönderdiğiniz Bekleyen İstekler ({outgoingRequests.length})
                 </Text>
                 {outgoingRequests.map((outReq) => (
-                  <View key={outReq.requestId} style={styles.glassOutgoingCard}>
+                  <View key={outReq.requestId} style={styles.outgoingCard}>
                     <View style={styles.requestInfo}>
                       <Text style={styles.requestName}>
                         {outReq.recipientDisplayName || outReq.recipientEmail}
@@ -354,106 +349,91 @@ export function FriendsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#081226',
+    backgroundColor: colors.surface,
   },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1.5,
-    borderRadius: 22,
-    padding: 18,
+  addSection: {
+    backgroundColor: colors.fieldFill,
+    padding: 16,
     marginHorizontal: 16,
     marginTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
+    borderRadius: 14,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   sectionSubtitle: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
-    marginTop: 3,
-    marginBottom: 14,
+    marginTop: 2,
+    marginBottom: 12,
   },
   formRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  pillInput: {
+  input: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1.2,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: '#FFFFFF',
+    backgroundColor: colors.surface,
+    borderColor: colors.hairline,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: colors.ink,
     fontSize: 14,
   },
-  glowingPillButton: {
-    backgroundColor: '#10B981',
-    paddingHorizontal: 18,
-    borderRadius: 14,
+  addButton: {
+    backgroundColor: colors.gain,
+    paddingHorizontal: 16,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 6,
   },
-  glowingPillButtonText: {
-    color: '#022C22',
-    fontWeight: 'bold',
+  addButtonText: {
+    color: colors.ink,
+    fontFamily: fonts.bold,
     fontSize: 13,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   errorText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 12,
     marginTop: 8,
   },
   successText: {
-    color: '#34D399',
+    color: colors.gain,
     fontSize: 12,
     marginTop: 8,
   },
   subTabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 14,
+    backgroundColor: colors.fieldFill,
+    borderRadius: 10,
     padding: 4,
     marginHorizontal: 16,
-    marginTop: 14,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+    marginTop: 12,
   },
   subTabButton: {
     flex: 1,
-    paddingVertical: 9,
+    paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 8,
   },
   subTabButtonActive: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: colors.accent,
   },
   subTabText: {
-    color: '#64748B',
-    fontWeight: '600',
+    color: colors.inkMuted,
+    fontFamily: fonts.semibold,
     fontSize: 13,
   },
   subTabTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
   },
   tabBadgeRow: {
     flexDirection: 'row',
@@ -461,15 +441,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   notificationBadge: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.accent,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 10,
   },
   notificationBadgeText: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   loadingContainer: {
     flex: 1,
@@ -482,52 +462,52 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   groupHeader: {
-    color: '#E2E8F0',
+    color: colors.ink,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginBottom: 8,
     marginTop: 6,
   },
   noRequestText: {
-    color: '#64748B',
+    color: colors.inkFaint,
     fontSize: 13,
     fontStyle: 'italic',
     marginBottom: 16,
   },
-  glassRequestCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderRadius: 16,
+  requestCard: {
+    backgroundColor: colors.fieldFill,
+    borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    borderColor: 'rgba(245, 158, 11, 0.4)',
-    borderWidth: 1.2,
+    borderColor: colors.warnSoft,
+    borderWidth: 1,
   },
   avatarCircleSmall: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: colors.hairline,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   avatarTextSmall: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
     fontSize: 13,
   },
   requestInfo: {
     flex: 1,
   },
   requestName: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.ink,
+    fontFamily: fonts.semibold,
     fontSize: 14,
   },
   requestEmail: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
     marginTop: 1,
   },
@@ -536,58 +516,54 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   acceptButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.gain,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   rejectButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.accent,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   actionButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
     fontSize: 12,
   },
   outgoingSection: {
     marginTop: 20,
   },
-  glassOutgoingCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 16,
+  outgoingCard: {
+    backgroundColor: colors.fieldFill,
+    borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
   },
   waitingBadge: {
-    color: '#F59E0B',
+    color: colors.warn,
     fontSize: 11,
     marginTop: 4,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
   },
   cancelButton: {
     borderWidth: 1,
-    borderColor: '#64748B',
+    borderColor: colors.inkFaint,
     paddingVertical: 5,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   cancelButtonText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 11,
   },
-  glassFriendCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1.2,
-    borderRadius: 16,
+  friendCard: {
+    backgroundColor: colors.fieldFill,
+    borderRadius: 12,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -597,67 +573,57 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: '#10B981',
-    borderWidth: 1.5,
+    backgroundColor: colors.hairline,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   avatarText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
     fontSize: 15,
   },
   friendDetails: {
     flex: 1,
   },
   friendName: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.ink,
+    fontFamily: fonts.semibold,
     fontSize: 15,
   },
   friendEmail: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
     marginTop: 2,
   },
   removeButton: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#EF4444',
+    borderColor: colors.accent,
   },
   removeButtonText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 11,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   emptyContainer: {
     alignItems: 'center',
-    marginTop: 30,
-  },
-  glassEmptyCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    borderWidth: 1.5,
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    width: '100%',
+    marginTop: 40,
+    paddingHorizontal: 20,
   },
   emptyEmoji: {
     fontSize: 48,
     marginBottom: 10,
   },
   emptyTitle: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   emptyText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
     textAlign: 'center',
     marginTop: 6,

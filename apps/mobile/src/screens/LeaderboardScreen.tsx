@@ -2,13 +2,38 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
+import { colors, fonts } from '../theme';
+import { SectionLabel } from '../components/DesignKit';
+
+/**
+ * Lig aralığını insan diline çevirir: "7-13 Ağustos".
+ *
+ * ⚠️ TASARIM LİG ADINI DEĞİL TARİH ARALIĞINI GÖSTERİYOR.
+ * Sunucu "2026 - 33. Hafta Ligi" döndürüyor; kullanıcı hafta numarasını
+ * bilmiyor ama tarihi biliyor. Aynı ay içindeyse ay bir kez yazılıyor.
+ */
+const AY = [
+  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
+] as const;
+
+function formatRange(startsAt: string, endsAt: string): string {
+  const a = new Date(startsAt);
+  const b = new Date(endsAt);
+
+  const sameMonth = a.getUTCMonth() === b.getUTCMonth();
+  const ay = AY[b.getUTCMonth()] ?? '';
+
+  return sameMonth
+    ? `${a.getUTCDate()}-${b.getUTCDate()} ${ay}`
+    : `${a.getUTCDate()} ${AY[a.getUTCMonth()]} - ${b.getUTCDate()} ${ay}`;
+}
 
 type LeagueInfo = {
   id: string;
@@ -66,10 +91,12 @@ export function LeaderboardScreen() {
     }
   }
 
+  // Sekme değiştiğinde veya sayfa ilk açıldığında veriyi yükle
   useEffect(() => {
     loadData();
   }, [activeTab]);
 
+  // Kalan saniyeyi okunabilir saate/güne çeviren yardımcı
   function formatRemainingTime(seconds: number): string {
     if (seconds <= 0) return 'Bitti';
     const days = Math.floor(seconds / (3600 * 24));
@@ -81,33 +108,40 @@ export function LeaderboardScreen() {
     return `${mins}dk`;
   }
 
+  // Podyum için İlk 3 Yarışmacı
   const top1 = entries.find((e) => e.rank === 1);
   const top2 = entries.find((e) => e.rank === 2);
   const top3 = entries.find((e) => e.rank === 3);
 
+  // 4. ve sonraki sıralamadaki yarışmacılar
   const restEntries = entries.filter((e) => e.rank > 3);
 
   return (
     <View style={styles.container}>
       {/* 1. Üst Başlık & Geri Sayım Rozeti */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerMain}>
-          <Text style={styles.title} numberOfLines={1}>
-            🏆 {leagueInfo?.name || 'Haftalık Şampiyonluk Ligi'}
-          </Text>
-          <Text style={styles.participantCount}>
-            👥 {leagueInfo?.totalParticipants || entries.length} Aktif Yarışmacı
-          </Text>
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <SectionLabel>HAFTALIK LİG</SectionLabel>
+          {leagueInfo && <SectionLabel>BİTİŞE</SectionLabel>}
         </View>
 
-        {leagueInfo && (
-          <View style={styles.countdownBadge}>
-            <Text style={styles.countdownLabel}>BİTİŞE KALAN</Text>
-            <Text style={styles.countdownValue}>
-              ⏱️ {formatRemainingTime(leagueInfo.remainingSeconds)}
+        <View style={styles.headerMain}>
+          <Text style={styles.title}>
+            {leagueInfo
+              ? formatRange(leagueInfo.startsAt, leagueInfo.endsAt)
+              : 'Haftalık Lig'}
+          </Text>
+
+          {leagueInfo && (
+            <Text style={styles.countdown}>
+              {formatRemainingTime(leagueInfo.remainingSeconds)}
             </Text>
-          </View>
-        )}
+          )}
+        </View>
+
+        <Text style={styles.participantCount}>
+          {leagueInfo?.totalParticipants || entries.length} yarışmacı
+        </Text>
       </View>
 
       {/* 2. Sekmeler (Genel Lig / Arkadaşlarım) */}
@@ -115,7 +149,6 @@ export function LeaderboardScreen() {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'global' && styles.tabButtonActive]}
           onPress={() => setActiveTab('global')}
-          activeOpacity={0.8}
         >
           <Text style={[styles.tabText, activeTab === 'global' && styles.tabTextActive]}>
             🌍 Genel Süper Lig
@@ -125,7 +158,6 @@ export function LeaderboardScreen() {
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 'friends' && styles.tabButtonActive]}
           onPress={() => setActiveTab('friends')}
-          activeOpacity={0.8}
         >
           <Text style={[styles.tabText, activeTab === 'friends' && styles.tabTextActive]}>
             👥 Arkadaşlarım
@@ -136,7 +168,7 @@ export function LeaderboardScreen() {
       {/* Yükleniyor Göstergesi */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10B981" />
+          <ActivityIndicator size="large" color={colors.gain} />
           <Text style={styles.loadingText}>Liderlik tablosu yükleniyor...</Text>
         </View>
       ) : error ? (
@@ -145,21 +177,20 @@ export function LeaderboardScreen() {
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <View style={styles.glassCard}>
-            <Text style={styles.emptyEmoji}>📊</Text>
-            <Text style={styles.emptyTitle}>Henüz Sıralama Oluşmadı</Text>
-            <Text style={styles.emptyText}>
-              {activeTab === 'friends'
-                ? 'Arkadaşlarınız henüz işlem yapmadı veya arkadaş listeniz boş.'
-                : 'Bu haftaki ligde henüz yarışmacı skoru girilmedi.'}
-            </Text>
-          </View>
+          <Text style={styles.emptyEmoji}>📊</Text>
+          <Text style={styles.emptyTitle}>Henüz Sıralama Oluşmadı</Text>
+          <Text style={styles.emptyText}>
+            {activeTab === 'friends'
+              ? 'Arkadaşlarınız henüz işlem yapmadı veya arkadaş listeniz boş.'
+              : 'Bu haftaki ligde henüz yarışmacı skoru girilmedi.'}
+          </Text>
         </View>
       ) : (
         <FlatList
           data={restEntries}
           keyExtractor={(item) => item.userId}
           contentContainerStyle={styles.listContent}
+          // Podyumu Listenin Başına (Header) Koyuyoruz
           ListHeaderComponent={
             top1 || top2 || top3 ? (
               <View style={styles.podiumContainer}>
@@ -184,7 +215,7 @@ export function LeaderboardScreen() {
                   )}
                 </View>
 
-                {/* 1. Sıra (Altın Podyum) */}
+                {/* 1. Sıra (Altın Podyum - En Yüksek) */}
                 <View style={[styles.podiumColumn, styles.podiumCol1]}>
                   {top1 ? (
                     <>
@@ -228,10 +259,11 @@ export function LeaderboardScreen() {
               </View>
             ) : null
           }
+          // 4., 5., 6... Sıradaki Kullanıcı Satırları
           renderItem={({ item }) => {
             const isPositive = item.twrPercentRaw >= 0;
             return (
-              <View style={styles.glassUserRow}>
+              <View style={styles.userRow}>
                 <View style={styles.rankCircle}>
                   <Text style={styles.rankText}>{item.rank}</Text>
                 </View>
@@ -257,79 +289,89 @@ export function LeaderboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#081226',
+    backgroundColor: colors.surface,
   },
-  headerContainer: {
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerMain: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  countdown: {
+    fontFamily: fonts.monoBold,
+    fontSize: 20,
+    color: colors.ink,
+    letterSpacing: -0.5,
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 10,
-    gap: 12,
-  },
-  headerMain: {
-    flex: 1,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
+    fontSize: 26,
+    fontFamily: fonts.semibold,
+    color: colors.ink,
+    letterSpacing: -0.6,
   },
   participantCount: {
+    fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 3,
+    color: colors.inkFaint,
+    marginTop: 6,
   },
   countdownBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(245, 158, 11, 0.4)',
-    borderWidth: 1.5,
-    borderRadius: 12,
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.warn,
+    borderWidth: 1,
+    borderRadius: 10,
     paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     alignItems: 'center',
   },
   countdownLabel: {
-    color: '#F59E0B',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.8,
+    color: colors.warn,
+    fontSize: 10,
+    fontFamily: fonts.semibold,
   },
   countdownValue: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 2,
+    fontFamily: fonts.bold,
+    marginTop: 1,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 14,
+    backgroundColor: colors.fieldFill,
+    borderRadius: 10,
     padding: 4,
     marginHorizontal: 20,
-    marginVertical: 8,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
+    marginVertical: 10,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 8,
   },
   tabButtonActive: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.gain,
   },
   tabText: {
-    color: '#64748B',
-    fontWeight: '600',
+    color: colors.inkMuted,
+    fontFamily: fonts.semibold,
     fontSize: 13,
   },
   tabTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
   },
   loadingContainer: {
     flex: 1,
@@ -337,20 +379,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     marginTop: 10,
     fontSize: 14,
   },
   errorBox: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    borderColor: '#EF4444',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 14,
     margin: 20,
   },
   errorText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 13,
     textAlign: 'center',
   },
@@ -358,34 +400,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  glassCard: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    borderWidth: 1.5,
-    borderRadius: 26,
-    padding: 24,
-    alignItems: 'center',
-    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
+    paddingHorizontal: 40,
   },
   emptyEmoji: {
     fontSize: 48,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    color: colors.ink,
   },
   emptyText: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: colors.inkMuted,
     textAlign: 'center',
     marginTop: 6,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -415,29 +446,29 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: colors.fieldFill,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
   goldBorder: {
-    borderColor: '#F59E0B',
+    borderColor: colors.warn,
     borderWidth: 2.5,
     width: 70,
     height: 70,
     borderRadius: 35,
   },
   silverBorder: {
-    borderColor: '#94A3B8',
+    borderColor: colors.inkMuted,
     borderWidth: 2,
   },
   bronzeBorder: {
-    borderColor: '#D97706',
+    borderColor: colors.warn,
     borderWidth: 2,
   },
   avatarText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
     fontSize: 18,
   },
   medalBadge: {
@@ -448,77 +479,75 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   goldBadge: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.warn,
   },
   silverBadge: {
-    backgroundColor: '#64748B',
+    backgroundColor: colors.inkFaint,
   },
   bronzeBadge: {
-    backgroundColor: '#D97706',
+    backgroundColor: colors.warn,
   },
   medalText: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   podiumName: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.ink,
+    fontFamily: fonts.semibold,
     fontSize: 13,
     marginTop: 10,
     textAlign: 'center',
   },
   podiumTwr: {
-    color: '#10B981',
-    fontWeight: 'bold',
+    color: colors.gain,
+    fontFamily: fonts.bold,
     fontSize: 14,
     marginTop: 2,
   },
   goldTwr: {
     fontSize: 16,
-    color: '#34D399',
+    color: colors.gain,
   },
   podiumStand: {
     width: '100%',
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
   },
   goldStand: {
     height: 75,
-    backgroundColor: 'rgba(245, 158, 11, 0.25)',
-    borderColor: '#F59E0B',
+    backgroundColor: colors.warnSoft,
+    borderColor: colors.warn,
     borderWidth: 1.5,
   },
   silverStand: {
     height: 55,
-    backgroundColor: 'rgba(148, 163, 184, 0.2)',
-    borderColor: '#94A3B8',
+    backgroundColor: colors.border,
+    borderColor: colors.inkMuted,
     borderWidth: 1.5,
   },
   bronzeStand: {
     height: 40,
-    backgroundColor: 'rgba(217, 119, 6, 0.2)',
-    borderColor: '#D97706',
+    backgroundColor: colors.warnSoft,
+    borderColor: colors.warn,
     borderWidth: 1.5,
   },
   standRank: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     opacity: 0.8,
   },
   podiumPlaceholder: {
     height: 40,
   },
-  glassUserRow: {
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1.2,
-    borderRadius: 16,
+    backgroundColor: colors.fieldFill,
+    borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginVertical: 4,
@@ -527,43 +556,43 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   rankText: {
-    color: '#94A3B8',
-    fontWeight: 'bold',
+    color: colors.inkMuted,
+    fontFamily: fonts.bold,
     fontSize: 12,
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.ink,
+    fontFamily: fonts.semibold,
     fontSize: 15,
   },
   twrBadge: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   twrBadgePositive: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: colors.gainSoft,
   },
   twrBadgeNegative: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: colors.accentSoft,
   },
   twrBadgeText: {
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     fontSize: 14,
   },
   twrTextPositive: {
-    color: '#10B981',
+    color: colors.gain,
   },
   twrTextNegative: {
-    color: '#EF4444',
+    color: colors.accent,
   },
 });
