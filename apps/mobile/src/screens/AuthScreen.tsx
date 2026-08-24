@@ -28,13 +28,12 @@ type RegisterResponse = {
 type LoginResponse = {
   user: AuthUser;
   accessToken: string;
+  refreshToken: string;
 };
 
 type VerifyResponse = {
   user: AuthUser;
   accessToken: string;
-  // Access token ~15 dk sonra ölüyor. Refresh token uzun ömürlü ve
-  // saklanması şart — yoksa kullanıcı 15 dakikada bir giriş yapar.
   refreshToken: string;
 };
 
@@ -126,9 +125,6 @@ export function AuthScreen({ onLoginSuccess }: Props) {
           setUnverifiedUserId(res.user.id);
           setDemoCode(res.demoCode || null);
           setScreenMode('verify');
-        } else {
-          await saveSession(res.accessToken, res.refreshToken);
-          onLoginSuccess(res.user);
         }
       }
     } catch (err) {
@@ -160,7 +156,7 @@ export function AuthScreen({ onLoginSuccess }: Props) {
         }),
       });
 
-      setAccessToken(res.accessToken);
+      await saveSession(res.accessToken, res.refreshToken);
       onLoginSuccess(res.user);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Verification failed.');

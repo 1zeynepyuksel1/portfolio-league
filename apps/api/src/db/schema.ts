@@ -81,6 +81,10 @@ export const priceHistory = pgTable(
       .references(() => assets.id, { onDelete: 'cascade' }),
     ts: timestamp('ts').notNull(),
     priceTry: numeric('price_try', { precision: 24, scale: 8 }).notNull(),
+    openUsd: numeric('open_usd', { precision: 24, scale: 8 }),
+    highUsd: numeric('high_usd', { precision: 24, scale: 8 }),
+    lowUsd: numeric('low_usd', { precision: 24, scale: 8 }),
+    granularity: text('granularity'),
   },
   (table) => [
     primaryKey({ columns: [table.assetId, table.ts] }),
