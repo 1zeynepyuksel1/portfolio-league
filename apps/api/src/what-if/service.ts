@@ -4,7 +4,7 @@ import {
   findAssetBySymbol,
   findHistoricalPrice,
   findLatestPrice,
-  findTufeIndex,
+  findTufeIndexOnOrBefore,
 } from './repository.js';
 import type { WhatIfQueryInput, WhatIfResultDto } from './what-if.schema.js';
 
@@ -80,12 +80,16 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
   const startMonth = input.date.slice(0, 7); // "YYYY-MM"
   const currentMonth = currentPriceRecord.ts.toISOString().slice(0, 7);
 
-  const startTufeRecord = await findTufeIndex(startMonth);
+  // ⚠️ Tam ay eşleşmesi ARAMIYORUZ, "o ay ya da öncesi" arıyoruz.
+  // TÜFE her zaman gecikmeli yayımlanıyor (TÜİK, ertesi ayın 3'ü) — içinde
+  // bulunduğumuz ayın endeksi hiçbir zaman mevcut olmaz. Tam eşleşme
+  // arasaydık özellik her zaman hata verirdi.
+  const startTufeRecord = await findTufeIndexOnOrBefore(startMonth);
   if (!startTufeRecord) {
     throw new InflationIndexNotFoundError(startMonth);
   }
 
-  const currentTufeRecord = await findTufeIndex(currentMonth);
+  const currentTufeRecord = await findTufeIndexOnOrBefore(currentMonth);
   if (!currentTufeRecord) {
     throw new InflationIndexNotFoundError(currentMonth);
   }
@@ -126,8 +130,12 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
     nominalProfitTry: nominalProfitFormatted,
     nominalReturnPercentRaw: nominalReturn,
     nominalReturnPercentFormatted: formatTwrPercent(nominalReturn),
-    tufeStartMonth: startMonth,
-    tufeEndMonth: currentMonth,
+    // Gerçekten KULLANILAN ay bildiriliyor, istenen ay değil.
+    // Fark önemli: bugün 2026-08 ama en son yayımlanan endeks 2026-07'nin.
+    // İstenen ayı yazsaydık ekran, kullanılmayan bir aya ait veriymiş gibi
+    // gösterirdi.
+    tufeStartMonth: startTufeRecord.month,
+    tufeEndMonth: currentTufeRecord.month,
     cumulativeInflationPercentRaw: inflationRate,
     cumulativeInflationPercentFormatted: formatTwrPercent(inflationRate),
     realReturnPercentRaw: realReturn,

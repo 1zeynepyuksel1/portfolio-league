@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
+import { colors, fonts } from '../theme';
 
 type WhatIfResult = {
   symbol: string;
@@ -28,15 +29,67 @@ type WhatIfResult = {
   summary: string;
 };
 
-const ASSETS = [
-  { symbol: 'BTC', name: 'Bitcoin', icon: '🟡' },
-  { symbol: 'ETH', name: 'Ethereum', icon: '🔷' },
-  { symbol: 'GRAM_ALTIN', name: 'Gram Altın', icon: '🪙' },
-  { symbol: 'USD', name: 'Amerikan Doları', icon: '💵' },
-  { symbol: 'EUR', name: 'Euro', icon: '💶' },
-];
+type Asset = {
+  symbol: string;
+  name: string;
+  /** Bu varlığın en eski fiyat kaydı. Tarih seçici buradan sınırlanıyor. */
+  firstAvailable: string | null;
+};
 
-const YEARS = ['2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
+/**
+ * Sembole göre simge.
+ *
+ * ⚠️ VARLIK LİSTESİ ARTIK BURADA DEĞİL — API'den geliyor.
+ * Eskiden bu dosyada beş varlıklık sabit bir dizi vardı. Sunucuya on üç
+ * varlık daha eklendiğinde bu ekran hâlâ beş tanesini gösteriyordu; kimse
+ * hata almadı, liste sessizce eskidi.
+ *
+ * Simge tablosu kalabilir çünkü yalnızca görsel: bilinmeyen bir sembol
+ * gelirse aşağıdaki varsayılan kullanılır, liste yine de eksiksiz görünür.
+ * Kural: veri sunucudan, süs istemciden.
+ */
+const ICONS: Record<string, string> = {
+  BTC: '🟡', ETH: '🔷', BNB: '🟨', SOL: '🟣', XRP: '⚫',
+  ADA: '🔵', DOGE: '🐕', AVAX: '🔺', LINK: '🔗', LTC: '⚪',
+  USD: '💵', EUR: '💶', GBP: '💷', CHF: '🇨🇭',
+  CAD: '🍁', AUD: '🇦🇺', SEK: '🇸🇪', JPY: '💴',
+  GRAM_ALTIN: '🪙',
+};
+
+const DEFAULT_ICON = '📈';
+
+function iconOf(symbol: string): string {
+  return ICONS[symbol] ?? DEFAULT_ICON;
+}
+
+/**
+ * Seçilebilir yıllar — varlığın ilk kaydından bu yıla kadar.
+ *
+ * ⚠️ BU FONKSİYON BİR HATA MESAJINI ORTADAN KALDIRIYOR.
+ *
+ * Eskiden liste sabitti: 2017-2026. SOL 11 Ağustos 2020'de listelendiği
+ * için kullanıcı SOL + 2017 seçebiliyor ve "o tarihli kayıt bulunamadı"
+ * hatası alıyordu. Hata mesajı DOĞRUYDU — ama asıl sorun o seçeneğin en
+ * baştan sunulmuş olmasıydı.
+ *
+ * Doğru çözüm hatayı güzelleştirmek değil, imkânsız seçimi kaldırmak.
+ */
+function yearsFor(firstAvailable: string | null): string[] {
+  const currentYear = new Date().getFullYear();
+
+  // Varlığın ilk kaydı bilinmiyorsa elimizdeki en geniş aralığı ver.
+  const startYear =
+    firstAvailable === null
+      ? 2017
+      : new Date(firstAvailable).getFullYear();
+
+  const years: string[] = [];
+  for (let y = startYear; y <= currentYear; y++) {
+    years.push(String(y));
+  }
+
+  return years;
+}
 
 const MONTHS = [
   { num: '01', label: 'Oca' },
@@ -63,6 +116,23 @@ export function WhatIfScreen() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
+<<<<<<< HEAD
+=======
+  // Varlıklar sunucudan geliyor — bkz. ICONS üstündeki not.
+  const [assets, setAssets] = useState<Asset[]>([]);
+
+  useEffect(() => {
+    // Liste bir kez çekiliyor: varlıklar fiyat gibi saniyede değişmiyor.
+    // Hata durumunda ekranı kilitlemiyoruz — dizi boş kalır, kullanıcı
+    // yine de seçili varlıkla hesap yapabilir.
+    // ⚠️ Zarflı nesne — bkz. market/router.ts, `currency` alanı eklendi.
+    apiFetch<{ assets: Asset[] }>('/assets')
+      .then((data) => setAssets(data.assets))
+      .catch(() => setAssets([]));
+  }, []);
+
+  // 2. Kaydırmalı Tarih Seçimi (Yıl, Ay, Gün)
+>>>>>>> origin/main
   const [selectedYear, setSelectedYear] = useState('2020');
   const [selectedMonth, setSelectedMonth] = useState('03');
   const [selectedDay, setSelectedDay] = useState('12');
@@ -73,9 +143,45 @@ export function WhatIfScreen() {
   const [result, setResult] = useState<WhatIfResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+<<<<<<< HEAD
   const currentAsset = ASSETS.find((a) => a.symbol === selectedSymbol) || ASSETS[0]!;
   const dateString = `${selectedYear}-${selectedMonth}-${selectedDay.padStart(2, '0')}`;
 
+=======
+  // Seçilen Varlık Bilgisi
+  // Liste henüz gelmediyse seçili sembolü yine de göster — ekran boş kalmasın.
+  const currentAsset =
+    assets.find((a) => a.symbol === selectedSymbol) ??
+    { symbol: selectedSymbol, name: selectedSymbol, firstAvailable: null };
+
+  // Seçilebilir yıllar seçili varlığa göre değişiyor.
+  const years = yearsFor(currentAsset.firstAvailable);
+
+  /** Varlığın işlem görmeye başladığı gün, "YYYY-MM-DD". */
+  const earliest =
+    currentAsset.firstAvailable !== null
+      ? currentAsset.firstAvailable.slice(0, 10)
+      : null;
+
+
+  // Birleşik Tarih Stringi (YYYY-MM-DD)
+  const dateString = `${selectedYear}-${selectedMonth}-${selectedDay.padStart(2, '0')}`;
+
+  /**
+   * Seçilen tarih varlığın başlangıcından önce mi?
+   *
+   * ⚠️ `dateString` TANIMLANDIKTAN SONRA hesaplanıyor. JS'te `const`
+   * bildirimleri yukarı taşınır ama DEĞERLERİ taşınmaz — önce kullanılırsa
+   * "used before being assigned" hatası alınır. TypeScript bunu derlemede
+   * yakaladı; JavaScript'te çalışma anında ReferenceError olurdu.
+   *
+   * Metin karşılaştırması yeterli: "YYYY-MM-DD" biçiminde sözlük sırası
+   * takvim sırasıyla aynı. Date nesnesi kurmaya gerek yok.
+   */
+  const tooEarly = earliest !== null && dateString < earliest;
+
+  // Hesapla Butonuna Basıldığında
+>>>>>>> origin/main
   async function handleCalculate() {
     setError(null);
     setLoading(true);
@@ -242,6 +348,7 @@ export function WhatIfScreen() {
           disabled={loading}
           activeOpacity={0.85}
         >
+<<<<<<< HEAD
           {loading ? (
             <ActivityIndicator color="#022C22" />
           ) : (
@@ -253,10 +360,198 @@ export function WhatIfScreen() {
         {error && (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>⚠️ {error}</Text>
+=======
+          <View style={styles.selectedAssetRow}>
+            <Text style={styles.assetIcon}>{iconOf(currentAsset.symbol)}</Text>
+            <Text style={styles.selectedAssetText}>
+              {currentAsset.name} ({currentAsset.symbol})
+            </Text>
+          </View>
+          <Text style={styles.dropdownArrow}>{dropdownOpen ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+
+        {dropdownOpen && (
+          <View style={styles.dropdownList}>
+            {assets.map((item) => (
+              <TouchableOpacity
+                key={item.symbol}
+                style={[
+                  styles.dropdownItem,
+                  selectedSymbol === item.symbol && styles.dropdownItemActive,
+                ]}
+                onPress={() => {
+                  setSelectedSymbol(item.symbol);
+                  setDropdownOpen(false);
+                  setResult(null);
+                  setError(null);
+
+                  // ⚠️ Varlık değişince seçili yıl geçersiz kalabilir:
+                  // BTC'de 2017 seçiliyken SOL'a geçilirse o yıl artık
+                  // listede yok. Sessizce bırakırsak seçici boş bir
+                  // seçeneği "seçili" gösterir. Sınırın içine çekiyoruz.
+                  const validYears = yearsFor(item.firstAvailable);
+                  if (!validYears.includes(selectedYear)) {
+                    setSelectedYear(validYears[0] as string);
+                  }
+                }}
+              >
+                <Text style={styles.assetIcon}>{iconOf(item.symbol)}</Text>
+                <Text
+                  style={[
+                    styles.dropdownItemText,
+                    selectedSymbol === item.symbol && styles.dropdownItemTextActive,
+                  ]}
+                >
+                  {item.name} ({item.symbol})
+                </Text>
+              </TouchableOpacity>
+            ))}
+>>>>>>> origin/main
           </View>
         )}
       </View>
 
+<<<<<<< HEAD
+=======
+      {/* 2. KAYDIRMALI TARİH SEÇİMİ (YATAY ZAMAN ÇİZELGESİ) */}
+      <Text style={styles.sectionLabel}>2. Tarih Seçin (Kaydırmalı Çizelge)</Text>
+
+      {/* Hızlı Atlayış Butonları */}
+      <View style={styles.presetDates}>
+        {PRESET_DATES.map((p) => (
+          <TouchableOpacity
+            key={p.date}
+            style={[
+              styles.presetButton,
+              dateString === p.date && styles.presetButtonActive,
+            ]}
+            onPress={() => {
+              setSelectedYear(p.year);
+              setSelectedMonth(p.month);
+              setSelectedDay(p.date.slice(8, 10));
+            }}
+          >
+            <Text
+              style={[
+                styles.presetText,
+                dateString === p.date && styles.presetTextActive,
+              ]}
+            >
+              {p.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Yıl Kaydırma Çubuğu */}
+      <Text style={styles.subLabel}>🗓️ Yıl Seçin:</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+        {years.map((y) => (
+          <TouchableOpacity
+            key={y}
+            style={[styles.yearChip, selectedYear === y && styles.yearChipActive]}
+            onPress={() => setSelectedYear(y)}
+          >
+            <Text style={[styles.yearChipText, selectedYear === y && styles.yearChipTextActive]}>
+              {y}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Ay Kaydırma Çubuğu */}
+      <Text style={styles.subLabel}>📅 Ay Seçin:</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+        {MONTHS.map((m) => (
+          <TouchableOpacity
+            key={m.num}
+            style={[styles.monthChip, selectedMonth === m.num && styles.monthChipActive]}
+            onPress={() => setSelectedMonth(m.num)}
+          >
+            <Text style={[styles.monthChipText, selectedMonth === m.num && styles.monthChipTextActive]}>
+              {m.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Elle Tarih Girişi */}
+      <Text style={styles.subLabel}>✍️ Ya da tarihi elle yazın:</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="YYYY-AA-GG (örn: 2020-03-12)"
+        placeholderTextColor={colors.inkFaint}
+        value={dateString}
+        onChangeText={(text) => {
+          // Girilen metni parçalara ayırıp state'e dağıtıyoruz; böylece
+          // kaydırmalı seçici ile elle giriş TEK kaynaktan besleniyor ve
+          // biri değişince diğeri de güncelleniyor.
+          const m = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if (m) {
+            setSelectedYear(m[1] as string);
+            setSelectedMonth(m[2] as string);
+            setSelectedDay(m[3] as string);
+            setError(null);
+          }
+        }}
+        autoCapitalize="none"
+      />
+
+      {/* Seçilen Tarih Özeti Kartı */}
+      <View style={styles.datePreviewCard}>
+        <Text style={styles.datePreviewLabel}>🎯 Seçilen Simülasyon Tarihi:</Text>
+        <Text style={styles.datePreviewValue}>{dateString}</Text>
+      </View>
+
+      {/*
+        ⚠️ SINIR UYARISI — hatayı sunucudan beklemek yerine önden söylüyoruz.
+        Sunucu zaten "kayıt bulunamadı" derdi ama kullanıcı o noktaya kadar
+        formu doldurup düğmeye basmış olurdu.
+      */}
+      {tooEarly && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>
+            ⚠️ {currentAsset.symbol} verisi {earliest} tarihinde başlıyor.
+            Daha eski bir tarih seçilemez.
+          </Text>
+        </View>
+      )}
+
+      {/* 3. Tutar Girişi */}
+      <Text style={styles.sectionLabel}>3. Ne Kadar Yatırsaydınız? (TL)</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Örn: 10000"
+        placeholderTextColor={colors.inkFaint}
+        value={amountTry}
+        onChangeText={setAmountTry}
+        keyboardType="numeric"
+      />
+
+      {/* Hesapla Butonu */}
+      <TouchableOpacity
+        style={[
+          styles.calculateButton,
+          (loading || tooEarly) && styles.buttonDisabled,
+        ]}
+        onPress={handleCalculate}
+        disabled={loading || tooEarly}
+      >
+        {loading ? (
+          <ActivityIndicator color={colors.ink} />
+        ) : (
+          <Text style={styles.calculateButtonText}>🚀 Simülasyonu Hesapla</Text>
+        )}
+      </TouchableOpacity>
+
+      {/* Hata Kutusu */}
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>⚠️ {error}</Text>
+        </View>
+      )}
+
+>>>>>>> origin/main
       {/* 4. SİMÜLASYON SONUÇ KARTI */}
       {result && (
         <View style={styles.resultGlassCard}>
@@ -315,7 +610,11 @@ export function WhatIfScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+<<<<<<< HEAD
     backgroundColor: '#081226',
+=======
+    backgroundColor: colors.surface,
+>>>>>>> origin/main
   },
   scrollContent: {
     padding: 16,
@@ -328,14 +627,20 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   title: {
+<<<<<<< HEAD
     fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
     letterSpacing: 0.5,
+=======
+    fontSize: 26,
+    fontFamily: fonts.bold,
+    color: colors.ink,
+>>>>>>> origin/main
   },
   subtitle: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: colors.inkMuted,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -355,16 +660,23 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
   },
   sectionLabel: {
+<<<<<<< HEAD
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
     marginTop: 14,
+=======
+    color: colors.ink,
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    marginTop: 18,
+>>>>>>> origin/main
     marginBottom: 8,
   },
   subLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     marginTop: 10,
     marginBottom: 6,
   },
@@ -376,8 +688,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+<<<<<<< HEAD
     backgroundColor: 'rgba(15, 23, 42, 0.7)',
     borderColor: '#10B981',
+=======
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.gain,
+>>>>>>> origin/main
     borderWidth: 1.5,
     borderRadius: 14,
     paddingHorizontal: 16,
@@ -392,18 +709,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   selectedAssetText: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   dropdownArrow: {
-    color: '#10B981',
+    color: colors.gain,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   dropdownList: {
+<<<<<<< HEAD
     backgroundColor: '#0F172A',
     borderColor: 'rgba(255, 255, 255, 0.15)',
+=======
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
+>>>>>>> origin/main
     borderWidth: 1,
     borderRadius: 14,
     marginTop: 6,
@@ -415,6 +737,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 10,
+<<<<<<< HEAD
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     borderBottomWidth: 1,
   },
@@ -423,11 +746,21 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     color: '#CBD5E1',
+=======
+    borderBottomColor: colors.hairline,
+    borderBottomWidth: 0.5,
+  },
+  dropdownItemActive: {
+    backgroundColor: colors.gainSoft,
+  },
+  dropdownItemText: {
+    color: colors.ink,
+>>>>>>> origin/main
     fontSize: 14,
   },
   dropdownItemTextActive: {
-    color: '#10B981',
-    fontWeight: 'bold',
+    color: colors.gain,
+    fontFamily: fonts.bold,
   },
   presetDates: {
     flexDirection: 'row',
@@ -436,32 +769,47 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   presetButton: {
+<<<<<<< HEAD
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     borderColor: 'rgba(255, 255, 255, 0.15)',
+=======
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
+>>>>>>> origin/main
     borderWidth: 1,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 10,
   },
   presetButtonActive: {
+<<<<<<< HEAD
     backgroundColor: '#38BDF8',
     borderColor: '#38BDF8',
+=======
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+>>>>>>> origin/main
   },
   presetText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
   },
   presetTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
   },
   horizontalScroll: {
     flexDirection: 'row',
     marginBottom: 6,
   },
   yearChip: {
+<<<<<<< HEAD
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     borderColor: 'rgba(255, 255, 255, 0.15)',
+=======
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
+>>>>>>> origin/main
     borderWidth: 1,
     paddingVertical: 8,
     paddingHorizontal: 14,
@@ -469,21 +817,26 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   yearChipActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: colors.gain,
+    borderColor: colors.gain,
   },
   yearChipText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   yearChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
   },
   monthChip: {
+<<<<<<< HEAD
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
     borderColor: 'rgba(255, 255, 255, 0.15)',
+=======
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
+>>>>>>> origin/main
     borderWidth: 1,
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -491,23 +844,33 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   monthChipActive: {
+<<<<<<< HEAD
     backgroundColor: '#38BDF8',
     borderColor: '#38BDF8',
+=======
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+>>>>>>> origin/main
   },
   monthChipText: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 12,
   },
   monthChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: colors.ink,
+    fontFamily: fonts.bold,
   },
   datePreviewCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+<<<<<<< HEAD
     backgroundColor: 'rgba(56, 189, 248, 0.12)',
     borderColor: 'rgba(56, 189, 248, 0.4)',
+=======
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.hairlineStrong,
+>>>>>>> origin/main
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
@@ -516,28 +879,47 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   datePreviewLabel: {
+<<<<<<< HEAD
     color: '#7DD3FC',
     fontSize: 12,
     fontWeight: '600',
+=======
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontFamily: fonts.medium,
+>>>>>>> origin/main
   },
   datePreviewValue: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     letterSpacing: 0.5,
   },
+<<<<<<< HEAD
   pillInput: {
     backgroundColor: 'rgba(15, 23, 42, 0.7)',
     borderColor: 'rgba(255, 255, 255, 0.15)',
     borderWidth: 1.2,
     borderRadius: 14,
+=======
+  input: {
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
+    borderWidth: 1,
+    borderRadius: 10,
+>>>>>>> origin/main
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: '#FFFFFF',
+    color: colors.ink,
     fontSize: 15,
   },
+<<<<<<< HEAD
   glowingPillButton: {
     backgroundColor: '#10B981',
+=======
+  calculateButton: {
+    backgroundColor: colors.gain,
+>>>>>>> origin/main
     paddingVertical: 14,
     borderRadius: 28,
     alignItems: 'center',
@@ -551,28 +933,44 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
+<<<<<<< HEAD
   glowingPillButtonText: {
     color: '#022C22',
+=======
+  calculateButtonText: {
+    color: colors.ink,
+>>>>>>> origin/main
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
   },
   errorBox: {
+<<<<<<< HEAD
     backgroundColor: 'rgba(239, 68, 68, 0.2)',
     borderColor: '#EF4444',
+=======
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
+>>>>>>> origin/main
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
     marginTop: 16,
   },
   errorText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 13,
   },
+<<<<<<< HEAD
   resultGlassCard: {
     width: '100%',
     maxWidth: 380,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderColor: '#10B981',
+=======
+  resultCard: {
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.gain,
+>>>>>>> origin/main
     borderWidth: 1.5,
     borderRadius: 26,
     padding: 20,
@@ -586,8 +984,8 @@ const styles = StyleSheet.create({
   },
   resultCardTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontFamily: fonts.bold,
+    color: colors.ink,
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -597,36 +995,46 @@ const styles = StyleSheet.create({
     marginVertical: 3,
   },
   priceLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
   },
   priceValue: {
-    color: '#E2E8F0',
+    color: colors.ink,
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
   divider: {
     height: 1,
+<<<<<<< HEAD
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
+=======
+    backgroundColor: colors.hairline,
+>>>>>>> origin/main
     marginVertical: 12,
   },
   totalValueLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 13,
     textAlign: 'center',
   },
   totalValueAmount: {
+<<<<<<< HEAD
     color: '#10B981',
     fontSize: 32,
     fontWeight: 'bold',
+=======
+    color: colors.gain,
+    fontSize: 28,
+    fontFamily: fonts.bold,
+>>>>>>> origin/main
     textAlign: 'center',
     marginVertical: 4,
   },
   profitText: {
-    color: '#34D399',
+    color: colors.gain,
     fontSize: 14,
     textAlign: 'center',
-    fontWeight: '600',
+    fontFamily: fonts.semibold,
     marginBottom: 14,
   },
   badgeContainer: {
@@ -636,37 +1044,54 @@ const styles = StyleSheet.create({
   },
   nominalBadge: {
     flex: 1,
+<<<<<<< HEAD
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
     borderRadius: 10,
     padding: 10,
+=======
+    backgroundColor: colors.gainSoft,
+    borderRadius: 8,
+    padding: 8,
+>>>>>>> origin/main
     alignItems: 'center',
   },
   inflationBadge: {
     flex: 1,
+<<<<<<< HEAD
     backgroundColor: 'rgba(249, 115, 22, 0.15)',
     borderRadius: 10,
     padding: 10,
+=======
+    backgroundColor: colors.warnSoft,
+    borderRadius: 8,
+    padding: 8,
+>>>>>>> origin/main
     alignItems: 'center',
   },
   badgeLabel: {
-    color: '#94A3B8',
+    color: colors.inkMuted,
     fontSize: 11,
   },
   nominalBadgeValue: {
-    color: '#10B981',
+    color: colors.gain,
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginTop: 2,
   },
   inflationBadgeValue: {
-    color: '#FB923C',
+    color: colors.warn,
     fontSize: 15,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     marginTop: 2,
   },
   realBadge: {
+<<<<<<< HEAD
     backgroundColor: 'rgba(56, 189, 248, 0.15)',
     borderColor: '#38BDF8',
+=======
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
+>>>>>>> origin/main
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
@@ -674,19 +1099,29 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   realBadgeTitle: {
+<<<<<<< HEAD
     color: '#7DD3FC',
+=======
+    color: colors.inkMuted,
+>>>>>>> origin/main
     fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: fonts.bold,
     letterSpacing: 0.5,
   },
   realBadgeValue: {
+<<<<<<< HEAD
     color: '#38BDF8',
     fontSize: 24,
     fontWeight: 'bold',
+=======
+    color: colors.accent,
+    fontSize: 22,
+    fontFamily: fonts.bold,
+>>>>>>> origin/main
     marginTop: 4,
   },
   summaryText: {
-    color: '#CBD5E1',
+    color: colors.ink,
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',

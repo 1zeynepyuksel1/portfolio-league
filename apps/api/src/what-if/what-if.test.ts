@@ -72,7 +72,7 @@ describe('What-If Module Tests', () => {
       vi.spyOn(repo, 'findAssetBySymbol').mockResolvedValue(mockAsset);
       vi.spyOn(repo, 'findHistoricalPrice').mockResolvedValue(mockHistoricalPrice);
       vi.spyOn(repo, 'findLatestPrice').mockResolvedValue(mockLatestPrice);
-      vi.spyOn(repo, 'findTufeIndex').mockImplementation(async (month: string) => {
+      vi.spyOn(repo, 'findTufeIndexOnOrBefore').mockImplementation(async (month: string) => {
         if (month === '2020-03') return { month: '2020-03', tufeIndex: '453.4700' };
         if (month === '2026-08') return { month: '2026-08', tufeIndex: '4120.0000' };
         return undefined;
@@ -98,6 +98,52 @@ describe('What-If Module Tests', () => {
       expect(result.cumulativeInflationPercentRaw).toBeCloseTo(8.0855, 2);
       expect(result.realReturnPercentRaw).toBeCloseTo(4.5033, 2);
       expect(result.summary).toContain('Bitcoin (BTC) alsaydınız');
+    });
+
+    it('TÜFE gecikmeliyse KULLANILAN ayı bildirir, istenen ayı değil', async () => {
+      // ⚠️ Enflasyon verisi HER ZAMAN gecikmeli: TÜİK bir ayın endeksini
+      // ertesi ayın 3'ünde açıklıyor. Yani içinde bulunduğumuz ayın TÜFE'si
+      // hiçbir zaman mevcut olmaz.
+      //
+      // Burada güncel fiyat 2026-08 tarihli ama en son endeks 2026-07'nin.
+      // Yanıt 2026-08 deseydi ekran, aslında kullanılmayan bir aya ait
+      // veriymiş gibi gösterirdi.
+      vi.spyOn(repo, 'findAssetBySymbol').mockResolvedValue({
+        id: 'asset-1',
+        symbol: 'BTC',
+        name: 'Bitcoin',
+        kind: 'crypto' as const,
+        isActive: true,
+        sortOrder: 1,
+        createdAt: new Date(),
+      });
+      vi.spyOn(repo, 'findHistoricalPrice').mockResolvedValue({
+        ts: new Date('2020-03-12T12:00:00Z'),
+        priceTry: '45000.00000000',
+      });
+      vi.spyOn(repo, 'findLatestPrice').mockResolvedValue({
+        ts: new Date('2026-08-19T10:00:00Z'),
+        priceTry: '2250000.00000000',
+      });
+
+      // Depo katmanı "o ay ya da öncesi" arıyor: 2026-08 istendiğinde
+      // 2026-07 dönüyor.
+      vi.spyOn(repo, 'findTufeIndexOnOrBefore').mockImplementation(
+        async (month: string) => {
+          if (month === '2020-03') return { month: '2020-03', tufeIndex: '453.4700' };
+          if (month >= '2026-07') return { month: '2026-07', tufeIndex: '4211.5800' };
+          return undefined;
+        },
+      );
+
+      const result = await calculateWhatIf({
+        symbol: 'BTC',
+        date: '2020-03-12',
+        amountKurus: 1000000n,
+      });
+
+      expect(result.tufeEndMonth).toBe('2026-07');
+      expect(result.tufeStartMonth).toBe('2020-03');
     });
 
     it('varlık bulunamazsa AssetNotFoundError fırlatır', async () => {
@@ -176,7 +222,7 @@ describe('What-If Module Tests', () => {
         ts: new Date(),
         priceTry: '2250000.00',
       });
-      vi.spyOn(repo, 'findTufeIndex').mockResolvedValue(undefined);
+      vi.spyOn(repo, 'findTufeIndexOnOrBefore').mockResolvedValue(undefined);
 
       await expect(
         calculateWhatIf({

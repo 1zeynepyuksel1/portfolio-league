@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { apiFetch, setAccessToken } from '../api/client';
+import { apiFetch, saveSession } from '../api/client';
 
 type AuthUser = {
   id: string;
@@ -33,6 +33,9 @@ type LoginResponse = {
 type VerifyResponse = {
   user: AuthUser;
   accessToken: string;
+  // Access token ~15 dk sonra ölüyor. Refresh token uzun ömürlü ve
+  // saklanması şart — yoksa kullanıcı 15 dakikada bir giriş yapar.
+  refreshToken: string;
 };
 
 type Props = {
@@ -104,7 +107,8 @@ export function AuthScreen({ onLoginSuccess }: Props) {
           body: JSON.stringify({ email, password }),
         });
 
-        setAccessToken(res.accessToken);
+        // Kalıcı depoya da yazılıyor — sayfa yenilenince oturum kaybolmasın.
+        await saveSession(res.accessToken, res.refreshToken);
         onLoginSuccess(res.user);
       } else {
         const res = await apiFetch<RegisterResponse>('/auth/register', {
@@ -122,6 +126,9 @@ export function AuthScreen({ onLoginSuccess }: Props) {
           setUnverifiedUserId(res.user.id);
           setDemoCode(res.demoCode || null);
           setScreenMode('verify');
+        } else {
+          await saveSession(res.accessToken, res.refreshToken);
+          onLoginSuccess(res.user);
         }
       }
     } catch (err) {

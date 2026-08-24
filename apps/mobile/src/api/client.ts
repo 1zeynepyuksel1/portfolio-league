@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { clearTokens, loadTokens, saveTokens } from '../lib/storage';
 
 /**
  * api/client.ts — Mobil uygulamanın Backend ile konuşma köprüsü
@@ -7,6 +8,7 @@ import Constants from 'expo-constants';
  * 1. Hem Bilgisayar Web Tarayıcısında (localhost) hem de Gerçek Telefonda (Expo Go / IP) sorunsuz çalışır.
  * 2. Giriş yapınca gelen JWT Access Token'ı hafızada saklar.
  * 3. Sunucuya giden her isteğin başlığına "Authorization: Bearer <token>" ekler.
+ * 4. Token'ları kalıcı depoya yazar ve açılışta oturumu geri yükler.
  */
 
 // Expo Go telefonda çalışırken bilgisayarınızın yerel IP'sini (192.168.x.x) otomatik algılar
@@ -16,6 +18,13 @@ const hostIp = debuggerHost ? debuggerHost.split(':')[0] : 'localhost';
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? `http://${hostIp}:3000`;
 
 let currentAccessToken: string | null = null;
+let currentRefreshToken: string | null = null;
+
+export type User = {
+  id: string;
+  email: string;
+  displayName: string;
+};
 
 export function setAccessToken(token: string | null) {
   currentAccessToken = token;
@@ -23,6 +32,65 @@ export function setAccessToken(token: string | null) {
 
 export function getAccessToken(): string | null {
   return currentAccessToken;
+}
+
+/**
+ * Girişten sonra çağrılır: token'ları hem belleğe hem KALICI depoya yazar.
+ */
+export async function saveSession(
+  accessToken: string,
+  refreshToken: string,
+): Promise<void> {
+  currentAccessToken = accessToken;
+  currentRefreshToken = refreshToken;
+  await saveTokens(accessToken, refreshToken);
+}
+
+/** Çıkışta: hem bellekten hem diskten sil. */
+export async function clearSession(): Promise<void> {
+  currentAccessToken = null;
+  currentRefreshToken = null;
+  await clearTokens();
+}
+
+/**
+ * Uygulama açılışında saklanan oturumu geri yükler.
+ */
+export async function restoreSession(): Promise<User | null> {
+  const { accessToken, refreshToken } = await loadTokens();
+
+  if (!accessToken) return null;
+
+  currentAccessToken = accessToken;
+  currentRefreshToken = refreshToken;
+
+  try {
+    const me = await apiFetch<{ user: User }>('/me');
+    return me.user;
+  } catch {
+    if (!refreshToken) {
+      await clearSession();
+      return null;
+    }
+  }
+
+  try {
+    const session = await apiFetch<{
+      accessToken: string;
+      refreshToken: string;
+    }>('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    await saveSession(session.accessToken, session.refreshToken);
+
+    const me = await apiFetch<{ user: User }>('/me');
+    return me.user;
+  } catch {
+    await clearSession();
+    return null;
+  }
 }
 
 /**
@@ -39,7 +107,6 @@ export async function apiFetch<T>(
     ...(options.headers as Record<string, string>),
   };
 
-  // Eğer giriş yapılmışsa token'ı ekle
   if (currentAccessToken) {
     headers['Authorization'] = `Bearer ${currentAccessToken}`;
   }

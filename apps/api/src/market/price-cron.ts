@@ -41,11 +41,11 @@ export async function fetchAndStorePrices(
 
   if (assets.length === 0) return result;
 
-  // Kur bir kez alınır, tüm varlıklar için kullanılır.
+  // USD kuru bir kez alınır, tüm KRİPTO varlıklar için kullanılır.
   // Bu çağrı hata verirse tur tamamen iptal olur — TL fiyatı kursuz
   // hesaplanamaz, yarım veri yazmaktansa hiç yazmamak doğru.
   const today = new Date().toISOString().slice(0, 10);
-  const rate = await fx.getUsdTry(today);
+  const usdRate = await fx.getUsdTry(today);
 
   const ts = new Date();
 
@@ -54,8 +54,15 @@ export async function fetchAndStorePrices(
     // BTC çekilemezse ETH yine yazılmalı. Dışarıda olsaydı ilk hata
     // kalan bütün varlıkları düşürürdü.
     try {
-      const point = await market.getLatest(asset.symbol);
-      const priceTry = usdToTry(point.price, rate.rate);
+      // ⚠️ VARLIK TÜRÜ KAYNAĞI BELİRLER.
+      // Eskiden her varlık Binance'e soruluyordu; USD ve EUR'un Binance'te
+      // paritesi olmadığı için üç varlık her turda hata basıyordu.
+      const priceTry =
+        asset.kind === 'fx'
+          ? // Döviz zaten TL cinsinden geliyor, çevrim gerekmiyor.
+            (await fx.getRate(asset.symbol, today)).rate
+          : // Kripto USD geliyor, o günün kuruyla TL'ye çevriliyor.
+            usdToTry((await market.getLatest(asset.symbol)).price, usdRate.rate);
 
       await insertPrice(asset.id, ts, formatScaled(priceTry, PRICE_SCALE));
       result.written++;

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Platform,
   SafeAreaView,
   StatusBar as RNStatusBar,
@@ -9,12 +10,25 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import {
+  Archivo_400Regular,
+  Archivo_500Medium,
+  Archivo_600SemiBold,
+  Archivo_700Bold,
+  useFonts,
+} from '@expo-google-fonts/archivo';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { FriendsScreen } from './src/screens/FriendsScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { MarketScreen } from './src/screens/MarketScreen';
+import { TradeScreen } from './src/screens/TradeScreen';
+import { AssetDetailScreen } from './src/screens/AssetDetailScreen';
 import { WhatIfScreen } from './src/screens/WhatIfScreen';
-import { setAccessToken } from './src/api/client';
+import { PortfolioScreen } from './src/screens/PortfolioScreen';
+import { clearSession, restoreSession, setAccessToken } from './src/api/client';
+import { CurrencyProvider } from './src/lib/currency';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 type User = {
   id: string;
@@ -23,76 +37,91 @@ type User = {
   isNewUser?: boolean;
 };
 
-type Tab = 'wallet' | 'leaderboard' | 'friends' | 'whatif';
+type Tab = 'market' | 'wallet' | 'leaderboard' | 'friends' | 'whatif';
 
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <CurrencyProvider>
+        <AppShell />
+      </CurrencyProvider>
+    </ErrorBoundary>
+  );
+}
+
+function AppShell() {
   // Giriş yapmış kullanıcı bilgisi
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Karşılama Ekranı Durumu
+  // Karşılama Ekranı Durumu (Onboarding)
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Aktif Sekme (Cüzdan, Ligler, Arkadaşlar, Ya Alsaydın)
+  // Aktif Sekme (Piyasa, Cüzdan, Ligler, Arkadaşlar, Ya Alsaydın)
   const [activeTab, setActiveTab] = useState<Tab>('leaderboard');
 
-  // Giriş/Kayıt Başarılı Olduğunda
+  // Detay & Trade Katmanları
+  const [tradeAsset, setTradeAsset] = useState<{ symbol: string; name: string } | null>(null);
+  const [detailAsset, setDetailAsset] = useState<{ symbol: string; name: string } | null>(null);
+
+  const [portfolioVersion, setPortfolioVersion] = useState(0);
+  const [restoring, setRestoring] = useState(true);
+
+  const [fontsLoaded] = useFonts({
+    Archivo_400Regular,
+    Archivo_500Medium,
+    Archivo_600SemiBold,
+    Archivo_700Bold,
+  });
+
+  useEffect(() => {
+    void restoreSession()
+      .then((user) => {
+        if (user) {
+          setCurrentUser(user);
+        }
+      })
+      .finally(() => setRestoring(false));
+  }, []);
+
   function handleAuthSuccess(user: User) {
     setCurrentUser(user);
     setShowOnboarding(true);
   }
 
-  // Çıkış yap fonksiyonu
-  function handleLogout() {
+  async function handleLogout() {
+    await clearSession();
     setAccessToken(null);
     setCurrentUser(null);
     setShowOnboarding(false);
   }
 
-  // Android Çentik ve Status Bar Boşluğu
   const paddingTop = Platform.OS === 'android' ? (RNStatusBar.currentHeight || 36) + 6 : 0;
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop }]}>
       <StatusBar style="light" />
 
-      {!currentUser ? (
-        // 1. GİRİŞ YAPILMAMIŞSA: Glassmorphic Giriş/Kayıt Ekranı
+      {restoring || !fontsLoaded ? (
+        <View style={styles.splash}>
+          <ActivityIndicator size="large" color="#A3E635" />
+        </View>
+      ) : !currentUser ? (
+        // 1. GİRİŞ YAPILMAMIŞSA: 2 Adımlı (Get Started -> Sign In/Up) AuthScreen
         <AuthScreen onLoginSuccess={handleAuthSuccess} />
       ) : showOnboarding ? (
-        // 2. YENİ KAYIT OLUNDUYSA: Glassmorphic Karşılama Ekranı
+        // 2. İLK KAYITTA: Karşılama Ekranı
         <OnboardingScreen
           userName={currentUser.displayName}
           onFinishOnboarding={() => setShowOnboarding(false)}
         />
       ) : (
-        // 3. GİRİŞ YAPILDIYSA: Ana Uygulama (Glassmorphic Alt Navigasyonlu)
+        // 3. GİRİŞ YAPILDIYSA: Ana Uygulama Ekranları
         <View style={styles.mainContainer}>
-          {/* EKRAN İÇERİĞİ */}
           <View style={styles.screenContent}>
-            {activeTab === 'wallet' ? (
-              <View style={styles.walletContainer}>
-                <View style={styles.glassCard}>
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarText}>
-                      {currentUser.displayName.slice(0, 2).toUpperCase()}
-                    </Text>
-                  </View>
-                  <Text style={styles.welcomeTitle}>Hoş Geldiniz, {currentUser.displayName}</Text>
-                  <Text style={styles.welcomeSubtitle}>{currentUser.email}</Text>
-
-                  <View style={styles.balanceContainer}>
-                    <Text style={styles.cardTitle}>💼 SANAL SERMAYE BAKİYESİ</Text>
-                    <Text style={styles.cardAmount}>100.000,00 ₺</Text>
-                    <View style={styles.statusBadge}>
-                      <Text style={styles.statusBadgeText}>● JWT Oturumu Aktif</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity style={styles.logoutPillButton} onPress={handleLogout}>
-                    <Text style={styles.logoutPillButtonText}>Güvenli Çıkış Yap</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+            {activeTab === 'market' ? (
+              <MarketScreen onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })} />
+            ) : activeTab === 'wallet' ? (
+              <PortfolioScreen key={portfolioVersion} onLogout={() => void handleLogout()} />
             ) : activeTab === 'leaderboard' ? (
               <LeaderboardScreen />
             ) : activeTab === 'friends' ? (
@@ -102,8 +131,44 @@ export default function App() {
             )}
           </View>
 
-          {/* BUZLU CAM ALT NAVİGASYON ÇUBUĞU (GLASSMORPHIC BOTTOM BAR) */}
+          {/* AL/SAT & DETAY KATMANLARI */}
+          {detailAsset !== null && (
+            <View style={StyleSheet.absoluteFill}>
+              <AssetDetailScreen
+                symbol={detailAsset.symbol}
+                name={detailAsset.name}
+                onClose={() => setDetailAsset(null)}
+                onTrade={() => setTradeAsset(detailAsset)}
+              />
+            </View>
+          )}
+
+          {tradeAsset !== null && (
+            <View style={StyleSheet.absoluteFill}>
+              <TradeScreen
+                symbol={tradeAsset.symbol}
+                name={tradeAsset.name}
+                onClose={() => setTradeAsset(null)}
+                onOrderPlaced={() => setPortfolioVersion((v) => v + 1)}
+              />
+            </View>
+          )}
+
+          {/* BUZLU CAM ALT NAVİGASYON ÇUBUĞU */}
           <View style={styles.glassBottomTabBar}>
+            <TouchableOpacity
+              style={styles.bottomTabButton}
+              onPress={() => setActiveTab('market')}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.bottomTabIcon, activeTab === 'market' && styles.bottomTabIconActive]}>
+                📈
+              </Text>
+              <Text style={[styles.bottomTabText, activeTab === 'market' && styles.bottomTabTextActive]}>
+                Piyasa
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.bottomTabButton}
               onPress={() => setActiveTab('wallet')}
@@ -165,7 +230,13 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#081226',
+    backgroundColor: '#070C14',
+  },
+  splash: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#070C14',
   },
   mainContainer: {
     flex: 1,
@@ -175,17 +246,16 @@ const styles = StyleSheet.create({
   },
   glassBottomTabBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: '#0D1424',
+    borderColor: '#1E293B',
     borderTopWidth: 1.5,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.4,
     shadowRadius: 20,
-    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
   },
   bottomTabButton: {
     flex: 1,
@@ -194,7 +264,7 @@ const styles = StyleSheet.create({
   },
   bottomTabIcon: {
     fontSize: 20,
-    marginBottom: 4,
+    marginBottom: 2,
     opacity: 0.5,
   },
   bottomTabIconActive: {
@@ -207,106 +277,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   bottomTabTextActive: {
-    color: '#10B981',
+    color: '#A3E635',
     fontWeight: 'bold',
-  },
-  walletContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  glassCard: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    borderWidth: 1.5,
-    borderRadius: 28,
-    padding: 26,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 12,
-    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
-  },
-  avatarCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: '#10B981',
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  welcomeTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  balanceContainer: {
-    width: '100%',
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  cardTitle: {
-    color: '#38BDF8',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-  },
-  cardAmount: {
-    color: '#10B981',
-    fontSize: 34,
-    fontWeight: 'bold',
-    marginVertical: 8,
-  },
-  statusBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.4)',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    marginTop: 4,
-  },
-  statusBadgeText: {
-    color: '#34D399',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  logoutPillButton: {
-    backgroundColor: 'rgba(239, 68, 68, 0.85)',
-    borderRadius: 26,
-    paddingVertical: 13,
-    paddingHorizontal: 32,
-    width: '100%',
-    alignItems: 'center',
-  },
-  logoutPillButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 15,
   },
 });

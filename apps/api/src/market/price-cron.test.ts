@@ -24,8 +24,8 @@ vi.mock("./repository.js", () => ({
 import { listActiveAssets, insertPrice } from "./repository.js";
 
 const ASSETS = [
-  { id: "id-btc", symbol: "BTC", name: "Bitcoin" },
-  { id: "id-eth", symbol: "ETH", name: "Ethereum" },
+  { id: "id-btc", symbol: "BTC", name: "Bitcoin", kind: "crypto" as const },
+  { id: "id-eth", symbol: "ETH", name: "Ethereum", kind: "crypto" as const },
 ];
 
 /** İstenen sembol için sabit fiyat döndüren sahte piyasa kaynağı. */
@@ -34,19 +34,38 @@ function fakeMarket(prices: Record<string, string>): MarketDataProvider {
     getLatest: vi.fn(async (symbol: string) => {
       const price = prices[symbol];
       if (!price) throw new Error(`${symbol} alınamadı`);
-      return { date: "2026-08-18", price: toPrice(price) };
+      return {
+        date: "2026-08-18",
+        openTime: Date.parse("2026-08-18T00:00:00Z"),
+        price: toPrice(price),
+      };
     }),
     getHistory: vi.fn(async () => []),
   };
 }
 
-function fakeFx(rate: string) {
-  return {
-    getUsdTry: vi.fn(async () => ({
+/**
+ * Sahte kur kaynağı.
+ *
+ * `rates` para birimi -> kur. `getUsdTry` artık `getRate("USD", ...)`
+ * kısayolu olduğu için ikisi de aynı tablodan besleniyor.
+ */
+function fakeFx(usdRate: string, rates: Record<string, string> = {}) {
+  const table: Record<string, string> = { USD: usdRate, ...rates };
+
+  const getRate = vi.fn(async (code: string, date: string) => {
+    const rate = table[code];
+    if (!rate) throw new Error(`${code} kuru yok`);
+    return {
       date: "2026-08-18",
-      requestedDate: "2026-08-18",
+      requestedDate: date,
       rate: toPrice(rate),
-    })),
+    };
+  });
+
+  return {
+    getRate,
+    getUsdTry: vi.fn(async (date: string) => getRate("USD", date)),
   };
 }
 
@@ -91,6 +110,9 @@ describe("fetchAndStorePrices", () => {
     // doğru: eksik kayıt, olmayan kayıttan daha tehlikelidir.
     vi.mocked(listActiveAssets).mockResolvedValue(ASSETS);
     const brokenFx = {
+      getRate: vi.fn(async () => {
+        throw new Error("TCMB yanıt vermedi");
+      }),
       getUsdTry: vi.fn(async () => {
         throw new Error("TCMB yanıt vermedi");
       }),
@@ -111,6 +133,35 @@ describe("fetchAndStorePrices", () => {
 
     expect(result.written).toBe(0);
     expect(fx.getUsdTry).not.toHaveBeenCalled();
+  });
+
+  /**
+   * ⚠️ BU TEST BİR HATAYI KİLİTLİYOR.
+   * Eskiden her varlık Binance'e soruluyordu. USD ve EUR'un Binance'te
+   * USDT paritesi olmadığı için cron her turda — 15 saniyede bir — üç
+   * varlık için hata basıyordu. Artık tür kaynağı belirliyor.
+   */
+  it("döviz varlığını Binance'e değil TCMB'ye sorar", async () => {
+    vi.mocked(listActiveAssets).mockResolvedValue([
+      { id: "id-btc", symbol: "BTC", name: "Bitcoin", kind: "crypto" as const },
+      { id: "id-eur", symbol: "EUR", name: "Euro", kind: "fx" as const },
+    ]);
+
+    const market = fakeMarket({ BTC: "1000" }); // EUR bilerek yok
+    const fx = fakeFx("40", { EUR: "45.5" });
+
+    const result = await fetchAndStorePrices(market, fx);
+
+    expect(result.written).toBe(2);
+    expect(result.failed).toEqual([]);
+
+    // Binance'e YALNIZCA BTC sorulmuş olmalı
+    expect(vi.mocked(market.getLatest).mock.calls.map((c) => c[0])).toEqual([
+      "BTC",
+    ]);
+
+    // Döviz TL cinsinden geliyor: çevrim YOK, kur doğrudan fiyat.
+    expect(vi.mocked(insertPrice).mock.calls[1]?.[2]).toBe("45.50000000");
   });
 
   it("tüm varlıklara aynı zaman damgasını yazar", async () => {
