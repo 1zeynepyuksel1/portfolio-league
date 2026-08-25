@@ -50,6 +50,13 @@
       "when": 1787129706913,
       "tag": "0006_bitter_zaran",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787648292936,
+      "tag": "0007_crazy_cammi",
+      "breakpoints": true
     }
   ]
 }
