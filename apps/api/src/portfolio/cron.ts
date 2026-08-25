@@ -35,7 +35,9 @@ export function startPortfolioCron(): void {
   // Zaman Deseni: "55 23 * * *" -> Her gece 23:55'te uyanır
   cron.schedule('55 23 * * *', async () => {
     await takeDailySnapshots();
+  }, {
+    timezone: 'Europe/Istanbul'
   });
 
-  console.log('[portfolio-cron] Günlük portföy özetleme robotu kuruldu (Her gün 23:55).');
+  console.log('[portfolio-cron] Günlük portföy özetleme robotu kuruldu (Her gün 23:55 TSİ).');
 }

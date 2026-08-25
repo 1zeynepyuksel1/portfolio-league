@@ -102,6 +102,8 @@ export function startLeagueClosingCron(): void {
   cron.schedule('59 23 * * 0', async () => {
     console.log('[league-cron] Pazar gecesi lig kapanış nöbeti başladı...');
     await checkAndCloseExpiredLeagues();
+  }, {
+    timezone: 'Europe/Istanbul'
   });
 
   // Sunucu ayağa kalktığında süresi geçmiş lig kalmış mı kontrol et
@@ -109,5 +111,5 @@ export function startLeagueClosingCron(): void {
     console.error('[league-cron] Lig kapanış kontrol hatası:', err);
   });
 
-  console.log('[league-cron] Haftalık lig kapanış robotu kuruldu (Her Pazar 23:59:59).');
+  console.log('[league-cron] Haftalık lig kapanış robotu kuruldu (Her Pazar 23:59:59 TSİ).');
 }

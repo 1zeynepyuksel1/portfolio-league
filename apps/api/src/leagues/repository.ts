@@ -62,24 +62,30 @@ export async function ensureCurrentLeaguePeriod() {
     return existing;
   }
 
-  const now = new Date();
-  // Bu haftanın Pazartesi 00:00:00
-  const dayOfWeek = now.getUTCDay(); // 0: Pazar, 1: Pazartesi, ...
+  // Türkiye saatine (UTC+3) göre bu haftanın başlangıç ve bitişini hesapla
+  const nowTsi = new Date(Date.now() + 3 * 3600 * 1000);
+  const dayOfWeek = nowTsi.getUTCDay(); // 0: Pazar, 1: Pazartesi, ...
   const diffToMonday = (dayOfWeek + 6) % 7;
-  const startsAt = new Date(now);
-  startsAt.setUTCDate(now.getUTCDate() - diffToMonday);
-  startsAt.setUTCHours(0, 0, 0, 0);
 
-  // Bu haftanın Pazar 23:59:59
-  const endsAt = new Date(startsAt);
-  endsAt.setUTCDate(startsAt.getUTCDate() + 6);
-  endsAt.setUTCHours(23, 59, 59, 999);
+  // Pazartesi 00:00:00 TSİ
+  const startsAtTsi = new Date(nowTsi);
+  startsAtTsi.setUTCDate(nowTsi.getUTCDate() - diffToMonday);
+  startsAtTsi.setUTCHours(0, 0, 0, 0);
+  const startsAt = new Date(startsAtTsi.getTime() - 3 * 3600 * 1000);
 
-  // Yıl ve hafta numarası
+  // Pazar 23:59:59.999 TSİ
+  const endsAtTsi = new Date(startsAtTsi);
+  endsAtTsi.setUTCDate(startsAtTsi.getUTCDate() + 6);
+  endsAtTsi.setUTCHours(23, 59, 59, 999);
+  const endsAt = new Date(endsAtTsi.getTime() - 3 * 3600 * 1000);
+
+  // Yıl ve hafta numarası (TSİ zamanına göre)
+  const yearTsi = startsAtTsi.getUTCFullYear();
+  const yearStartTsi = new Date(Date.UTC(yearTsi, 0, 1));
   const weekNumber = Math.ceil(
-    ((startsAt.getTime() - new Date(startsAt.getUTCFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7,
+    ((startsAtTsi.getTime() - yearStartTsi.getTime()) / 86400000 + 1) / 7,
   );
-  const name = `${startsAt.getUTCFullYear()} - ${weekNumber}. Hafta Ligi`;
+  const name = `${yearTsi} - ${weekNumber}. Hafta Ligi`;
 
   return createLeaguePeriod({
     name,
