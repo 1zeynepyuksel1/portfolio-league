@@ -253,3 +253,13 @@ export async function createUserWithAccount(input: {
     };
   });
 }
+
+export async function updateUserPassword(email: string, passwordHash: string) {
+  const [updated] = await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.email, email))
+    .returning({ id: users.id });
+
+  return updated;
+}

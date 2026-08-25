@@ -10,10 +10,12 @@ import {
   revokeRefreshToken,
   rotateRefreshToken,
   updateVerificationCode,
+  updateUserPassword,
 } from './repository.js';
 import type { LoginBody } from './login.schema.js';
 import type { RegisterBody } from './register.schema.js';
 import type { RefreshBody } from './refresh.schema.js';
+import type { ResetPasswordBody } from './reset-password.schema.js';
 import {
   createAccessToken,
   createRefreshToken,
@@ -251,4 +253,21 @@ export async function refreshUserSession(input: RefreshBody) {
 
 export async function logoutUser(input: RefreshBody) {
   await revokeRefreshToken(hashRefreshToken(input.refreshToken));
+}
+
+export class UserNotFoundError extends Error {
+  constructor() {
+    super('Kullanıcı bulunamadı.');
+  }
+}
+
+export async function resetUserPassword(input: ResetPasswordBody) {
+  const user = await findUserByEmail(input.email);
+
+  if (!user) {
+    throw new UserNotFoundError();
+  }
+
+  const passwordHash = await argon2.hash(input.password);
+  await updateUserPassword(input.email, passwordHash);
 }

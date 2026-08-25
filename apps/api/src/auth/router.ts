@@ -3,6 +3,7 @@ import { loginBodySchema } from './login.schema.js';
 import { refreshBodySchema } from './refresh.schema.js';
 import { registerBodySchema } from './register.schema.js';
 import { resendCodeSchema, verifyEmailSchema } from './verify.schema.js';
+import { resetPasswordBodySchema } from './reset-password.schema.js';
 import {
   EmailAlreadyInUseError,
   UsernameAlreadyInUseError,
@@ -16,6 +17,8 @@ import {
   registerUser,
   resendVerificationCode,
   verifyUserEmail,
+  resetUserPassword,
+  UserNotFoundError,
 } from './service.js';
 
 export const authRouter = Router();
@@ -265,4 +268,45 @@ authRouter.post('/logout', async (request, response) => {
 
   await logoutUser(parsedBody.data);
   return response.status(204).send();
+});
+
+authRouter.post('/reset-password', async (request, response) => {
+  const parsedBody = resetPasswordBodySchema.safeParse(request.body);
+
+  if (!parsedBody.success) {
+    return response.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Gönderilen şifre sıfırlama bilgileri geçersiz.',
+        details: parsedBody.error.flatten(),
+      },
+    });
+  }
+
+  try {
+    await resetUserPassword(parsedBody.data);
+
+    return response.status(200).json({
+      success: true,
+      message: 'Şifreniz başarıyla güncellendi.',
+    });
+  } catch (error) {
+    if (error instanceof UserNotFoundError) {
+      return response.status(404).json({
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: error.message,
+        },
+      });
+    }
+
+    logUnexpected('reset-password', error);
+
+    return response.status(500).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Şifre sıfırlanırken beklenmeyen bir hata oluştu.',
+      },
+    });
+  }
 });
