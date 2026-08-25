@@ -18,8 +18,13 @@ const DAY_MS = 24 * HOUR_MS;
  * Mum aralığı -> milisaniye.
  *
  * ⚠️ SAYFALAMA BU TABLOYA BAĞLI. `fetchRange` her turda son mumun
- * zamanına BİR ARALIK ekleyerek ilerliyor. Günlük sabit kalsaydı saatlik
- * çekimde her sayfa 24 saat atlar ve verinin %96'sı sessizce kaybolurdu.
+ * zamanına BİR ARALIK ekleyerek ilerliyor. Tablo yerine sabit `DAY_MS`
+ * yazsaydık saatlik çekimde her sayfanın sonunda 23 saat atlanırdı.
+ *
+ * ÖLÇÜLDÜ (60 günlük saatlik aralık): beklenen 1441 mum, bozuk tabloyla
+ * 1418 — yani kayıp %1,6. Küçük olması TEHLİKEYİ AZALTMIYOR, artırıyor:
+ * %96'lık bir kayıp ilk grafikte göze çarpar, %2'lik kayıp çarpmaz.
+ * Delik hata vermiyor, sadece seride birkaç saat eksik kalıyor.
  */
 const CANDLE_MS: Record<Candle, number> = {
   '5m': 5 * 60 * 1000,

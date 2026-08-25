@@ -11,9 +11,12 @@
  * Bu betik geçmişi bir kerede dolduruyor. `getHistory` zaten yazılıydı
  * (sayfalama, 1000 mum sınırı, tarih dönüşümü) — onu çağıran yoktu.
  *
- * İKİ AŞAMA:
- *   1. USD/TRY günlük kur geçmişi -> belleğe Map (EVDS, yıl yıl ~10 istek)
- *   2. Her varlığın günlük USD geçmişi -> o günün kuruyla TL'ye çevir -> yaz
+ * ÜÇ AŞAMA — ve sıra zorunlu:
+ *   1. Döviz: USD/TRY günlük kur geçmişi -> belleğe Map (EVDS, yıl yıl ~10 istek)
+ *   2. Kripto: Binance'ten günlük USD -> o günün kuruyla TL'ye çevir -> yaz
+ *   3. Maden: LBMA'dan günlük USD/gram -> aynı kurla TL'ye çevir -> yaz
+ *
+ * Döviz ÖNCE olmak zorunda: kur haritası diğer iki aşamanın girdisi.
  *
  * ⚠️ KUR NEDEN ÖNCE VE TOPLU:
  * Her gün için ayrı TCMB XML isteği atmak ~3.300 istek demekti — dakikalar
@@ -36,7 +39,17 @@ import { LbmaAdapter } from './lbma.js';
 import { fetchFxHistory } from './evds.js';
 import { insertPrices, listActiveAssets, type AssetRow } from './repository.js';
 
-/** Binance'in USDT çiftlerinin başlangıcı: 17 Ağustos 2017. */
+/**
+ * Geri doldurmanın başlangıcı — HER ÜÇ KAYNAK İÇİN DE.
+ *
+ * ⚠️ Bu tarih Binance'in başlangıcı DEĞİL. Binance'in USDT çiftleri
+ * 17 Ağustos 2017'de başlıyor; buraya 1 Ocak yazmamızın sebebi kur:
+ * kripto çevrimi için USD kur haritasının, ilk mumdan ÖNCE başlaması
+ * gerekiyor. Aksi hâlde ilk günler "kursuz" diye atlanırdı.
+ *
+ * Kaynağın kendi başlangıcı bizi ilgilendirmiyor — her sağlayıcı
+ * elindekini veriyor, biz ne geldiyse onu yazıyoruz.
+ */
 const START_DATE = '2017-01-01';
 
 /** Tek seferde kaç satır yazılacak. Çok büyük INSERT'ler belleği zorlar. */
@@ -44,6 +57,18 @@ const CHUNK_SIZE = 500;
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Bir satırın damgasından ISO gününü çıkarır ("2020-03-12").
+ *
+ * ⚠️ NEDEN VAR: rapordaki "ilk -> son" aralığı ÇEKİLEN mumlardan değil,
+ * YAZILAN satırlardan türetilmeli. Baştaki ya da sondaki günler kursuz
+ * kalıp atlanmış olabilir; çekilen listenin uçlarını raporlarsak log
+ * veritabanında bulunmayan bir tarihi "ilk" diye gösterir.
+ */
+function dayOf(row: { ts: Date } | undefined): string | undefined {
+  return row?.ts.toISOString().slice(0, 10);
 }
 
 /**
@@ -194,8 +219,8 @@ async function backfillMetal(
   return {
     written: rows.length,
     missingRate,
-    first: rows[0] ? points.find((p) => usdRates.has(p.date))?.date : undefined,
-    last: rows.length > 0 ? points[points.length - 1]?.date : undefined,
+    first: dayOf(rows[0]),
+    last: dayOf(rows[rows.length - 1]),
   };
 }
 
@@ -245,8 +270,8 @@ async function backfillCrypto(
   return {
     written: rows.length,
     missingRate,
-    first: points[0]?.date,
-    last: points[points.length - 1]?.date,
+    first: dayOf(rows[0]),
+    last: dayOf(rows[rows.length - 1]),
   };
 }
 
@@ -271,7 +296,7 @@ async function main(): Promise<void> {
   // Döviz ÖNCE geliyor çünkü USD kur haritası kripto çevrimi için gerekli.
   // Aynı veri iki işe yarıyor: hem USD varlığının kendi fiyat geçmişi,
   // hem de bütün kriptoların TL'ye çevrilmesinde kullanılan kur.
-  console.log(`\n[1/2] ${fxAssets.length} döviz (EVDS, ${startYear}-${endYear})...`);
+  console.log(`\n[1/3] ${fxAssets.length} döviz (EVDS, ${startYear}-${endYear})...`);
 
   let usdRates: Map<string, Price> | null = null;
 

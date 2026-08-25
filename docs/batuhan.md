@@ -16,15 +16,14 @@ Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi biti
 ### 1. Döviz ve varlık listesi genişlemesi — 21 Ağu 2026
 | Dosya | Ne sorulacak |
 |---|---|
-| `market/binance.ts` | `PAIRS` neden kural (`symbol + "USDT"`) değil elle tablo? Coin'lerin başlangıç tarihleri neden koda YAZILMADI? |
-| `market/tcmb.ts` | `FX_UNITS` neden var? JPY neden 100'e bölünüyor? Önbellek neden kuru değil **belgeyi** tutuyor? `parseRate` neden önce `<Currency>` bloğunu izole ediyor? |
-| `market/tcmb.test.ts` | "kur boşsa sonraki para biriminin kuruna sızmaz" testi hangi hatayı kilitliyor? |
-| `market/evds.ts` | `fetchFxHistory` neden `Price` döndürüyor, ham metin değil? Seri kalıbı `TP.DK.{KOD}.A`'daki `.A` ne demek? |
-| `market/price-cron.ts` | `asset.kind === 'fx'` dallanması neden eklendi? Öncesinde ne oluyordu? |
-| `market/price-backfill.ts` | Döviz neden kriptodan **önce** çekiliyor? Döviz neden forward-fill edilmiş hâliyle yazılıyor? |
-| `market/repository.ts` | `AssetKind` neden `$inferSelect`'ten türetiliyor, elle yazılmıyor? |
-| `market/seed.ts` | Fiyat tohumlaması neden tamamen kaldırıldı? `INACTIVE_SYMBOLS` neden ayrı bir UPDATE gerektiriyor? |
-| `market/clean-seed-prices.ts` | Ölçüt neden tarihe değil **saate** göre? |
+| ✅ `market/binance.ts` | `PAIRS` neden kural (`symbol + "USDT"`) değil elle tablo? Coin'lerin başlangıç tarihleri neden koda YAZILMADI? |
+| ✅ `market/tcmb.ts` | `FX_UNITS` neden var? JPY neden 100'e bölünüyor? Önbellek neden kuru değil **belgeyi** tutuyor? `parseRate` neden önce `<Currency>` bloğunu izole ediyor? |
+| ✅ `market/tcmb.test.ts` | "kur boşsa sonraki para biriminin kuruna sızmaz" testi hangi hatayı kilitliyor? |
+| ✅ `market/evds.ts` | `fetchFxHistory` neden `Price` döndürüyor, ham metin değil? Seri kalıbı `TP.DK.{KOD}.A`'daki `.A` ne demek? |
+| ✅ `market/price-cron.ts` | `asset.kind === 'fx'` dallanması neden eklendi? Öncesinde ne oluyordu? |
+| ✅ `market/price-backfill.ts` | Döviz neden kriptodan **önce** çekiliyor? Döviz neden forward-fill edilmiş hâliyle yazılıyor? |
+| ✅ `market/repository.ts` | `AssetKind` neden `$inferSelect`'ten türetiliyor, elle yazılmıyor? |
+| ✅ `market/seed.ts` | Fiyat tohumlaması neden tamamen kaldırıldı? `INACTIVE_SYMBOLS` neden ayrı bir UPDATE gerektiriyor? |
 
 ### 2. Ayar yükleme ve hata görünürlüğü — 21 Ağu 2026
 Bu ikisi **gerçek bir hata ayıklama oturumunun bedeliydi**: kayıt ve giriş
@@ -74,7 +73,7 @@ bir tutar görüp başka bir tutar öderdi.
 |---|---|
 | `market/ranges.ts` | Kova boyutları neden bu sayılar? Hedef nokta aralığı neden 90-500? `max` için `lookbackSeconds` neden `null`, 0 değil? `startOf` neden `now`'u parametre alıyor? |
 | `market/ranges.test.ts` | Test "kod çalışıyor mu"yu değil neyi sınıyor? |
-| `market/repository.ts` (`getPriceSeries`) | `DISTINCT ON (bucket)` + `ORDER BY bucket, ts DESC` birlikte ne yapıyor? Neden `date_trunc` kullanılmadı? Neden ortalama değil **son** fiyat alınıyor? Tarih neden `Date` değil ISO metin + `::timestamp`? Neden `::timestamptz` değil? |
+| ✅ `market/repository.ts` (`getPriceSeries`) | `DISTINCT ON (bucket)` + `ORDER BY bucket, ts DESC` birlikte ne yapıyor? Neden `date_trunc` kullanılmadı? Neden ortalama değil **son** fiyat alınıyor? Tarih neden `Date` değil ISO metin + `::timestamp`? Neden `::timestamptz` değil? |
 | `market/router.ts` | Seyreltme neden sunucuda, istemcide değil? `range` neden kapalı liste, serbest tarih aralığı değil? |
 | `mobile/src/components/PriceChart.tsx` | `Number()` burada neden serbest, `format.ts`'te neden yasak? `y` neden ters çevriliyor? `max === min` olduğunda ne oluyor ve neden **sessiz** bir hata? |
 | `mobile/src/screens/AssetDetailScreen.tsx` | Yüzde değişimde float neden kabul edilebilir? Seyrek veri uyarısı neden var? |
@@ -112,7 +111,7 @@ olduğu için şimdilik bırakıldı ama **bilinçli bir borç**, kaza değil.
 | `market/provider.ts` (`Candle`) | Binance'in `1m`'i ile `ranges.ts`'in `1m`'i neden **aynı şey değil**? Bu karışıklık nasıl işaretlendi? |
 | `market/binance.ts` (`CANDLE_MS`) | Sayfalama neden sabit bir gün değil kova boyutu kadar ilerliyor? Sabit kalsaydı 5 dakikalık mumlarda ne olurdu? |
 | `market/ranges.ts` (`BUCKET_LADDER`, `bucketFor`, `parseWindow`) | Merdivenin en küçüğü neden **5 dakika**? Daha küçük olsaydı kullanıcı ne yaşardı? `range`'in kapalı liste olma kararı neden geri alındı, karşılığında hangi iki koruma kondu? |
-| `market/repository.ts` (`until` parametresi) | Üst sınır neden `null` varsayılanlı? Zorunlu olsaydı mevcut çağıranlar ne olurdu? |
+| ✅ `market/repository.ts` (`until` parametresi) | Üst sınır neden `null` varsayılanlı? Zorunlu olsaydı mevcut çağıranlar ne olurdu? |
 | `portfolio/cost-basis.ts` | Maliyet neden **saklanmıyor**, emir defterinden türetiliyor? `grossCents` değil neden `netCents`? Satışta maliyet neden oranla azaltılıyor? `profitPercent` hangi iki durumda `null` dönüyor ve neden 0 dönmüyor? |
 | `mobile/src/components/PriceChart.tsx` (eksen + yakınlaştırma) | Etiket biçimi neden kova boyutuna göre değişiyor? `scrubRef`/`zoomRef` neden var — `PanResponder` içinde doğrudan state okusaydık ne olurdu? İstek neden parmak kalkınca gidiyor, her karede değil? %15 eşiği ne işe yarıyor? |
 
@@ -124,6 +123,17 @@ olduğu için şimdilik bırakıldı ama **bilinçli bir borç**, kaza değil.
 **Ölçülen sonuç — komisyon maliyete gerçekten dahil:** fiyat hiç değişmemiş
 bir pozisyon **−%0,10** gösterdi. Bu tam olarak komisyon oranı; `grossCents`
 kullansaydık kâr **%0,00** çıkar ve kullanıcı ödediği komisyonu hiç görmezdi.
+
+### 12. Denetim — listede olmayan üç test dosyası (25 Ağu 2026)
+
+Bu üçü `market/` içinde duruyor ama okuma borcuna hiç girmemiş.
+Aynı hata sınıfı: kod eklendi, listeye eklenmedi.
+
+| Dosya | Ne sorulacak |
+|---|---|
+| `market/binance.test.ts` | Sayfalama testi hangi senaryoyu kuruyor? Sahte `fetch` nasıl veriliyor? |
+| `market/lbma.test.ts` | Ons→gram beklenen değerleri nereden geldi? Mutfak onsu testi neyi kanıtlıyor? |
+| `market/repository.test.ts` | Veritabanı olmadan repository nasıl test ediliyor? |
 
 ### 8. Denetim — listeye hiç girmemiş 13 dosya (23 Ağu 2026)
 
@@ -169,7 +179,7 @@ neden öyle olduğu tam anlaşılmaz.
 |---|---|
 | `lib/fx.ts` (`tryToUsd`, `centsTryToUsd`, `parseCurrency`) | `usdToTry`'ın "simetriği" değil "tersi" demek ne fark yaratıyor? Ölçekten bağımsız `divideByRate` neden tek fonksiyon, iki sarmalayıcı? Geçersiz `?currency=eur` neden sessizce TL'ye düşmüyor? |
 | `lib/fx.test.ts` | Gidiş-dönüş çevrim neden **kayıpsız değil** ve bu test neyi kilitliyor? Negatif tutar testi hangi ekran hatasını engelliyor? |
-| `market/repository.ts` (`latestUsdTryRate`) | Kur neden ayrı tabloda değil, **normal bir varlık** olarak tutuluyor? `price_usd` kolonu eklenseydi ne olurdu? `null` dönünce çağıran neden `1` varsaymıyor? |
+| ✅ `market/repository.ts` (`latestUsdTryRate`) | Kur neden ayrı tabloda değil, **normal bir varlık** olarak tutuluyor? `price_usd` kolonu eklenseydi ne olurdu? `null` dönünce çağıran neden `1` varsaymıyor? |
 | `market/router.ts` · `portfolio/router.ts` | Kur neden yalnızca dolar istendiğinde okunuyor? `priceTry` alanının üzerine dolar yazsaydık hata **neden fark edilmezdi**? Kur yoksa neden 503 — sessizce TL döndürmek neden daha kötü? |
 | `mobile/src/lib/currency.tsx` | ⚠️ Sağlayıcı neden **en dışta**, sadece iki sekmeyi sarmıyor? `App` kendi sağladığı context'i neden okuyamıyor? Depoda saçma değer varsa ne oluyor? ⚠️ `./storage` importunda uzantı neden **yok** — API tarafında neden zorunlu? |
 | `mobile/src/lib/storage.ts` (`setPreference`) | Tercih neden token'larla aynı dosyada ama ayrı başlıkta? `clearTokens` tercihe neden dokunmuyor? |
@@ -250,8 +260,8 @@ bildirdiğin eksikleri kapattı. En büyük dosya yığını burada.
 #### Sunucu
 | Dosya | Ne sorulacak |
 |---|---|
-| `market/repository.ts` (`getDailyStats`) | 24 saat özeti neden **migration gerektirmiyor** ama mum grafiği gerektiriyor — aradaki ölçek farkı ne? Açılış/kapanış neden `MIN`/`MAX` ile alınamıyor? |
-| `market/repository.ts` (24s değişim) | Neden **tam eşleşme** aranmıyor? Alt sınır neden 48 saat? ⚠️ SQL yorumunda **ters tırnak** neden kullanılamıyor? |
+| ✅ `market/repository.ts` (`getDailyStats`) | 24 saat özeti neden **migration gerektirmiyor** ama mum grafiği gerektiriyor — aradaki ölçek farkı ne? Açılış/kapanış neden `MIN`/`MAX` ile alınamıyor? |
+| ✅ `market/repository.ts` (24s değişim) | Neden **tam eşleşme** aranmıyor? Alt sınır neden 48 saat? ⚠️ SQL yorumunda **ters tırnak** neden kullanılamıyor? |
 | `what-if/repository.ts` (`findMultiplesForDate`) | Tek sorgu neden şart — N+1 burada kaç sorgu ederdi? |
 | `what-if/service.ts` (`calculateMultiples`) | Enflasyon katı nasıl hesaplanıyor? Liste neden **büyükten küçüğe** sıralı dönüyor? |
 | `what-if/service.ts` (iki kur) | ⚠️ Başlangıç ve bugün kuru neden **ayrı** okunuyor? Tek kur kullansaydık 12 Mart 2020 bitcoin'i kaç dolar çıkardı? |
@@ -435,8 +445,20 @@ Araştırman gerekenler: transaction izolasyon seviyeleri, `SELECT FOR UPDATE` n
       hata **gizli kalmıştı** — ama seed her çalıştığında geri gelecekti.
       Kural: fiyatın tek kaynağı backfill (geçmiş) + cron (canlı). Tohum
       dosyası fiyata dokunmaz.
-      `market/clean-seed-prices.ts` bu satırları arayıp silen betik; şu an
-      bulacak bir şey yok, eski bir veritabanına karşı çalıştırılırsa işe yarar.
+      `market/clean-seed-prices.ts` bu satırları arayıp silen betikti.
+      **25 Ağu 2026'da SİLİNDİ** — görevini bitirmişti (ölçüldü: temizlenecek
+      0 satır) ve durduğu yerde tehlikeliydi.
+
+      ⚠️ **NEDEN TEHLİKELİYDİ — ders bu.** İkinci aşaması şu varsayıma
+      dayanıyordu: *"GRAM_ALTIN'a cron hiç yazmıyor, o yüzden oradaki gece
+      yarısı olmayan HER satır tohumdandır."* Yazıldığında doğruydu.
+      24 Ağu'da LBMA adapteri eklenince `GRAM_ALTIN` aktif bir maden oldu ve
+      cron 15 saniyede bir yazmaya başladı. Ölçüldü: `--apply` ile
+      çalıştırılsa **1.844 geçerli fiyat kaydı** silinecekti, hata vermeden.
+
+      Kod bozulmadı — **dünyası değişti.** Aynı tuzak `binance.ts`'te de
+      uyarılıyor: koda gömülen bir gerçek, dünya değişince sessizce yalan
+      söyler. Tek seferlik betikler işi bitince silinmeli.
 
 - [x] **Geri doldurma betiği** — `market/price-backfill.ts`, 21 Ağu 2026
       Artık **18 varlığın hepsini** dolduruyor, iki ayrı akışla:
