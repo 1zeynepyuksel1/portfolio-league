@@ -16,7 +16,7 @@ vi.mock('argon2', () => ({
 
 describe('Password Reset Service Unit Tests', () => {
   it('should throw UserNotFoundError if email is not found', async () => {
-    vi.mocked(repository.findUserByEmail).mockResolvedValueOnce(null);
+    vi.mocked(repository.findUserByEmail).mockResolvedValueOnce(undefined);
 
     await expect(
       resetUserPassword({

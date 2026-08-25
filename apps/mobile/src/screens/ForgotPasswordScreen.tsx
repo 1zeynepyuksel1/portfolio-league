@@ -1,14 +1,3 @@
-/**
- * RegisterScreen — Login ile aynı tasarım dilinde kayıt ekranı.
- *
- * ⚠️ BU EKRAN HANDOFF'TA YOKTU.
- * Tasarım paketi Welcome + Login içeriyor; "Hesabınız yok mu? Hesap aç"
- * bağlantısı var ama gideceği ekran çizilmemiş. Kayıt olmadan uygulama
- * kullanılamaz (100.000 TL sanal bakiye kayıtta açılıyor), o yüzden
- * Login'in belirteçleriyle — aynı alan, aynı düğme, aynı boşluklar —
- * kuruldu. Yeni bir görsel karar alınmadı; hepsi theme.ts'ten geliyor.
- */
-
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -19,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { apiFetch, saveSession } from '../api/client';
+import { apiFetch } from '../api/client';
 import { ChartBackground } from '../components/ChartBackground';
 import {
   ErrorRow,
@@ -29,41 +18,20 @@ import {
 } from '../components/AuthControls';
 import { colors, fonts, spacing } from '../theme';
 
-type AuthUser = { id: string; email: string; displayName: string };
-
-type AuthResponse = {
-  user: AuthUser;
-  accessToken: string;
-  refreshToken: string;
-};
-
 type Props = {
-  onRegisterSuccess: (user: AuthUser) => void;
-  /** "Giriş yap" bağlantısı — Login ekranına döner. */
+  onSuccess: () => void;
   onGoToLogin: () => void;
 };
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-/**
- * ⚠️ SUNUCUNUN KURALIYLA AYNI OLMALI.
- * Backend `register.schema.ts`'te isim en az 2, şifre en az 8 karakter
- * istiyor. Burada daha gevşek davransaydık kullanıcı formu doldurur,
- * gönderir ve sunucudan gelen İngilizce Zod hatasını görürdü. İstemci
- * doğrulaması sunucununkini değiştirmez — onu ÖNCEDEN, kendi dilinde
- * söyler.
- */
 const MIN_PASSWORD_LENGTH = 8;
-const MIN_NAME_LENGTH = 2;
 
-export function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props) {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [username, setUsername] = useState('');
+export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
   function edit(setter: (v: string) => void) {
@@ -74,30 +42,7 @@ export function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props) {
   }
 
   async function handleSubmit() {
-    const first = firstName.trim();
-    const last = lastName.trim();
-    const user = username.trim();
     const mail = email.trim();
-
-    if (first.length < MIN_NAME_LENGTH) {
-      setError(`İsim en az ${MIN_NAME_LENGTH} karakter olmalı.`);
-      return;
-    }
-
-    if (last.length < MIN_NAME_LENGTH) {
-      setError(`Soyisim en az ${MIN_NAME_LENGTH} karakter olmalı.`);
-      return;
-    }
-
-    if (user.length < 3) {
-      setError('Kullanıcı adı en az 3 karakter olmalı.');
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9_]+$/.test(user)) {
-      setError('Kullanıcı adı sadece harf, rakam ve alt çizgi içerebilir.');
-      return;
-    }
 
     if (!EMAIL_PATTERN.test(mail)) {
       setError('Geçerli bir e-posta adresi girin.');
@@ -117,22 +62,17 @@ export function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props) {
     setLoading(true);
 
     try {
-      const res = await apiFetch<AuthResponse>('/auth/register', {
+      await apiFetch<{ success: boolean; message: string }>('/auth/reset-password', {
         method: 'POST',
-        body: JSON.stringify({
-          email: mail,
-          password,
-          confirmPassword,
-          firstName: first,
-          lastName: last,
-          username: user,
-        }),
+        body: JSON.stringify({ email: mail, password, confirmPassword }),
       });
 
-      await saveSession(res.accessToken, res.refreshToken);
-      onRegisterSuccess(res.user);
+      setSuccessMsg('Şifreniz başarıyla sıfırlandı. Giriş sayfasına yönlendiriliyorsunuz...');
+      setTimeout(() => {
+        onSuccess();
+      }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kayıt oluşturulamadı.');
+      setError(err instanceof Error ? err.message : 'Şifre sıfırlanamadı.');
     } finally {
       setLoading(false);
     }
@@ -157,43 +97,13 @@ export function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props) {
           </View>
 
           <View style={styles.hero}>
-            <Text style={styles.title}>Hesabınızı{'\n'}oluşturun.</Text>
+            <Text style={styles.title}>Şifrenizi{'\n'}sıfırlayın.</Text>
             <Text style={styles.subtitle}>
-              100.000 TL sanal bakiyeniz hazır.
+              Yeni şifrenizi belirleyin ve onaylayın.
             </Text>
           </View>
 
           <View style={styles.form}>
-            <Field
-              placeholder="İsim"
-              value={firstName}
-              onChangeText={edit(setFirstName)}
-              autoCapitalize="words"
-              autoComplete="name"
-              textContentType="givenName"
-              editable={!loading}
-            />
-
-            <Field
-              placeholder="Soyisim"
-              value={lastName}
-              onChangeText={edit(setLastName)}
-              autoCapitalize="words"
-              autoComplete="name-family"
-              textContentType="familyName"
-              editable={!loading}
-            />
-
-            <Field
-              placeholder="Kullanıcı adı"
-              value={username}
-              onChangeText={edit(setUsername)}
-              autoCapitalize="none"
-              autoComplete="username"
-              textContentType="username"
-              editable={!loading}
-            />
-
             <Field
               placeholder="E-posta adresi"
               value={email}
@@ -202,50 +112,48 @@ export function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props) {
               autoCapitalize="none"
               autoComplete="email"
               textContentType="emailAddress"
-              editable={!loading}
+              editable={!loading && successMsg === ''}
             />
 
             <Field
-              placeholder="Şifre (en az 8 karakter)"
+              placeholder="Yeni şifre (en az 8 karakter)"
               value={password}
               onChangeText={edit(setPassword)}
               isPassword
               autoCapitalize="none"
               autoComplete="new-password"
               textContentType="newPassword"
-              editable={!loading}
+              editable={!loading && successMsg === ''}
             />
 
             <Field
-              placeholder="Şifre tekrarı"
+              placeholder="Yeni şifre tekrarı"
               value={confirmPassword}
               onChangeText={edit(setConfirmPassword)}
               isPassword
               autoCapitalize="none"
               autoComplete="new-password"
               textContentType="newPassword"
-              editable={!loading}
+              editable={!loading && successMsg === ''}
             />
 
             {error !== '' && <ErrorRow message={error} />}
+            {successMsg !== '' && (
+              <Text style={styles.successText}>{successMsg}</Text>
+            )}
 
             <View style={styles.ctaWrap}>
               <PrimaryButton
-                label={loading ? 'Oluşturuluyor…' : 'Hesap aç'}
+                label={loading ? 'Sıfırlanıyor…' : 'Şifreyi sıfırla'}
                 onPress={() => void handleSubmit()}
-                loading={loading}
+                loading={loading || successMsg !== ''}
               />
             </View>
-
-            <Text style={styles.legal}>
-              Devam ederek Kullanım Koşulları ve Gizlilik Politikası'nı kabul
-              edersiniz.
-            </Text>
           </View>
 
           <View style={styles.footer}>
             <View style={styles.loginRow}>
-              <Text style={styles.loginText}>Zaten hesabınız var mı?</Text>
+              <Text style={styles.loginText}>Şifrenizi hatırladınız mı?</Text>
               <Pressable onPress={onGoToLogin} accessibilityRole="button">
                 {({ pressed }) => (
                   <Text
@@ -315,11 +223,10 @@ const styles = StyleSheet.create({
 
   form: { marginTop: 28, gap: 12 },
   ctaWrap: { marginTop: 6 },
-  legal: {
-    fontSize: 12,
-    lineHeight: 18,
+  successText: {
+    fontSize: 13,
     fontFamily: fonts.regular,
-    color: colors.inkGhost,
+    color: colors.gain,
     textAlign: 'center',
     marginTop: 10,
   },
