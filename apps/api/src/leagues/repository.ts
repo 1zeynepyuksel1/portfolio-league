@@ -1,13 +1,19 @@
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, sql, lte } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { friendships, leagueEntries, leaguePeriods, users } from '../db/schema.js';
 
 // Açık olan aktif ligi getir
 export async function findCurrentOpenLeague() {
+  const now = new Date();
   const [period] = await db
     .select()
     .from(leaguePeriods)
-    .where(eq(leaguePeriods.status, 'open'))
+    .where(
+      and(
+        eq(leaguePeriods.status, 'open'),
+        lte(leaguePeriods.startsAt, now),
+      ),
+    )
     .orderBy(desc(leaguePeriods.startsAt))
     .limit(1);
 
@@ -56,24 +62,30 @@ export async function ensureCurrentLeaguePeriod() {
     return existing;
   }
 
-  const now = new Date();
-  // Bu haftanın Pazartesi 00:00:00
-  const dayOfWeek = now.getUTCDay(); // 0: Pazar, 1: Pazartesi, ...
+  // Türkiye saatine (UTC+3) göre bu haftanın başlangıç ve bitişini hesapla
+  const nowTsi = new Date(Date.now() + 3 * 3600 * 1000);
+  const dayOfWeek = nowTsi.getUTCDay(); // 0: Pazar, 1: Pazartesi, ...
   const diffToMonday = (dayOfWeek + 6) % 7;
-  const startsAt = new Date(now);
-  startsAt.setUTCDate(now.getUTCDate() - diffToMonday);
-  startsAt.setUTCHours(0, 0, 0, 0);
 
-  // Bu haftanın Pazar 23:59:59
-  const endsAt = new Date(startsAt);
-  endsAt.setUTCDate(startsAt.getUTCDate() + 6);
-  endsAt.setUTCHours(23, 59, 59, 999);
+  // Pazartesi 00:00:00 TSİ
+  const startsAtTsi = new Date(nowTsi);
+  startsAtTsi.setUTCDate(nowTsi.getUTCDate() - diffToMonday);
+  startsAtTsi.setUTCHours(0, 0, 0, 0);
+  const startsAt = new Date(startsAtTsi.getTime() - 3 * 3600 * 1000);
 
-  // Yıl ve hafta numarası
+  // Pazar 23:59:59.999 TSİ
+  const endsAtTsi = new Date(startsAtTsi);
+  endsAtTsi.setUTCDate(startsAtTsi.getUTCDate() + 6);
+  endsAtTsi.setUTCHours(23, 59, 59, 999);
+  const endsAt = new Date(endsAtTsi.getTime() - 3 * 3600 * 1000);
+
+  // Yıl ve hafta numarası (TSİ zamanına göre)
+  const yearTsi = startsAtTsi.getUTCFullYear();
+  const yearStartTsi = new Date(Date.UTC(yearTsi, 0, 1));
   const weekNumber = Math.ceil(
-    ((startsAt.getTime() - new Date(startsAt.getUTCFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7,
+    ((startsAtTsi.getTime() - yearStartTsi.getTime()) / 86400000 + 1) / 7,
   );
-  const name = `${startsAt.getUTCFullYear()} - ${weekNumber}. Hafta Ligi`;
+  const name = `${yearTsi} - ${weekNumber}. Hafta Ligi`;
 
   return createLeaguePeriod({
     name,
@@ -89,11 +101,12 @@ export async function getLeaderboardByLeagueId(
   limit = 50,
   offset = 0,
 ) {
-  return db
+  const rows = await db
     .select({
       periodId: leagueEntries.periodId,
       userId: leagueEntries.userId,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
       isPublic: users.isPublic,
       startValueCents: leagueEntries.startValueCents,
       endValueCents: leagueEntries.endValueCents,
@@ -107,6 +120,18 @@ export async function getLeaderboardByLeagueId(
     .orderBy(sql`COALESCE(${leagueEntries.rank}, 999999) ASC`, desc(leagueEntries.twrPct))
     .limit(limit)
     .offset(offset);
+
+  return rows.map((row) => ({
+    periodId: row.periodId,
+    userId: row.userId,
+    displayName: `${row.firstName} ${row.lastName}`,
+    isPublic: row.isPublic,
+    startValueCents: row.startValueCents,
+    endValueCents: row.endValueCents,
+    twrPct: row.twrPct,
+    rank: row.rank,
+    updatedAt: row.updatedAt,
+  }));
 }
 
 // Sadece arkadaşların (ve kendisinin) olduğu mini lig sıralamasını getir
@@ -135,11 +160,12 @@ export async function getFriendsLeaderboardByLeagueId(
     return [];
   }
 
-  return db
+  const rows = await db
     .select({
       periodId: leagueEntries.periodId,
       userId: leagueEntries.userId,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
       isPublic: users.isPublic,
       startValueCents: leagueEntries.startValueCents,
       endValueCents: leagueEntries.endValueCents,
@@ -156,6 +182,18 @@ export async function getFriendsLeaderboardByLeagueId(
       ),
     )
     .orderBy(desc(leagueEntries.twrPct));
+
+  return rows.map((row) => ({
+    periodId: row.periodId,
+    userId: row.userId,
+    displayName: `${row.firstName} ${row.lastName}`,
+    isPublic: row.isPublic,
+    startValueCents: row.startValueCents,
+    endValueCents: row.endValueCents,
+    twrPct: row.twrPct,
+    rank: row.rank,
+    updatedAt: row.updatedAt,
+  }));
 }
 
 // Lige katılımcı kaydı ekle / güncelle

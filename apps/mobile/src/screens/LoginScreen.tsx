@@ -48,6 +48,7 @@ type Props = {
   onLoginSuccess: (user: AuthUser) => void;
   /** "Hesap aç" bağlantısı — kayıt ekranına götürür. */
   onGoToRegister: () => void;
+  onGoToForgotPassword: () => void;
 };
 
 /**
@@ -101,7 +102,7 @@ function GoogleGlyph() {
   );
 }
 
-export function LoginScreen({ onLoginSuccess, onGoToRegister }: Props) {
+export function LoginScreen({ onLoginSuccess, onGoToRegister, onGoToForgotPassword }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -235,7 +236,7 @@ export function LoginScreen({ onLoginSuccess, onGoToRegister }: Props) {
             </View>
 
             <Pressable
-              onPress={() => setError('Şifre sıfırlama yakında eklenecek.')}
+              onPress={onGoToForgotPassword}
               accessibilityRole="button"
               style={styles.forgot}
             >

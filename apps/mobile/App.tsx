@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from '@expo-google-fonts/rubik';
@@ -23,6 +23,7 @@ import { PortfolioScreen } from './src/screens/PortfolioScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
+import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { colors } from './src/theme';
 import { TabBar, type TabKey } from './src/components/TabBar';
 import { CurrencyProvider } from './src/lib/currency';
@@ -35,25 +36,25 @@ type User = {
 };
 
 /**
- * ÔÜá´©Å SEKME L─░STES─░ TabBar'DAN GEL─░YOR, BURADA TEKRAR TANIMLANMIYOR.
+ * ⚠️ SEKME LİSTESİ TabBar'DAN GELİYOR, BURADA TEKRAR TANIMLANMIYOR.
  *
- * ─░ki ayr─▒ liste tutsayd─▒k biri de─şi┼şip ├Âb├╝r├╝ kal─▒rd─▒ ve TypeScript
- * bunu yaln─▒zca kullan─▒ld─▒─ş─▒ yerde yakalard─▒. Tek kaynak: TabKey.
+ * İki ayrı liste tutsaydık biri değişip öbürü kalırdı ve TypeScript
+ * bunu yalnızca kullanıldığı yerde yakalardı. Tek kaynak: TabKey.
  *
- * ÔÜá´©Å 'friends' SEKMES─░ KALDIRILDI ÔÇö tasar─▒m─▒n karar─▒. Arkada┼şlar art─▒k
- * Lig ekran─▒n─▒n i├ğinde bir alt sekme; ikisi de "ba┼şkalar─▒na g├Âre
- * neredeyim" sorusunu soruyor ve ayr─▒ sekmelerde kar┼ş─▒la┼şt─▒rmak zordu.
+ * ⚠️ 'friends' SEKMESİ KALDIRILDI — tasarımın kararı. Arkadaşlar artık
+ * Lig ekranının içinde bir alt sekme; ikisi de "başkalarına göre
+ * neredeyim" sorusunu soruyor ve ayrı sekmelerde karşılaştırmak zordu.
  */
 type Tab = TabKey;
 
 /**
- * Giri┼ş yap─▒lmam─▒┼şken hangi ekran g├Âr├╝n├╝yor.
+ * Giriş yapılmamışken hangi ekran görünüyor.
  *
- * Uygulama ilk a├ğ─▒ld─▒─ş─▒nda `welcome` ÔÇö tasar─▒m─▒n karar─▒: kullan─▒c─▒
- * uygulamay─▒ ilk indirdi─şinde markay─▒ g├Ârs├╝n, sonra yol se├ğsin.
- * Oturum geri y├╝klenemezse de buraya d├╝┼ş├╝l├╝yor.
+ * Uygulama ilk açıldığında `welcome` — tasarımın kararı: kullanıcı
+ * uygulamayı ilk indirdiğinde markayı görsün, sonra yol seçsin.
+ * Oturum geri yüklenemezse de buraya düşülüyor.
  */
-type AuthView = 'welcome' | 'login' | 'register';
+type AuthView = 'welcome' | 'login' | 'register' | 'forgot-password';
 
 /**
  * K├Âk bile┼şen.
@@ -204,10 +205,16 @@ function AppShell() {
           <LoginScreen
             onLoginSuccess={(user) => setCurrentUser(user)}
             onGoToRegister={() => setAuthView('register')}
+            onGoToForgotPassword={() => setAuthView('forgot-password')}
           />
         ) : authView === 'register' ? (
           <RegisterScreen
             onRegisterSuccess={(user) => setCurrentUser(user)}
+            onGoToLogin={() => setAuthView('login')}
+          />
+        ) : authView === 'forgot-password' ? (
+          <ForgotPasswordScreen
+            onSuccess={() => setAuthView('login')}
             onGoToLogin={() => setAuthView('login')}
           />
         ) : (

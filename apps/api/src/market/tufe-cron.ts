@@ -53,7 +53,9 @@ export function startTufeCron(): void {
   cron.schedule('5 10 3 * *', async () => {
     console.log('[tufe-cron] Aylık TÜFE çekme nöbeti başladı...');
     await fetchAndStoreLatestTufe();
+  }, {
+    timezone: 'Europe/Istanbul'
   });
 
-  console.log('[tufe-cron] Aylık TÜFE cron robotu kuruldu (Her ayın 3\'ünde saat 10:05).');
+  console.log('[tufe-cron] Aylık TÜFE cron robotu kuruldu (Her ayın 3\'ünde saat 10:05 TSİ).');
 }

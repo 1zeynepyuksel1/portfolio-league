@@ -12,12 +12,24 @@ export async function findUserByEmail(email: string) {
   return user;
 }
 
+export async function findUserByUsername(username: string) {
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1);
+
+  return user;
+}
+
 export async function findUserForLogin(email: string) {
   const [user] = await db
     .select({
       id: users.id,
       email: users.email,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      username: users.username,
       passwordHash: users.passwordHash,
       isEmailVerified: users.isEmailVerified,
     })
@@ -25,7 +37,16 @@ export async function findUserForLogin(email: string) {
     .where(eq(users.email, email))
     .limit(1);
 
-  return user;
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    passwordHash: user.passwordHash,
+    isEmailVerified: user.isEmailVerified,
+    displayName: `${user.firstName} ${user.lastName}`,
+    username: user.username,
+  };
 }
 
 export async function findUserById(id: string) {
@@ -33,7 +54,9 @@ export async function findUserById(id: string) {
     .select({
       id: users.id,
       email: users.email,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      username: users.username,
       isPublic: users.isPublic,
       isEmailVerified: users.isEmailVerified,
       createdAt: users.createdAt,
@@ -42,7 +65,17 @@ export async function findUserById(id: string) {
     .where(eq(users.id, id))
     .limit(1);
 
-  return user;
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    isPublic: user.isPublic,
+    isEmailVerified: user.isEmailVerified,
+    createdAt: user.createdAt,
+    displayName: `${user.firstName} ${user.lastName}`,
+    username: user.username,
+  };
 }
 
 export async function findUserVerificationInfo(id: string) {
@@ -50,7 +83,9 @@ export async function findUserVerificationInfo(id: string) {
     .select({
       id: users.id,
       email: users.email,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      username: users.username,
       isEmailVerified: users.isEmailVerified,
       verificationCode: users.verificationCode,
     })
@@ -58,7 +93,16 @@ export async function findUserVerificationInfo(id: string) {
     .where(eq(users.id, id))
     .limit(1);
 
-  return user;
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    isEmailVerified: user.isEmailVerified,
+    verificationCode: user.verificationCode,
+    displayName: `${user.firstName} ${user.lastName}`,
+    username: user.username,
+  };
 }
 
 export async function updateVerificationCode(id: string, code: string) {
@@ -142,8 +186,9 @@ export async function rotateRefreshToken(input: {
 export async function createUserWithAccount(input: {
   email: string;
   passwordHash: string;
-  displayName: string;
-  username?: string | undefined;
+  firstName: string;
+  lastName: string;
+  username: string;
   verificationCode: string;
   refreshTokenHash: string;
   refreshTokenExpiresAt: Date;
@@ -152,14 +197,12 @@ export async function createUserWithAccount(input: {
     const userValues: typeof users.$inferInsert = {
       email: input.email,
       passwordHash: input.passwordHash,
-      displayName: input.displayName,
-      isEmailVerified: false,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      username: input.username,
+      isEmailVerified: true,
       verificationCode: input.verificationCode,
     };
-
-    if (input.username) {
-      userValues.username = input.username;
-    }
 
     const [user] = await transaction
       .insert(users)
@@ -167,7 +210,8 @@ export async function createUserWithAccount(input: {
       .returning({
         id: users.id,
         email: users.email,
-        displayName: users.displayName,
+        firstName: users.firstName,
+        lastName: users.lastName,
         username: users.username,
         isEmailVerified: users.isEmailVerified,
       });
@@ -200,6 +244,22 @@ export async function createUserWithAccount(input: {
       expiresAt: input.refreshTokenExpiresAt,
     });
 
-    return user;
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      isEmailVerified: user.isEmailVerified,
+      displayName: `${user.firstName} ${user.lastName}`,
+    };
   });
+}
+
+export async function updateUserPassword(email: string, passwordHash: string) {
+  const [updated] = await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.email, email))
+    .returning({ id: users.id });
+
+  return updated;
 }
