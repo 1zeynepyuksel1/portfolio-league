@@ -89,11 +89,12 @@ export async function getLeaderboardByLeagueId(
   limit = 50,
   offset = 0,
 ) {
-  return db
+  const rows = await db
     .select({
       periodId: leagueEntries.periodId,
       userId: leagueEntries.userId,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
       isPublic: users.isPublic,
       startValueCents: leagueEntries.startValueCents,
       endValueCents: leagueEntries.endValueCents,
@@ -107,6 +108,18 @@ export async function getLeaderboardByLeagueId(
     .orderBy(sql`COALESCE(${leagueEntries.rank}, 999999) ASC`, desc(leagueEntries.twrPct))
     .limit(limit)
     .offset(offset);
+
+  return rows.map((row) => ({
+    periodId: row.periodId,
+    userId: row.userId,
+    displayName: `${row.firstName} ${row.lastName}`,
+    isPublic: row.isPublic,
+    startValueCents: row.startValueCents,
+    endValueCents: row.endValueCents,
+    twrPct: row.twrPct,
+    rank: row.rank,
+    updatedAt: row.updatedAt,
+  }));
 }
 
 // Sadece arkadaşların (ve kendisinin) olduğu mini lig sıralamasını getir
@@ -135,11 +148,12 @@ export async function getFriendsLeaderboardByLeagueId(
     return [];
   }
 
-  return db
+  const rows = await db
     .select({
       periodId: leagueEntries.periodId,
       userId: leagueEntries.userId,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
       isPublic: users.isPublic,
       startValueCents: leagueEntries.startValueCents,
       endValueCents: leagueEntries.endValueCents,
@@ -156,6 +170,18 @@ export async function getFriendsLeaderboardByLeagueId(
       ),
     )
     .orderBy(desc(leagueEntries.twrPct));
+
+  return rows.map((row) => ({
+    periodId: row.periodId,
+    userId: row.userId,
+    displayName: `${row.firstName} ${row.lastName}`,
+    isPublic: row.isPublic,
+    startValueCents: row.startValueCents,
+    endValueCents: row.endValueCents,
+    twrPct: row.twrPct,
+    rank: row.rank,
+    updatedAt: row.updatedAt,
+  }));
 }
 
 // Lige katılımcı kaydı ekle / güncelle

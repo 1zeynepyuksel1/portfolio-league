@@ -5,6 +5,7 @@ import { registerBodySchema } from './register.schema.js';
 import { resendCodeSchema, verifyEmailSchema } from './verify.schema.js';
 import {
   EmailAlreadyInUseError,
+  UsernameAlreadyInUseError,
   EmailNotVerifiedError,
   InvalidCredentialsError,
   InvalidRefreshTokenError,
@@ -71,6 +72,15 @@ authRouter.post('/register', async (request, response) => {
       return response.status(409).json({
         error: {
           code: 'EMAIL_ALREADY_IN_USE',
+          message: error.message,
+        },
+      });
+    }
+
+    if (error instanceof UsernameAlreadyInUseError) {
+      return response.status(409).json({
+        error: {
+          code: 'USERNAME_ALREADY_IN_USE',
           message: error.message,
         },
       });

@@ -3,6 +3,7 @@ import {
   addRefreshToken,
   createUserWithAccount,
   findUserByEmail,
+  findUserByUsername,
   findUserForLogin,
   findUserVerificationInfo,
   markEmailVerified,
@@ -22,6 +23,12 @@ import {
 export class EmailAlreadyInUseError extends Error {
   constructor() {
     super('Bu e-posta adresi zaten kullanılıyor.');
+  }
+}
+
+export class UsernameAlreadyInUseError extends Error {
+  constructor() {
+    super('Bu kullanıcı adı zaten alınmış.');
   }
 }
 
@@ -70,6 +77,12 @@ export async function registerUser(input: RegisterBody) {
     throw new EmailAlreadyInUseError();
   }
 
+  const existingUsername = await findUserByUsername(input.username);
+
+  if (existingUsername) {
+    throw new UsernameAlreadyInUseError();
+  }
+
   const passwordHash = await argon2.hash(input.password);
   const refreshToken = createRefreshToken();
   const verificationCode = generate6DigitCode();
@@ -78,7 +91,8 @@ export async function registerUser(input: RegisterBody) {
     const user = await createUserWithAccount({
       email: input.email,
       passwordHash,
-      displayName: input.displayName,
+      firstName: input.firstName,
+      lastName: input.lastName,
       username: input.username,
       verificationCode,
       refreshTokenHash: refreshToken.tokenHash,
@@ -100,7 +114,7 @@ export async function registerUser(input: RegisterBody) {
     };
   } catch (error) {
     if (isUniqueViolation(error)) {
-      throw new EmailAlreadyInUseError();
+      throw new Error('E-posta veya kullanıcı adı zaten kullanımda.');
     }
 
     throw error;
