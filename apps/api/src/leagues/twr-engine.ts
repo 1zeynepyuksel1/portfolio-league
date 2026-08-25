@@ -1,7 +1,7 @@
 import { calculateTwr, type TwrSubPeriod } from '@portfolio-league/contracts';
 import { db } from '../db/client.js';
 import { cashMovements, portfolioSnapshots, users } from '../db/schema.js';
-import { and, asc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, eq, gte, lte, ne } from 'drizzle-orm';
 import { getPortfolio } from '../portfolio/service.js';
 import {
   ensureCurrentLeaguePeriod,
@@ -90,6 +90,7 @@ export async function calculateTwrForUser(
     .where(
       and(
         eq(cashMovements.userId, userId),
+        ne(cashMovements.kind, 'signup_bonus'),
         gte(cashMovements.createdAt, league.startsAt),
         lte(cashMovements.createdAt, league.endsAt),
       ),
