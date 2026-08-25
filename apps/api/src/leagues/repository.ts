@@ -1,13 +1,19 @@
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, sql, lte } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { friendships, leagueEntries, leaguePeriods, users } from '../db/schema.js';
 
 // Açık olan aktif ligi getir
 export async function findCurrentOpenLeague() {
+  const now = new Date();
   const [period] = await db
     .select()
     .from(leaguePeriods)
-    .where(eq(leaguePeriods.status, 'open'))
+    .where(
+      and(
+        eq(leaguePeriods.status, 'open'),
+        lte(leaguePeriods.startsAt, now),
+      ),
+    )
     .orderBy(desc(leaguePeriods.startsAt))
     .limit(1);
 
