@@ -21,6 +21,9 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   displayName: text('display_name').notNull(),
+  username: text('username'),
+  isEmailVerified: boolean('is_email_verified').default(false).notNull(),
+  verificationCode: text('verification_code'),
   isPublic: boolean('is_public').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -78,6 +81,10 @@ export const priceHistory = pgTable(
       .references(() => assets.id, { onDelete: 'cascade' }),
     ts: timestamp('ts').notNull(),
     priceTry: numeric('price_try', { precision: 24, scale: 8 }).notNull(),
+    openUsd: numeric('open_usd', { precision: 24, scale: 8 }),
+    highUsd: numeric('high_usd', { precision: 24, scale: 8 }),
+    lowUsd: numeric('low_usd', { precision: 24, scale: 8 }),
+    granularity: text('granularity'),
   },
   (table) => [
     primaryKey({ columns: [table.assetId, table.ts] }),

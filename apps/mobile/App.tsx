@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from '@expo-google-fonts/rubik';
@@ -35,40 +35,40 @@ type User = {
 };
 
 /**
- * ⚠️ SEKME LİSTESİ TabBar'DAN GELİYOR, BURADA TEKRAR TANIMLANMIYOR.
+ * ÔÜá´©Å SEKME L─░STES─░ TabBar'DAN GEL─░YOR, BURADA TEKRAR TANIMLANMIYOR.
  *
- * İki ayrı liste tutsaydık biri değişip öbürü kalırdı ve TypeScript
- * bunu yalnızca kullanıldığı yerde yakalardı. Tek kaynak: TabKey.
+ * ─░ki ayr─▒ liste tutsayd─▒k biri de─şi┼şip ├Âb├╝r├╝ kal─▒rd─▒ ve TypeScript
+ * bunu yaln─▒zca kullan─▒ld─▒─ş─▒ yerde yakalard─▒. Tek kaynak: TabKey.
  *
- * ⚠️ 'friends' SEKMESİ KALDIRILDI — tasarımın kararı. Arkadaşlar artık
- * Lig ekranının içinde bir alt sekme; ikisi de "başkalarına göre
- * neredeyim" sorusunu soruyor ve ayrı sekmelerde karşılaştırmak zordu.
+ * ÔÜá´©Å 'friends' SEKMES─░ KALDIRILDI ÔÇö tasar─▒m─▒n karar─▒. Arkada┼şlar art─▒k
+ * Lig ekran─▒n─▒n i├ğinde bir alt sekme; ikisi de "ba┼şkalar─▒na g├Âre
+ * neredeyim" sorusunu soruyor ve ayr─▒ sekmelerde kar┼ş─▒la┼şt─▒rmak zordu.
  */
 type Tab = TabKey;
 
 /**
- * Giriş yapılmamışken hangi ekran görünüyor.
+ * Giri┼ş yap─▒lmam─▒┼şken hangi ekran g├Âr├╝n├╝yor.
  *
- * Uygulama ilk açıldığında `welcome` — tasarımın kararı: kullanıcı
- * uygulamayı ilk indirdiğinde markayı görsün, sonra yol seçsin.
- * Oturum geri yüklenemezse de buraya düşülüyor.
+ * Uygulama ilk a├ğ─▒ld─▒─ş─▒nda `welcome` ÔÇö tasar─▒m─▒n karar─▒: kullan─▒c─▒
+ * uygulamay─▒ ilk indirdi─şinde markay─▒ g├Ârs├╝n, sonra yol se├ğsin.
+ * Oturum geri y├╝klenemezse de buraya d├╝┼ş├╝l├╝yor.
  */
 type AuthView = 'welcome' | 'login' | 'register';
 
 /**
- * Kök bileşen.
+ * K├Âk bile┼şen.
  *
- * ⚠️ SAĞLAYICI (Provider) EN DIŞTA — VE NEDENİ ÖNEMLİ.
+ * ÔÜá´©Å SA─ŞLAYICI (Provider) EN DI┼ŞTA ÔÇö VE NEDEN─░ ├ûNEML─░.
  *
- * `CurrencyProvider` uygulamanın tamamını sarıyor, sadece Piyasa/Cüzdan
- * sekmelerini değil. Yalnızca o iki ekranı sarsaydık her sekme kendi
- * sağlayıcısını kurar, her birinin ayrı bir tercihi olurdu: kullanıcı
- * Piyasa'da dolara geçer, Cüzdan'a bakar, orada TL görürdü — ve ikisi de
- * "çalışıyor" gibi görünürdü.
+ * `CurrencyProvider` uygulaman─▒n tamam─▒n─▒ sar─▒yor, sadece Piyasa/C├╝zdan
+ * sekmelerini de─şil. Yaln─▒zca o iki ekran─▒ sarsayd─▒k her sekme kendi
+ * sa─şlay─▒c─▒s─▒n─▒ kurar, her birinin ayr─▒ bir tercihi olurdu: kullan─▒c─▒
+ * Piyasa'da dolara ge├ğer, C├╝zdan'a bakar, orada TL g├Âr├╝rd├╝ ÔÇö ve ikisi de
+ * "├ğal─▒┼ş─▒yor" gibi g├Âr├╝n├╝rd├╝.
  *
- * Alt bileşen olarak yazılmasının sebebi: `useCurrency` yalnızca
- * sağlayıcının İÇİNDE çağrılabilir. `App`'in kendisi sağlayıcıyı kuruyorsa
- * kendi içinde onu okuyamaz — bu React'in en sık düşülen kancası.
+ * Alt bile┼şen olarak yaz─▒lmas─▒n─▒n sebebi: `useCurrency` yaln─▒zca
+ * sa─şlay─▒c─▒n─▒n ─░├ç─░NDE ├ğa─şr─▒labilir. `App`'in kendisi sa─şlay─▒c─▒y─▒ kuruyorsa
+ * kendi i├ğinde onu okuyamaz ÔÇö bu React'in en s─▒k d├╝┼ş├╝len kancas─▒.
  */
 export default function App() {
   return (
@@ -81,21 +81,21 @@ export default function App() {
 }
 
 function AppShell() {
-  // Giriş yapmış kullanıcı bilgisi (null ise kimlik ekranları görünür)
+  // Giri┼ş yapm─▒┼ş kullan─▒c─▒ bilgisi (null ise kimlik ekranlar─▒ g├Âr├╝n├╝r)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Kimlik akışında hangi ekrandayız
+  // Kimlik ak─▒┼ş─▒nda hangi ekranday─▒z
   const [authView, setAuthView] = useState<AuthView>('welcome');
 
-  // Aktif Sekme (Cüzdanım, Haftalık Lig, Arkadaşlar, Ya Alsaydın)
+  // Aktif Sekme (C├╝zdan─▒m, Haftal─▒k Lig, Arkada┼şlar, Ya Alsayd─▒n)
   const [activeTab, setActiveTab] = useState<Tab>('league');
 
   /**
-   * Al/Sat ekranı açıksa hangi varlık için.
+   * Al/Sat ekran─▒ a├ğ─▒ksa hangi varl─▒k i├ğin.
    *
-   * `null` = kapalı. Ayrı bir sekme DEĞİL, piyasa listesinin üstüne
-   * açılan bir katman: kullanıcı hangi varlığa dokunduğunu unutmasın diye
-   * geri dönünce aynı listeye düşüyor.
+   * `null` = kapal─▒. Ayr─▒ bir sekme DE─Ş─░L, piyasa listesinin ├╝st├╝ne
+   * a├ğ─▒lan bir katman: kullan─▒c─▒ hangi varl─▒─şa dokundu─şunu unutmas─▒n diye
+   * geri d├Ân├╝nce ayn─▒ listeye d├╝┼ş├╝yor.
    */
   const [tradeAsset, setTradeAsset] = useState<{
     symbol: string;
@@ -103,11 +103,11 @@ function AppShell() {
   } | null>(null);
 
   /**
-   * Varlık detayı (grafik) açıksa hangi varlık için.
+   * Varl─▒k detay─▒ (grafik) a├ğ─▒ksa hangi varl─▒k i├ğin.
    *
-   * Akış: liste -> detay -> emir. Detaydan Al/Sat'a geçilince detay
-   * KAPANMIYOR, üstüne emir katmanı açılıyor; emirden geri dönünce
-   * kullanıcı grafiğe düşüyor, listeye değil.
+   * Ak─▒┼ş: liste -> detay -> emir. Detaydan Al/Sat'a ge├ğilince detay
+   * KAPANMIYOR, ├╝st├╝ne emir katman─▒ a├ğ─▒l─▒yor; emirden geri d├Ân├╝nce
+   * kullan─▒c─▒ grafi─şe d├╝┼ş├╝yor, listeye de─şil.
    */
   const [detailAsset, setDetailAsset] = useState<{
     symbol: string;
@@ -115,36 +115,36 @@ function AppShell() {
   } | null>(null);
 
   /**
-   * Emir geçince portföyün yeniden okunmasını tetikler.
+   * Emir ge├ğince portf├Ây├╝n yeniden okunmas─▒n─▒ tetikler.
    *
-   * Sayıyı artırmak PortfolioScreen'in `key`'ini değiştiriyor; React
-   * bileşeni sıfırdan kuruyor ve veriyi yeniden çekiyor. Emirden sonra
-   * cüzdana geçildiğinde eski bakiyeyi görmemek için.
+   * Say─▒y─▒ art─▒rmak PortfolioScreen'in `key`'ini de─şi┼ştiriyor; React
+   * bile┼şeni s─▒f─▒rdan kuruyor ve veriyi yeniden ├ğekiyor. Emirden sonra
+   * c├╝zdana ge├ğildi─şinde eski bakiyeyi g├Ârmemek i├ğin.
    */
   const [portfolioVersion, setPortfolioVersion] = useState(0);
 
-  // Saklanan oturum kontrol edilirken açılış ekranı gösterilir. Bu bayrak
-  // olmasaydı uygulama bir an giriş ekranını gösterip sonra ana ekrana
-  // atlardı — kullanıcı "çıkış yapmışım" sanır.
+  // Saklanan oturum kontrol edilirken a├ğ─▒l─▒┼ş ekran─▒ g├Âsterilir. Bu bayrak
+  // olmasayd─▒ uygulama bir an giri┼ş ekran─▒n─▒ g├Âsterip sonra ana ekrana
+  // atlard─▒ ÔÇö kullan─▒c─▒ "├ğ─▒k─▒┼ş yapm─▒┼ş─▒m" san─▒r.
   const [restoring, setRestoring] = useState(true);
 
   /**
-   * Archivo yazı tipi — tasarımın tamamı bu font üzerine kurulu.
+   * Archivo yaz─▒ tipi ÔÇö tasar─▒m─▒n tamam─▒ bu font ├╝zerine kurulu.
    *
-   * ⚠️ YÜKLENMEDEN EKRAN ÇİZİLMEMELİ. React Native'de olmayan bir
-   * `fontFamily` hata FIRLATMIYOR, sessizce sistem fontuna düşüyor.
-   * Yani beklemezsek ekran bir an tamamen farklı bir tipografiyle çizilir,
-   * sonra zıplayarak düzelir — ve bir hata görmediğimiz için "tasarım
-   * neden tutmuyor" diye kodda ararız.
+   * ÔÜá´©Å Y├£KLENMEDEN EKRAN ├ç─░Z─░LMEMEL─░. React Native'de olmayan bir
+   * `fontFamily` hata FIRLATMIYOR, sessizce sistem fontuna d├╝┼ş├╝yor.
+   * Yani beklemezsek ekran bir an tamamen farkl─▒ bir tipografiyle ├ğizilir,
+   * sonra z─▒playarak d├╝zelir ÔÇö ve bir hata g├Ârmedi─şimiz i├ğin "tasar─▒m
+   * neden tutmuyor" diye kodda arar─▒z.
    */
   /**
-   * ⚠️ BURAYA EKLENMEYEN FONT SESSİZCE ÇALIŞMAZ.
+   * ÔÜá´©Å BURAYA EKLENMEYEN FONT SESS─░ZCE ├çALI┼ŞMAZ.
    *
-   * `fontFamily: 'IBMPlexMono_500Medium'` yazıp burada yüklemezsen React
-   * Native hata FIRLATMAZ — sistem fontuna düşer. Yani "çalışıyor ama
-   * tasarıma benzemiyor" olur ve sebebi hiçbir yerde yazmaz.
+   * `fontFamily: 'IBMPlexMono_500Medium'` yaz─▒p burada y├╝klemezsen React
+   * Native hata FIRLATMAZ ÔÇö sistem fontuna d├╝┼şer. Yani "├ğal─▒┼ş─▒yor ama
+   * tasar─▒ma benzemiyor" olur ve sebebi hi├ğbir yerde yazmaz.
    *
-   * theme.ts'teki `fonts` nesnesindeki her ad burada karşılığını bulmalı.
+   * theme.ts'teki `fonts` nesnesindeki her ad burada kar┼ş─▒l─▒─ş─▒n─▒ bulmal─▒.
    */
   const [fontsLoaded] = useFonts({
     Rubik_400Regular,
@@ -155,29 +155,29 @@ function AppShell() {
     DMMono_500Medium,
   });
 
-  // Açılışta diskteki token'la oturumu geri yükle.
-  // Gerekçe: token sadece bellekte tutulursa sayfa yenilenince kaybolur.
-  // Faz 1 bitiş kriteri: "uygulamayı kapat aç -> duruyor".
+  // A├ğ─▒l─▒┼şta diskteki token'la oturumu geri y├╝kle.
+  // Gerek├ğe: token sadece bellekte tutulursa sayfa yenilenince kaybolur.
+  // Faz 1 biti┼ş kriteri: "uygulamay─▒ kapat a├ğ -> duruyor".
   useEffect(() => {
     void restoreSession()
       .then((user) => setCurrentUser(user))
       .finally(() => setRestoring(false));
   }, []);
 
-  // Çıkış yap fonksiyonu — token'ı diskten de siliyor
+  // ├ç─▒k─▒┼ş yap fonksiyonu ÔÇö token'─▒ diskten de siliyor
   async function handleLogout() {
     await clearSession();
     setCurrentUser(null);
-    // Çıkışta Welcome'a değil doğrudan Login'e dönülüyor: kullanıcı
-    // markayı zaten tanıyor, tekrar tanıtmak yol uzatmak olur.
+    // ├ç─▒k─▒┼şta Welcome'a de─şil do─şrudan Login'e d├Ân├╝l├╝yor: kullan─▒c─▒
+    // markay─▒ zaten tan─▒yor, tekrar tan─▒tmak yol uzatmak olur.
     setAuthView('login');
   }
 
-  // ⚠️ Kimlik ekranları farklı bir yüzey rengi kullanıyor (#111112),
-  // ana uygulama hâlâ eski lacivert (#0B132B). SafeAreaView'un rengi
-  // sabit kalsaydı, iOS'ta çentik ve alt çubuk hizasında yanlış renkte
-  // bir şerit görünürdü. Ana uygulama da tasarım diline geçince bu
-  // koşul kalkacak.
+  // ÔÜá´©Å Kimlik ekranlar─▒ farkl─▒ bir y├╝zey rengi kullan─▒yor (#111112),
+  // ana uygulama h├ól├ó eski lacivert (#0B132B). SafeAreaView'un rengi
+  // sabit kalsayd─▒, iOS'ta ├ğentik ve alt ├ğubuk hizas─▒nda yanl─▒┼ş renkte
+  // bir ┼şerit g├Âr├╝n├╝rd├╝. Ana uygulama da tasar─▒m diline ge├ğince bu
+  // ko┼şul kalkacak.
   const onAuthFlow = !currentUser;
 
   return (
@@ -190,16 +190,16 @@ function AppShell() {
       <StatusBar style="light" />
 
       {restoring || !fontsLoaded ? (
-        // 0. OTURUM KONTROL EDİLİYOR / YAZI TİPİ YÜKLENİYOR
+        // 0. OTURUM KONTROL ED─░L─░YOR / YAZI T─░P─░ Y├£KLEN─░YOR
         <View style={styles.splash}>
           <ActivityIndicator size="large" color={colors.ink} />
         </View>
       ) : !currentUser ? (
-        // 1. GİRİŞ YAPILMAMIŞSA: Welcome -> Login / Kayıt akışı
+        // 1. G─░R─░┼Ş YAPILMAMI┼ŞSA: Welcome -> Login / Kay─▒t ak─▒┼ş─▒
         //
-        // Basit bir state makinesi; navigasyon kütüphanesi eklenmedi.
-        // Üç ekran ve iki geçiş için react-navigation'ın kurulum maliyeti
-        // kazandırdığından fazla. Ekran sayısı artarsa o zaman geçilir.
+        // Basit bir state makinesi; navigasyon k├╝t├╝phanesi eklenmedi.
+        // ├£├ğ ekran ve iki ge├ği┼ş i├ğin react-navigation'─▒n kurulum maliyeti
+        // kazand─▒rd─▒─ş─▒ndan fazla. Ekran say─▒s─▒ artarsa o zaman ge├ğilir.
         authView === 'login' ? (
           <LoginScreen
             onLoginSuccess={(user) => setCurrentUser(user)}
@@ -217,26 +217,26 @@ function AppShell() {
           />
         )
       ) : (
-        // 2. GİRİŞ YAPILDIYSA: Ana Uygulama Gösterilir
+        // 2. G─░R─░┼Ş YAPILDIYSA: Ana Uygulama G├Âsterilir
         <View style={styles.mainContainer}>
-          {/* Aktif Ekran İçeriği */}
+          {/* Aktif Ekran ─░├ğeri─şi */}
           {activeTab === 'market' ? (
             <MarketScreen
               onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })}
             />
           ) : activeTab === 'wallet' ? (
-            // Sabit "100.000,00 ₺" yerine GET /portfolio'dan gelen gerçek
-            // veri: nakit, pozisyonlar, toplam değer, kâr/zarar.
+            // Sabit "100.000,00 Ôé║" yerine GET /portfolio'dan gelen ger├ğek
+            // veri: nakit, pozisyonlar, toplam de─şer, k├ór/zarar.
             <PortfolioScreen
               key={portfolioVersion}
               onLogout={() => void handleLogout()}
               /**
-               * Cüzdandaki bir varlığa dokununca piyasadaki detayına git.
+               * C├╝zdandaki bir varl─▒─şa dokununca piyasadaki detay─▒na git.
                *
-               * ⚠️ SEKME DEĞİŞTİRMİYORUZ, KATMAN AÇIYORUZ. `setActiveTab`
-               * çağırsaydık kullanıcı geri döndüğünde Piyasa sekmesinde
-               * kalırdı — oysa cüzdandan gelmişti. Detay ekranı üstte bir
-               * katman olarak açılıyor, kapanınca cüzdana düşüyor.
+               * ÔÜá´©Å SEKME DE─Ş─░┼ŞT─░RM─░YORUZ, KATMAN A├çIYORUZ. `setActiveTab`
+               * ├ğa─ş─▒rsayd─▒k kullan─▒c─▒ geri d├Ând├╝─ş├╝nde Piyasa sekmesinde
+               * kal─▒rd─▒ ÔÇö oysa c├╝zdandan gelmi┼şti. Detay ekran─▒ ├╝stte bir
+               * katman olarak a├ğ─▒l─▒yor, kapan─▒nca c├╝zdana d├╝┼ş├╝yor.
                */
               onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })}
             />
@@ -247,19 +247,19 @@ function AppShell() {
           )}
 
           {/*
-            ALT SEKME ÇUBUĞU — tasarımın yeri burası.
+            ALT SEKME ├çUBU─ŞU ÔÇö tasar─▒m─▒n yeri buras─▒.
 
-            Üstteydi; tasarım alta taşıyor. Sebebi ergonomi: telefon tek
-            elle tutulurken başparmak ekranın üst kenarına ulaşamıyor.
-            Sekmeler en sık dokunulan hedef ve en zor yerdeydi.
+            ├£stteydi; tasar─▒m alta ta┼ş─▒yor. Sebebi ergonomi: telefon tek
+            elle tutulurken ba┼şparmak ekran─▒n ├╝st kenar─▒na ula┼şam─▒yor.
+            Sekmeler en s─▒k dokunulan hedef ve en zor yerdeydi.
           */}
           <TabBar active={activeTab} onChange={setActiveTab} />
 
           {/*
-            AL/SAT KATMANI — sekmelerin ÜSTÜNDE.
+            AL/SAT KATMANI ÔÇö sekmelerin ├£ST├£NDE.
 
-            Sekme çubuğunu da kapatıyor: emir verirken kullanıcı yanlışlıkla
-            başka sekmeye geçip yarım kalmış bir formu kaybetmesin.
+            Sekme ├ğubu─şunu da kapat─▒yor: emir verirken kullan─▒c─▒ yanl─▒┼şl─▒kla
+            ba┼şka sekmeye ge├ğip yar─▒m kalm─▒┼ş bir formu kaybetmesin.
           */}
           {detailAsset !== null && (
             <View style={StyleSheet.absoluteFill}>
@@ -272,7 +272,7 @@ function AppShell() {
             </View>
           )}
 
-          {/* Emir katmanı EN ÜSTTE — detayın da üstünde. */}
+          {/* Emir katman─▒ EN ├£STTE ÔÇö detay─▒n da ├╝st├╝nde. */}
           {tradeAsset !== null && (
             <View style={StyleSheet.absoluteFill}>
               <TradeScreen

@@ -38,6 +38,17 @@ export async function createLeaguePeriod(input: {
   return created;
 }
 
+// Lig durumunu güncelle (open -> closed)
+export async function updateLeaguePeriodStatus(periodId: string, status: 'open' | 'closed') {
+  const [updated] = await db
+    .update(leaguePeriods)
+    .set({ status })
+    .where(eq(leaguePeriods.id, periodId))
+    .returning();
+
+  return updated;
+}
+
 // Aktif lig yoksa bu hafta için otomatik lig oluşturur
 export async function ensureCurrentLeaguePeriod() {
   const existing = await findCurrentOpenLeague();
@@ -180,6 +191,17 @@ export async function upsertLeagueEntry(input: {
     .returning();
 
   return entry;
+}
+
+// Bir yarışmacının lig derecesini güncelle
+export async function updateEntryRank(periodId: string, userId: string, rank: number) {
+  const [updated] = await db
+    .update(leagueEntries)
+    .set({ rank })
+    .where(and(eq(leagueEntries.periodId, periodId), eq(leagueEntries.userId, userId)))
+    .returning();
+
+  return updated;
 }
 
 // Ligdeki toplam katılımcı sayısını getir

@@ -9,7 +9,9 @@
   ],
   "scripts": {
     "test": "vitest run --passWithNoTests",
+    "dev": "npm run dev:api",
     "dev:api": "npm run dev --workspace @portfolio-league/api",
+    "dev:mobile": "npm run web --workspace @portfolio-league/mobile",
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

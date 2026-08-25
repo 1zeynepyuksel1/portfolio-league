@@ -1,6 +1,6 @@
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { accounts, cashMovements, refreshTokens, users } from '../db/schema.js';
+import { accounts, cashMovements, portfolioSnapshots, refreshTokens, users } from '../db/schema.js';
 
 export async function findUserByEmail(email: string) {
   const [user] = await db
@@ -19,6 +19,7 @@ export async function findUserForLogin(email: string) {
       email: users.email,
       displayName: users.displayName,
       passwordHash: users.passwordHash,
+      isEmailVerified: users.isEmailVerified,
     })
     .from(users)
     .where(eq(users.email, email))
@@ -34,6 +35,7 @@ export async function findUserById(id: string) {
       email: users.email,
       displayName: users.displayName,
       isPublic: users.isPublic,
+      isEmailVerified: users.isEmailVerified,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -41,6 +43,36 @@ export async function findUserById(id: string) {
     .limit(1);
 
   return user;
+}
+
+export async function findUserVerificationInfo(id: string) {
+  const [user] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      displayName: users.displayName,
+      isEmailVerified: users.isEmailVerified,
+      verificationCode: users.verificationCode,
+    })
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
+
+  return user;
+}
+
+export async function updateVerificationCode(id: string, code: string) {
+  await db
+    .update(users)
+    .set({ verificationCode: code })
+    .where(eq(users.id, id));
+}
+
+export async function markEmailVerified(id: string) {
+  await db
+    .update(users)
+    .set({ isEmailVerified: true, verificationCode: null })
+    .where(eq(users.id, id));
 }
 
 export async function addRefreshToken(input: {
@@ -111,17 +143,33 @@ export async function createUserWithAccount(input: {
   email: string;
   passwordHash: string;
   displayName: string;
+  username?: string | undefined;
+  verificationCode: string;
   refreshTokenHash: string;
   refreshTokenExpiresAt: Date;
 }) {
   return db.transaction(async (transaction) => {
+    const userValues: typeof users.$inferInsert = {
+      email: input.email,
+      passwordHash: input.passwordHash,
+      displayName: input.displayName,
+      isEmailVerified: false,
+      verificationCode: input.verificationCode,
+    };
+
+    if (input.username) {
+      userValues.username = input.username;
+    }
+
     const [user] = await transaction
       .insert(users)
-      .values(input)
+      .values(userValues)
       .returning({
         id: users.id,
         email: users.email,
         displayName: users.displayName,
+        username: users.username,
+        isEmailVerified: users.isEmailVerified,
       });
 
     if (!user) {
@@ -138,7 +186,14 @@ export async function createUserWithAccount(input: {
       amountCents: 10000000n,
     });
 
-    // 3. İlk refresh token'ı tanımla
+    // 3. İlk portföy snapshot kaydı (100.000 TL = 10000000 kuruş)
+    await transaction.insert(portfolioSnapshots).values({
+      userId: user.id,
+      totalValueCents: 10000000n,
+      reason: 'league',
+    });
+
+    // 4. İlk refresh token'ı tanımla
     await transaction.insert(refreshTokens).values({
       userId: user.id,
       tokenHash: input.refreshTokenHash,

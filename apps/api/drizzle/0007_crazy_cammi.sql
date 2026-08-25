@@ -1,0 +1,1 @@
+-- columns already exist in the database, skipping alter tables
