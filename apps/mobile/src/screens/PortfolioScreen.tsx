@@ -18,7 +18,11 @@ import {
 } from '../lib/format';
 import { useCurrency } from '../lib/currency';
 import { CurrencyToggle } from '../components/CurrencyToggle';
-import { AllocationBar, type Slice } from '../components/AllocationBar';
+import {
+  AllocationBar,
+  colorForLabel,
+  type Slice,
+} from '../components/AllocationBar';
 import {
   AssetBadge,
   BigAmount,
@@ -89,6 +93,37 @@ type Portfolio = {
 const REFRESH_MS = 10_000;
 
 /**
+ * Katlanmış hâlde kaç satır görünüyor.
+ *
+ * ⚠️ NEDEN KATLANIYOR: cüzdanda yirmi pozisyon varsa liste ekranı
+ * doldurur ve "son işlemler" bloğu görünmez olur. Kullanıcı onun var
+ * olduğunu bile bilmez. Dört satır "burada bir liste var" demeye yetiyor.
+ */
+const COLLAPSED_ROWS = 4;
+
+type Order = {
+  id: string;
+  symbol: string;
+  name: string;
+  side: 'buy' | 'sell';
+  quantity: string;
+  priceTry: string;
+  netCents: string;
+  executedAt: string;
+};
+
+/**
+ * Sıralama durumu.
+ *
+ * ⚠️ `null` = SUNUCUNUN SIRASI. Üçüncü bir durum olarak duruyor: kullanıcı
+ * aynı başlığa üçüncü kez dokununca kendi sıralamasından çıkıp varsayılana
+ * dönebiliyor. İki durumlu yapsaydık (artan/azalan) varsayılana dönmenin
+ * yolu kalmazdı.
+ */
+type SortKey = 'change' | 'value';
+type SortState = { key: SortKey; desc: boolean } | null;
+
+/**
  * Filtre çipleri.
  *
  * ⚠️ `kind` sunucudan GELMİYOR — `/portfolio` varlık türünü döndürmüyor.
@@ -122,6 +157,11 @@ export function PortfolioScreen({
   const [error, setError] = useState<string | null>(null);
   const [filter] = useState<Filter>('all');
 
+  const [sort, setSort] = useState<SortState>(null);
+  const [expandedPositions, setExpandedPositions] = useState(false);
+  const [expandedOrders, setExpandedOrders] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Zamanlayıcının içindeki `load` kurulduğu andaki `query`'yi hatırlar;
@@ -136,8 +176,25 @@ export function PortfolioScreen({
     if (isPullToRefresh) setRefreshing(true);
 
     try {
-      const data = await apiFetch<Portfolio>(`/portfolio${queryRef.current}`);
+      /**
+       * Portföy ve işlemler PARALEL çekiliyor.
+       *
+       * Sırayla atsaydık iki gidiş-dönüş süresi toplanırdı; ikisi de
+       * diğerinin sonucuna ihtiyaç duymuyor.
+       *
+       * ⚠️ İşlem listesi hata verirse portföy YİNE de gösteriliyor:
+       * `catch` ile boş diziye düşüyor. `Promise.all` kullansaydık
+       * işlem sorgusundaki bir hata bütün ekranı düşürürdü.
+       */
+      const [data, orderData] = await Promise.all([
+        apiFetch<Portfolio>(`/portfolio${queryRef.current}`),
+        apiFetch<{ orders: Order[] }>('/orders?limit=20').catch(() => ({
+          orders: [] as Order[],
+        })),
+      ]);
+
       setPortfolio(data);
+      setOrders(orderData.orders);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Portföy alınamadı.');
@@ -216,7 +273,77 @@ export function PortfolioScreen({
     );
   }
 
-  const positions = portfolio.positions;
+  /**
+   * Sıralanmış pozisyonlar.
+   *
+   * ⚠️ KOPYA ÜZERİNDE SIRALANIYOR (`[...]`). `sort` diziyi YERİNDE
+   * değiştiriyor; doğrudan `portfolio.positions.sort()` yazsaydık state
+   * içindeki diziyi mutasyona uğratırdık ve React değişikliği fark
+   * etmediği için ekran bazen güncellenmezdi.
+   */
+  const sorted = (() => {
+    const list = [...portfolio.positions];
+
+    if (sort === null) return list;
+
+    const direction = sort.desc ? -1 : 1;
+
+    return list.sort((a, b) => {
+      if (sort.key === 'change') {
+        // ⚠️ `null` yüzdeler HER ZAMAN SONA. Sıfır sayıp araya
+        // karıştırsaydık "bilinmiyor" ile "değişmedi" aynı yere düşerdi.
+        const av = a.profitPercent === null ? null : Number(a.profitPercent);
+        const bv = b.profitPercent === null ? null : Number(b.profitPercent);
+
+        if (av === null && bv === null) return 0;
+        if (av === null) return 1;
+        if (bv === null) return -1;
+
+        return (av - bv) * direction;
+      }
+
+      // Değer kuruş cinsinden bigint metni — `Number` yerine `BigInt`
+      // karşılaştırılıyor ki büyük portföylerde hassasiyet kaybolmasın.
+      const av = a.valueCents === null ? null : BigInt(a.valueCents);
+      const bv = b.valueCents === null ? null : BigInt(b.valueCents);
+
+      if (av === null && bv === null) return 0;
+      if (av === null) return 1;
+      if (bv === null) return -1;
+
+      if (av === bv) return 0;
+
+      return (av < bv ? -1 : 1) * direction;
+    });
+  })();
+
+  const positions = expandedPositions ? sorted : sorted.slice(0, COLLAPSED_ROWS);
+
+  const visibleOrders = expandedOrders ? orders : orders.slice(0, 3);
+
+  /** Dilim renklerinin sabit sırası — satır rozetleri çubukla eşleşsin. */
+  const sliceOrder = portfolio.positions
+    .filter((p) => p.sharePercent !== null)
+    .map((p) => p.symbol);
+
+  /**
+   * Sütun başlığına dokunulunca: azalan -> artan -> varsayılan.
+   *
+   * ⚠️ ÜÇÜNCÜ DOKUNUŞ SIRALAMAYI KALDIRIYOR. İki durumlu yapsaydık
+   * kullanıcı sunucunun sırasına bir daha dönemezdi.
+   */
+  function toggleSort(key: SortKey) {
+    setSort((current) => {
+      if (current === null || current.key !== key) return { key, desc: true };
+      if (current.desc) return { key, desc: false };
+      return null;
+    });
+  }
+
+  function sortMark(key: SortKey): string {
+    if (sort === null || sort.key !== key) return '';
+    return sort.desc ? ' ↓' : ' ↑';
+  }
 
   /**
    * Dağılım dilimleri — pozisyonlar + nakit.
@@ -253,6 +380,7 @@ export function PortfolioScreen({
 
   return (
     <FlatList
+        showsVerticalScrollIndicator={false}
       style={styles.screen}
       data={positions}
       keyExtractor={(item) => item.symbol}
@@ -345,8 +473,40 @@ export function PortfolioScreen({
           {positions.length > 0 && (
             <View style={styles.tableHead}>
               <Text style={[styles.headCell, styles.headAsset]}>VARLIK</Text>
-              <Text style={[styles.headCell, styles.headChange]}>DEĞİŞİM</Text>
-              <Text style={[styles.headCell, styles.headValue]}>DEĞER</Text>
+
+              <TouchableOpacity
+                style={styles.headChange}
+                onPress={() => toggleSort('change')}
+                accessibilityRole="button"
+                accessibilityLabel="Değişime göre sırala"
+              >
+                <Text
+                  style={[
+                    styles.headCell,
+                    styles.headRight,
+                    sort?.key === 'change' && styles.headActive,
+                  ]}
+                >
+                  DEĞİŞİM{sortMark('change')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.headValue}
+                onPress={() => toggleSort('value')}
+                accessibilityRole="button"
+                accessibilityLabel="Değere göre sırala"
+              >
+                <Text
+                  style={[
+                    styles.headCell,
+                    styles.headRight,
+                    sort?.key === 'value' && styles.headActive,
+                  ]}
+                >
+                  DEĞER{sortMark('value')}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -368,7 +528,10 @@ export function PortfolioScreen({
           accessibilityLabel={`${item.name} detayını aç`}
         >
           <View style={styles.rowAsset}>
-            <AssetBadge symbol={item.symbol} />
+            <AssetBadge
+              symbol={item.symbol}
+              tint={colorForLabel(item.symbol, sliceOrder)}
+            />
 
             <View style={styles.rowNames}>
               <Text style={styles.rowName} numberOfLines={1}>
@@ -402,11 +565,80 @@ export function PortfolioScreen({
         </TouchableOpacity>
       )}
       ListFooterComponent={
-        onLogout ? (
-          <TouchableOpacity style={styles.logout} onPress={onLogout}>
-            <Text style={styles.logoutText}>Çıkış yap</Text>
-          </TouchableOpacity>
-        ) : null
+        <View>
+          {/* --- tümünü gör --- */}
+          {sorted.length > COLLAPSED_ROWS && (
+            <TouchableOpacity
+              style={styles.expand}
+              onPress={() => setExpandedPositions((open) => !open)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.expandText}>
+                {expandedPositions
+                  ? 'Daha az göster'
+                  : `Tümünü gör (${sorted.length})`}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* --- son işlemler --- */}
+          {orders.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHead}>
+                <SectionLabel>SON İŞLEMLER</SectionLabel>
+
+                {orders.length > 3 && (
+                  <TouchableOpacity
+                    onPress={() => setExpandedOrders((open) => !open)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.sectionAction}>
+                      {expandedOrders ? 'DAHA AZ' : 'TÜMÜ'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {visibleOrders.map((order) => (
+                <View key={order.id} style={styles.orderRow}>
+                  {/*
+                    AL yeşil, SAT kırmızı — yön renkleriyle aynı dil.
+                    Burada "yön" fiyatın değil işlemin yönü ama kullanıcı
+                    için ikisi de aynı sezgiye oturuyor.
+                  */}
+                  <Text
+                    style={[
+                      styles.orderSide,
+                      {
+                        color: order.side === 'buy' ? colors.gain : colors.loss,
+                      },
+                    ]}
+                  >
+                    {order.side === 'buy' ? 'AL' : 'SAT'}
+                  </Text>
+
+                  <Text style={styles.orderName} numberOfLines={1}>
+                    {order.name}
+                  </Text>
+
+                  <Text style={styles.orderQuantity}>
+                    {formatQuantity(order.quantity)}
+                  </Text>
+
+                  <Text style={styles.orderTime}>
+                    {formatRelativeTime(order.executedAt)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {onLogout ? (
+            <TouchableOpacity style={styles.logout} onPress={onLogout}>
+              <Text style={styles.logoutText}>Çıkış yap</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       }
     />
   );
@@ -508,12 +740,12 @@ const styles = StyleSheet.create({
     color: colors.inkFaint,
   },
   headAsset: { flex: 1 },
-  headChange: { width: rowMetrics.changeWidth, textAlign: 'right' },
-  headValue: {
-    width: rowMetrics.valueWidth,
-    textAlign: 'right',
-    color: colors.inkBright,
-  },
+  headChange: { width: rowMetrics.changeWidth },
+  headValue: { width: rowMetrics.valueWidth },
+  headRight: { textAlign: 'right' },
+  // Etkin sıralama sütunu beyaz: kullanıcı hangi ölçüte göre baktığını
+  // ok işaretine bakmadan da görsün.
+  headActive: { color: colors.ink },
 
   row: {
     flexDirection: 'row',
@@ -545,6 +777,40 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: 48, gap: 6 },
   emptyTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.inkBright },
   emptyText: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkFaint },
+
+  expand: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  expandText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.inkMuted },
+
+  section: { marginTop: 22, paddingHorizontal: spacing.screen },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  sectionAction: {
+    fontFamily: fonts.bold,
+    fontSize: 9,
+    letterSpacing: 1.4,
+    color: colors.inkBright,
+  },
+  orderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  orderSide: { width: 30, fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.8 },
+  orderName: { flex: 1, fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
+  orderQuantity: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkMuted },
+  orderTime: { fontFamily: fonts.regular, fontSize: 10, color: colors.inkDisabled },
 
   logout: {
     alignSelf: 'center',

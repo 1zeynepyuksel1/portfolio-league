@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import {
   accounts,
@@ -117,4 +117,52 @@ export async function getDepositedCents(userId: string): Promise<bigint> {
     );
 
   return BigInt(row?.total ?? '0');
+}
+
+/**
+ * Son işlemler — cüzdan ekranındaki "SON İŞLEMLER" bloğu.
+ *
+ * ⚠️ `getOrderLedger`'DAN AYRI ve sebebi anlam farkı.
+ *
+ * Defter maliyet hesabı için var: TÜM emirleri, en eskiden yeniye,
+ * eksiksiz döndürmesi ŞART — bir tanesi eksik olsa ortalama maliyet
+ * yanlış çıkar. Bu sorgu ise ekran için: en yeniden eskiye, sınırlı.
+ *
+ * Aynı fonksiyonu iki amaca birden kullansaydık, biri için eklenen
+ * `LIMIT` diğerinin hesabını sessizce bozardı.
+ */
+export async function getRecentOrders(
+  userId: string,
+  limit: number,
+): Promise<
+  Array<{
+    id: string;
+    symbol: string;
+    name: string;
+    side: 'buy' | 'sell';
+    quantity: string;
+    priceTry: string;
+    netCents: bigint;
+    executedAt: Date;
+  }>
+> {
+  return db
+    .select({
+      id: orders.id,
+      symbol: assets.symbol,
+      name: assets.name,
+      side: orders.side,
+      quantity: orders.quantity,
+      priceTry: orders.priceTry,
+      netCents: orders.netCents,
+      executedAt: orders.executedAt,
+    })
+    .from(orders)
+    .innerJoin(assets, eq(assets.id, orders.assetId))
+    .where(eq(orders.userId, userId))
+    // ⚠️ `id` ikincil sıralama ölçütü: aynı milisaniyede iki emir
+    // geçebilir ve yalnızca zamana göre sıralarsak sıraları her
+    // sorguda değişir — liste kullanıcının gözünde titrer.
+    .orderBy(desc(orders.executedAt), desc(orders.id))
+    .limit(limit);
 }

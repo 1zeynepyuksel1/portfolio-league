@@ -81,6 +81,17 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
       ? null
       : (await findHistoricalPrice(usdAsset.id, input.date)) ?? null;
 
+  /**
+   * BUGÜNKÜ kur — başlangıç kurundan AYRI okunuyor.
+   *
+   * ⚠️ İKİSİ FARKLI SORGU VE BU ZORUNLU. Tek kur kullanıp iki fiyatı da
+   * onunla çevirseydik, ya geçmiş fiyat bugünkü kurla (12 Mart 2020'de
+   * BTC 620 dolar gibi saçma bir sayı) ya da bugünkü fiyat 2020 kuruyla
+   * hesaplanırdı. Her fiyat KENDİ GÜNÜNÜN kuruyla çevrilmeli.
+   */
+  const currentUsdRate =
+    usdAsset == null ? null : (await findLatestPrice(usdAsset.id)) ?? null;
+
   // 3. Güncel canlı fiyatı bul
   const currentPriceRecord = await findLatestPrice(asset.id);
   if (!currentPriceRecord) {
@@ -163,6 +174,16 @@ export async function calculateWhatIf(input: WhatIfQueryInput): Promise<WhatIfRe
     /** Çevrimde kullanılan kur — ekranda dipnot olarak gösteriliyor. */
     startUsdTryRate:
       startUsdRate == null ? null : formatKurus(parseFloat(startUsdRate.priceTry)),
+
+    /** Bugünkü fiyatın dolar karşılığı — BUGÜNKÜ kurla. */
+    currentPriceUsd:
+      currentUsdRate == null || parseFloat(currentUsdRate.priceTry) <= 0
+        ? null
+        : (currentPriceFloat / parseFloat(currentUsdRate.priceTry)).toFixed(2),
+    currentUsdTryRate:
+      currentUsdRate == null
+        ? null
+        : formatKurus(parseFloat(currentUsdRate.priceTry)),
     currentDate: currentPriceRecord.ts.toISOString().slice(0, 10),
     currentPriceTry: formatKurus(currentPriceFloat),
     purchasedQuantity: purchasedQuantity.toFixed(8),

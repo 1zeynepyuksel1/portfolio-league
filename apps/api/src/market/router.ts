@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   findAssetIdBySymbol,
+  getDailyStats,
   getPriceSeries,
   latestUsdTryRate,
   listAssetsWithLatestPrice,
@@ -178,6 +179,51 @@ marketRouter.get("/", async (request, response) => {
  * koruma kondu (ranges.ts): pencere en az 15 dakika, nokta sayısı en
  * fazla 500. Sınırsız bir uç tek istekle milyonlarca satır okutabilirdi.
  */
+/**
+ * GET /assets/:symbol/stats — son 24 saatin özeti.
+ *
+ * Varlık detay ekranındaki "24 SAAT" bloğunu besliyor: yüksek, düşük,
+ * açılış, kapanış.
+ *
+ * ⚠️ AYRI UÇ, `/assets` LİSTESİNE EKLENMEDİ. Liste 20 varlık için 5
+ * saniyede bir çekiliyor; bu hesabı oraya koysaydık her turda 20 ayrı
+ * 24 saatlik tarama yapılırdı. Detay ekranı ise tek varlık ve tek
+ * açılışta bir kez soruyor.
+ */
+marketRouter.get("/:symbol/stats", async (request, response) => {
+  const { symbol } = request.params;
+
+  try {
+    const asset = await findAssetIdBySymbol(symbol);
+
+    if (asset === null) {
+      return response.status(404).json({
+        error: { code: "ASSET_NOT_FOUND", message: "Varlık bulunamadı." },
+      });
+    }
+
+    const stats = await getDailyStats(asset.id);
+
+    return response.json({
+      symbol: symbol.toUpperCase(),
+      // Veri yoksa null — sıfır göndermek "fiyat sıfırdı" demek olurdu.
+      high: stats?.high ?? null,
+      low: stats?.low ?? null,
+      open: stats?.open ?? null,
+      close: stats?.close ?? null,
+      // ⚠️ Hacim saklanmıyor. Binance veriyor ama kolonu yok (migration).
+      // Alanı göndermek, ekranın onu beklediğini ve bir gün geleceğini
+      // görünür kılıyor.
+      volume: null,
+    });
+  } catch (error) {
+    console.error(`[GET /assets/${symbol}/stats] başarısız:`, error);
+    return response.status(500).json({
+      error: { code: "INTERNAL_ERROR", message: "İstatistik okunamadı." },
+    });
+  }
+});
+
 marketRouter.get("/:symbol/prices", async (request, response) => {
   const { symbol } = request.params;
 

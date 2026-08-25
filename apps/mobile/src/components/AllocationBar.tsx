@@ -18,20 +18,33 @@ import { colors, fonts } from '../theme';
  *   3. Uzunluk karşılaştırmak, açı karşılaştırmaktan kolaydır — insan gözü
  *      açıyı sistematik olarak yanlış tahmin eder.
  *
- * ⚠️ RENK DEĞİL GRİ TONU KULLANILIYOR. Yeşil/kırmızı bu uygulamada YÖN
- * demek. Dağılımı renklendirseydik "yeşil dilim = kazanan varlık" diye
- * okunurdu; oysa dilim sadece büyüklüğü gösteriyor.
- *
  * İstenen bilgi (yüzde · tutar · adet) dokununca açılan satırda.
  */
 
-/** Dilim tonları — açıktan koyuya, en büyük dilim en açık. */
-const SHADES = [
-  colors.inverse,
-  colors.inkMuted,
-  colors.inkFaint,
-  colors.inkDisabled,
-  colors.borderStrong,
+/**
+ * Dilim renkleri.
+ *
+ * ⚠️ ÖNCE GRİ TONLARDI, RENGE GEÇİLDİ — ve gerekçe değişti.
+ *
+ * Gri seçilmişti çünkü yeşil/kırmızı bu uygulamada YÖN demek ve dağılımı
+ * renklendirmek "yeşil dilim = kazanan varlık" gibi okunabilirdi.
+ *
+ * Ama uygulamada gri tonlar birbirinden ayırt edilemedi: beş dilimin
+ * dördü aynı griye çalıyordu ve kullanıcı hangi çubuğun hangi varlık
+ * olduğunu göremiyordu. Renk bu sorunu çözüyor.
+ *
+ * Karışma riski şöyle kapatıldı: paletten YEŞİL VE KIRMIZI ÇIKARILDI.
+ * Mor, mavi, turuncu, camgöbeği, sarı — hiçbiri yön rengiyle karışmıyor.
+ */
+export const SLICE_COLORS = [
+  '#7C6BF5', // mor
+  '#3E9BF0', // mavi
+  '#E8913A', // turuncu
+  '#37BFC0', // camgöbeği
+  '#D4C24A', // sarı
+  '#C56FC9', // eflatun
+  '#5F7FE8', // çivit
+  colors.inkDisabled, // artanlar
 ] as const;
 
 export type Slice = {
@@ -41,6 +54,20 @@ export type Slice = {
   /** Dokununca gösterilecek ayrıntı — biçimlendirilmiş metin. */
   detail: string;
 };
+
+/**
+ * Bir dilim etiketinin rengi — satır rozetleri çubukla aynı rengi
+ * kullansın diye dışarı açık.
+ *
+ * ⚠️ İNDİS DEĞİL ETİKET ALIYOR. İndis verseydik liste sıralandığında
+ * aynı varlık farklı renk alırdı: kullanıcı "BTC moru neden maviye
+ * döndü" diye sorardı. Etiketten türeterek renk varlığa sabitleniyor.
+ */
+export function colorForLabel(label: string, order: string[]): string {
+  const index = order.indexOf(label);
+  const safe = index === -1 ? order.length : index;
+  return SLICE_COLORS[safe % SLICE_COLORS.length] as string;
+}
 
 export function AllocationBar({ slices }: { slices: Slice[] }) {
   const [active, setActive] = useState<number | null>(null);
@@ -61,7 +88,7 @@ export function AllocationBar({ slices }: { slices: Slice[] }) {
                 // bir iz bıraksın — yoksa kullanıcı "bu varlık nerede"
                 // diye arar.
                 flexGrow: Math.max(slice.percent, 1),
-                backgroundColor: SHADES[index % SHADES.length],
+                backgroundColor: SLICE_COLORS[index % SLICE_COLORS.length],
               },
               index === 0 && styles.first,
               index === slices.length - 1 && styles.last,
@@ -87,7 +114,7 @@ export function AllocationBar({ slices }: { slices: Slice[] }) {
           <View
             style={[
               styles.dot,
-              { backgroundColor: SHADES[active % SHADES.length] },
+              { backgroundColor: SLICE_COLORS[active % SLICE_COLORS.length] },
             ]}
           />
           <Text style={styles.detailLabel}>{slices[active]?.label}</Text>

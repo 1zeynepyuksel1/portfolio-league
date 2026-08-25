@@ -90,6 +90,15 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
    */
   const [zoom, setZoom] = useState<{ from: Date; to: Date } | null>(null);
 
+  /** Son 24 saatin özeti — `GET /assets/:symbol/stats`. */
+  const [stats, setStats] = useState<{
+    high: string | null;
+    low: string | null;
+    open: string | null;
+    close: string | null;
+    volume: string | null;
+  } | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -117,6 +126,53 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
     void load();
   }, [load]);
 
+  /**
+   * ⚠️ FİYAT BURADA CANLI DEĞİLDİ — bildirilen hata buydu.
+   *
+   * Piyasa listesi 5 saniyede bir tazeleniyordu ama bu ekran bir kez
+   * çekip bırakıyordu. Kullanıcı listede fiyatın oynadığını görüp
+   * detaya girince donmuş bir sayıyla kalıyordu.
+   *
+   * ⚠️ YAKINLAŞTIRMA VARKEN TAZELEME YOK. Kullanıcı belirli bir pencereye
+   * bakıyorsa altından veriyi çekmek grafiği zıplatır — incelediği yeri
+   * kaybeder. Sabit aralıktayken tazeleniyor, yakınlaştırmada duruyor.
+   */
+  useEffect(() => {
+    if (zoom !== null) return;
+
+    const timer = setInterval(() => void load(), 5_000);
+    return () => clearInterval(timer);
+  }, [load, zoom]);
+
+  /**
+   * 24 saat özeti — aralık değişince DEĞİL, varlık değişince çekiliyor.
+   *
+   * "Son 24 saat" seçili aralıktan bağımsız bir bilgi: kullanıcı 1 yıllık
+   * grafiğe baksa da günün en yükseği aynı sayı.
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    apiFetch<{
+      high: string | null;
+      low: string | null;
+      open: string | null;
+      close: string | null;
+      volume: string | null;
+    }>(`/assets/${symbol}/stats`)
+      .then((res) => {
+        if (!cancelled) setStats(res);
+      })
+      // Özet alınamazsa ekran çalışmaya devam etsin — grafik asıl içerik.
+      .catch(() => {
+        if (!cancelled) setStats(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol]);
+
   const points = data?.points ?? [];
   const last = points[points.length - 1];
   const first = points[0];
@@ -140,7 +196,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {/* Başlık */}
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={12}>
@@ -275,6 +331,32 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
           </Text>
         )}
 
+        {/* --- 24 saat özeti --- */}
+        {stats !== null && stats.high !== null && (
+          <View style={styles.statsBlock}>
+            <Text style={styles.statsTitle}>24 SAAT</Text>
+
+            <StatLine label="Yüksek" value={formatPrice(stats.high)} />
+            {stats.low !== null && (
+              <StatLine label="Düşük" value={formatPrice(stats.low)} />
+            )}
+            {stats.open !== null && (
+              <StatLine label="Açılış" value={formatPrice(stats.open)} />
+            )}
+            {stats.close !== null && (
+              <StatLine label="Kapanış" value={formatPrice(stats.close)} />
+            )}
+
+            {/*
+              ⚠️ HACİM SAKLANMIYOR — bu satır bilerek burada.
+              Binance mumlarında hacim var ama `price_history`'de kolonu
+              yok. Satırı hiç göstermeseydik eksik olduğu unutulurdu;
+              "—" göstermek eksiği görünür tutuyor.
+            */}
+            <StatLine label="Hacim" value={stats.volume ?? '—'} />
+          </View>
+        )}
+
         <Pressable style={styles.tradeButton} onPress={onTrade}>
           <Text style={styles.tradeButtonText}>Al / Sat</Text>
         </Pressable>
@@ -283,7 +365,41 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
   );
 }
 
+/** 24 saat bloğundaki tek satır. */
+function StatLine({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.statLine}>
+      <Text style={styles.statKey}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  statsBlock: {
+    marginTop: 22,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 14,
+  },
+  statsTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    color: colors.inkFaint,
+    marginBottom: 6,
+  },
+  statLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  statKey: { fontFamily: fonts.regular, fontSize: 13, color: colors.inkMuted },
+  statValue: { fontFamily: fonts.monoSemibold, fontSize: 13, color: colors.ink },
+
   container: { flex: 1, backgroundColor: colors.surface },
   content: { padding: 20, paddingBottom: 40 },
 

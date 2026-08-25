@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { apiFetch } from '../api/client';
 import {
+  decimalToCents,
   formatCents,
   formatCentsString,
   formatPrice,
@@ -35,6 +36,7 @@ import {
   estimateOrder,
   maxBuyableQuantity,
   MIN_ORDER_CENTS,
+  quantityForAmount,
 } from '../lib/order-math';
 import { colors, fonts } from '../theme';
 
@@ -107,6 +109,17 @@ function newIdempotencyKey(): string {
 export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
   const [side, setSide] = useState<Side>('buy');
   const [quantity, setQuantity] = useState('');
+
+  /**
+   * Giriş modu: miktar mı, tutar mı.
+   *
+   * ⚠️ TEK KAYNAK MİKTAR. Tutar modunda kullanıcı TL yazıyor ama sunucuya
+   * giden hep `quantity`. İki alanı birbirine bağlı state olarak tutsaydık
+   * yuvarlama yüzünden birbirlerini sürekli düzeltirlerdi (5.000 -> 0,0013
+   * -> 4.999,87 -> ...). Tutar yalnızca bir GİRİŞ ARACI.
+   */
+  const [inputMode, setInputMode] = useState<'quantity' | 'amount'>('quantity');
+  const [amountInput, setAmountInput] = useState('');
 
   const [price, setPrice] = useState<string | null>(null);
   const [asOf, setAsOf] = useState<string | null>(null);
@@ -252,6 +265,7 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
@@ -299,29 +313,92 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
           ))}
         </View>
 
-        {/* Miktar */}
+        {/* Giriş modu */}
+        <View style={styles.modeRow}>
+          <Pressable
+            style={[styles.mode, inputMode === 'quantity' && styles.modeOn]}
+            onPress={() => setInputMode('quantity')}
+          >
+            <Text
+              style={[
+                styles.modeText,
+                inputMode === 'quantity' && styles.modeTextOn,
+              ]}
+            >
+              Miktar ({symbol})
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.mode, inputMode === 'amount' && styles.modeOn]}
+            onPress={() => setInputMode('amount')}
+          >
+            <Text
+              style={[
+                styles.modeText,
+                inputMode === 'amount' && styles.modeTextOn,
+              ]}
+            >
+              Tutar (₺)
+            </Text>
+          </Pressable>
+        </View>
+
         <View style={styles.labelRow}>
-          <Text style={styles.label}>Miktar ({symbol})</Text>
+          <Text style={styles.label}>
+            {inputMode === 'amount' ? 'Kaç liralık?' : `Miktar (${symbol})`}
+          </Text>
           <Pressable onPress={fillMax} hitSlop={8}>
             <Text style={styles.available}>Kullanılabilir: {available}</Text>
           </Pressable>
         </View>
 
-        <TextInput
-          style={styles.input}
-          value={quantity}
-          onChangeText={(v) => {
-            // Virgülü noktaya çeviriyoruz: Türkçe klavye virgül basıyor ama
-            // sunucudaki şema yalnızca nokta kabul ediyor (makine biçimi).
-            setQuantity(v.replace(',', '.'));
-            resetKey(); // miktar değişti -> başka bir emir
-            setResult(null);
-          }}
-          placeholder="0.00"
-          placeholderTextColor={colors.inkFaint}
-          keyboardType="decimal-pad"
-          editable={!submitting}
-        />
+        {inputMode === 'quantity' ? (
+          <TextInput
+            style={styles.input}
+            value={quantity}
+            onChangeText={(v) => {
+              // Virgülü noktaya çeviriyoruz: Türkçe klavye virgül basıyor ama
+              // sunucudaki şema yalnızca nokta kabul ediyor (makine biçimi).
+              setQuantity(v.replace(',', '.'));
+              resetKey(); // miktar değişti -> başka bir emir
+              setResult(null);
+            }}
+            placeholder="0.00"
+            placeholderTextColor={colors.inkFaint}
+            keyboardType="decimal-pad"
+            editable={!submitting}
+          />
+        ) : (
+          <>
+            <TextInput
+              style={styles.input}
+              value={amountInput}
+              onChangeText={(v) => {
+                const clean = v.replace(',', '.');
+                setAmountInput(clean);
+                resetKey();
+                setResult(null);
+
+                // Tutar -> miktar çevrimi ANINDA yapılıyor ve `quantity`
+                // güncelleniyor. Gönderim anına bıraksaydık kullanıcı
+                // kaç coin aldığını ancak emir geçtikten sonra görürdü.
+                const cents = decimalToCents(clean === '' ? '0' : clean);
+                setQuantity(quantityForAmount(cents, price));
+              }}
+              placeholder="0"
+              placeholderTextColor={colors.inkFaint}
+              keyboardType="decimal-pad"
+              editable={!submitting}
+            />
+
+            {quantity !== '' && quantity !== '0' && (
+              <Text style={styles.converted}>
+                ≈ {formatQuantity(quantity)} {symbol}
+              </Text>
+            )}
+          </>
+        )}
 
         {/* Önizleme */}
         {estimate !== null && (
@@ -427,6 +504,30 @@ function Row({
 }
 
 const styles = StyleSheet.create({
+  modeRow: {
+    flexDirection: 'row',
+    gap: 7,
+    marginTop: 18,
+  },
+  mode: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modeOn: { backgroundColor: colors.inverse, borderColor: colors.inverse },
+  modeText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.inkMuted },
+  modeTextOn: { fontFamily: fonts.bold, color: colors.onInverse },
+  converted: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    color: colors.gain,
+    marginTop: 8,
+  },
+
   container: { flex: 1, backgroundColor: colors.surface },
   content: { padding: 20, paddingBottom: 40 },
 

@@ -224,6 +224,7 @@ export function FriendsScreen() {
       ) : activeTab === 'list' ? (
         // SEKME 1: ARKADAŞLARIM LİSTESİ
         <FlatList
+        showsVerticalScrollIndicator={false}
           data={friends}
           keyExtractor={(item, index) => item.friendshipId || item.id || item.friendId || String(index)}
           contentContainerStyle={styles.listContent}
@@ -267,6 +268,7 @@ export function FriendsScreen() {
       ) : (
         // SEKME 2: GELEN VE GİDEN İSTEKLER LİSTESİ
         <FlatList
+        showsVerticalScrollIndicator={false}
           data={incomingRequests}
           keyExtractor={(item) => item.requestId}
           contentContainerStyle={styles.listContent}

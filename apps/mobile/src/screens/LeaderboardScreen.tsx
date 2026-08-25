@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
-import { colors, fonts } from '../theme';
+import { colors, fonts, spacing } from '../theme';
 import { SectionLabel } from '../components/DesignKit';
 import { AddFriend } from '../components/AddFriend';
 
@@ -123,7 +123,17 @@ export function LeaderboardScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <SectionLabel>HAFTALIK LİG</SectionLabel>
-          {leagueInfo && <SectionLabel>BİTİŞE</SectionLabel>}
+          {/*
+            ⚠️ ETİKET DURUMA GÖRE DEĞİŞİYOR.
+            Lig bittiğinde sayaç "Bitti" yazıyordu ve üstünde "BİTİŞE"
+            etiketi duruyordu — "bitişe bitti" gibi okunuyordu. Bitmiş
+            bir ligde geri sayım diye bir şey yok.
+          */}
+          {leagueInfo && (
+            <SectionLabel>
+              {leagueInfo.remainingSeconds > 0 ? 'BİTİŞE' : 'DURUM'}
+            </SectionLabel>
+          )}
         </View>
 
         <View style={styles.headerMain}>
@@ -152,7 +162,7 @@ export function LeaderboardScreen() {
           onPress={() => setActiveTab('global')}
         >
           <Text style={[styles.tabText, activeTab === 'global' && styles.tabTextActive]}>
-            🌍 Genel Süper Lig
+            Genel Lig
           </Text>
         </TouchableOpacity>
 
@@ -161,7 +171,7 @@ export function LeaderboardScreen() {
           onPress={() => setActiveTab('friends')}
         >
           <Text style={[styles.tabText, activeTab === 'friends' && styles.tabTextActive]}>
-            👥 Arkadaşlarım
+            Arkadaşlarım
           </Text>
         </TouchableOpacity>
       </View>
@@ -178,8 +188,7 @@ export function LeaderboardScreen() {
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>📊</Text>
-          <Text style={styles.emptyTitle}>Henüz Sıralama Oluşmadı</Text>
+          <Text style={styles.emptyTitle}>Henüz sıralama oluşmadı</Text>
           <Text style={styles.emptyText}>
             {activeTab === 'friends'
               ? 'Arkadaşlarınız henüz işlem yapmadı veya arkadaş listeniz boş.'
@@ -198,6 +207,7 @@ export function LeaderboardScreen() {
         </View>
       ) : (
         <FlatList
+        showsVerticalScrollIndicator={false}
           data={restEntries}
           keyExtractor={(item) => item.userId}
           contentContainerStyle={styles.listContent}
@@ -325,12 +335,21 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
+    /*
+     * ⚠️ `row` DEĞİL `column` — ve bozukluk tam buradaydı.
+     *
+     * Başlık eskiden iki parçalıydı ve yan yana diziliyordu. Tasarıma
+     * geçerken içine ÜÇ satır kondu (etiket satırı, başlık+geri sayım,
+     * yarışmacı sayısı) ama kapsayıcı hâlâ `row` olduğu için üç satır
+     * yan yana sıkışıp üst üste bindi.
+     *
+     * Dersi şu: bir kapsayıcının İÇİNİ değiştirirken YÖNÜNÜ de kontrol
+     * et. Stil dosyanın 200 satır aşağısında olduğu için gözden kaçtı.
+     */
+    flexDirection: 'column',
+    paddingHorizontal: spacing.screen,
+    paddingTop: 18,
+    paddingBottom: 4,
   },
   title: {
     fontSize: 26,
@@ -366,20 +385,31 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.fieldFill,
-    borderRadius: 10,
-    padding: 4,
-    marginHorizontal: 20,
-    marginVertical: 10,
+    gap: 8,
+    marginHorizontal: spacing.screen,
+    marginTop: 16,
+    marginBottom: 8,
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 11,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+  /*
+   * ⚠️ AKTİF SEKME YEŞİL DEĞİL, TERS ZEMİN.
+   *
+   * Yeşil bu uygulamada YÜKSELİŞ demek. Aktif sekmeyi yeşile boyamak
+   * "lig yükseliyor" gibi okunuyordu — hem yanlış hem tasarımın dilinin
+   * dışında. Tasarım seçili durumu her yerde açık dolgu + koyu metinle
+   * anlatıyor (çipler, aralık seçici, tutar düğmeleri).
+   */
   tabButtonActive: {
-    backgroundColor: colors.gain,
+    backgroundColor: colors.inverse,
+    borderColor: colors.inverse,
   },
   tabText: {
     color: colors.inkMuted,
@@ -387,7 +417,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   tabTextActive: {
-    color: colors.ink,
+    // ⚠️ Açık zeminde beyaz metin okunmaz. Ters zemin ters metin ister.
+    color: colors.onInverse,
+    fontFamily: fonts.bold,
   },
   loadingContainer: {
     flex: 1,
@@ -417,10 +449,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 10,
   },
   emptyTitle: {
     fontSize: 18,
