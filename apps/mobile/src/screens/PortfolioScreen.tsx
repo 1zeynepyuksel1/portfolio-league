@@ -85,6 +85,7 @@ type Portfolio = {
   profitUsdCents: string | null;
 
   profitPercent: string | null;
+  twrPercent: string | null;
   hasIncompletePrices: boolean;
   positions: Position[];
 };
@@ -421,9 +422,9 @@ export function PortfolioScreen({
                 {money(portfolio.profitCents, portfolio.profitUsdCents)}
               </Text>
 
-              <ChangeText percent={portfolio.profitPercent} />
+              <ChangeText percent={portfolio.twrPercent} />
 
-              <Text style={styles.deltaLabel}>TÜM ZAMANLAR</Text>
+              <Text style={styles.deltaLabel}>HAFTALIK GETİRİ</Text>
             </View>
 
             {currency === 'usd' && portfolio.usdTryRate != null && (
