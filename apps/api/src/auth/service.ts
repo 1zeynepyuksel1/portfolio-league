@@ -261,11 +261,22 @@ export class UserNotFoundError extends Error {
   }
 }
 
+export class SameAsOldPasswordError extends Error {
+  constructor() {
+    super('Yeni şifreniz, eski şifrenizle aynı olamaz.');
+  }
+}
+
 export async function resetUserPassword(input: ResetPasswordBody) {
-  const user = await findUserByEmail(input.email);
+  const user = await findUserForLogin(input.email);
 
   if (!user) {
     throw new UserNotFoundError();
+  }
+
+  const isSame = await argon2.verify(user.passwordHash, input.password);
+  if (isSame) {
+    throw new SameAsOldPasswordError();
   }
 
   const passwordHash = await argon2.hash(input.password);

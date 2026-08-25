@@ -19,6 +19,7 @@ import {
   verifyUserEmail,
   resetUserPassword,
   UserNotFoundError,
+  SameAsOldPasswordError,
 } from './service.js';
 
 export const authRouter = Router();
@@ -295,6 +296,15 @@ authRouter.post('/reset-password', async (request, response) => {
       return response.status(404).json({
         error: {
           code: 'USER_NOT_FOUND',
+          message: error.message,
+        },
+      });
+    }
+
+    if (error instanceof SameAsOldPasswordError) {
+      return response.status(400).json({
+        error: {
+          code: 'SAME_AS_OLD_PASSWORD',
           message: error.message,
         },
       });
