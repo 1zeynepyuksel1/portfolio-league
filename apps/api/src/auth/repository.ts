@@ -200,7 +200,7 @@ export async function createUserWithAccount(input: {
       firstName: input.firstName,
       lastName: input.lastName,
       username: input.username,
-      isEmailVerified: false,
+      isEmailVerified: true,
       verificationCode: input.verificationCode,
     };
 

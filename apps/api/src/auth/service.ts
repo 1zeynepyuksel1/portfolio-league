@@ -101,7 +101,9 @@ export async function registerUser(input: RegisterBody) {
       refreshTokenExpiresAt: refreshToken.expiresAt,
     });
 
-    console.log(`[E-POSTA SİMÜLATÖRÜ] ${input.email} adresine doğrulama kodu gönderildi: ${verificationCode}`);
+    console.log(`[KAYIT] ${input.email} başarıyla doğrudan kayıt oldu (doğrulama atlandı).`);
+
+    const accessToken = await createAccessToken(user.id);
 
     return {
       user: {
@@ -109,10 +111,11 @@ export async function registerUser(input: RegisterBody) {
         email: user.email,
         displayName: user.displayName,
         username: user.username,
-        isEmailVerified: false,
+        isEmailVerified: true,
       },
-      requiresVerification: true,
-      demoCode: verificationCode,
+      accessToken,
+      refreshToken: refreshToken.value,
+      requiresVerification: false,
     };
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -206,10 +209,6 @@ export async function loginUser(input: LoginBody) {
 
   if (!user || !(await argon2.verify(user.passwordHash, input.password))) {
     throw new InvalidCredentialsError();
-  }
-
-  if (!user.isEmailVerified) {
-    throw new EmailNotVerifiedError(user.id);
   }
 
   const refreshToken = createRefreshToken();
