@@ -116,7 +116,29 @@ export async function findMultiplesForDate(targetDateStr: string): Promise<
     currentPriceTry: string;
   }>
 > {
-  const endOfDay = new Date(`${targetDateStr}T23:59:59.999Z`);
+  /**
+   * ⚠️ METİN + AÇIK `::timestamp` — `Date` NESNESİ DEĞİL.
+   *
+   * Bir süre `new Date(...)` olarak bağlanıyordu ve uç 500 dönüyordu:
+   *
+   *   The "string" argument must be of type string or an instance of
+   *   Buffer or ArrayBuffer. Received an instance of Date
+   *
+   * Sürücü HAM sql şablonunda `Date` nesnesini seri hâle getiremiyor.
+   * Ekranda "Kat listesi hesaplanamadı" olarak görünüyordu — mesaj
+   * doğruydu ama sebebi göstermiyordu.
+   *
+   * ⚠️ 18. SATIRDAKİ `endOfDay` İSE `Date` VE DOĞRU: o Drizzle'ın
+   * `lte()` yardımcısına gidiyor, sürücüye değil. Aynı isimli iki değer,
+   * iki farklı yol, iki farklı kural.
+   *
+   * Aynı tuzak `market/repository.ts` `getPriceSeries` içinde de belgeli.
+   *
+   * ⚠️ `::timestamptz` DEĞİL: kolon saat dilimsiz ve cron UTC yazıyor.
+   * `timestamptz` sürücünün yerel dilimini uygular, Türkiye'de 3 saat
+   * kaydırırdı — sorgu çalışır, sonuç sessizce yanlış olurdu.
+   */
+  const endOfDay = `${targetDateStr}T23:59:59.999Z`;
 
   const rows = await db.execute<{
     symbol: string;
@@ -130,7 +152,7 @@ export async function findMultiplesForDate(targetDateStr: string): Promise<
     LEFT JOIN LATERAL (
       SELECT price_try AS start_price
       FROM price_history
-      WHERE asset_id = a.id AND ts <= ${endOfDay}
+      WHERE asset_id = a.id AND ts <= ${endOfDay}::timestamp
       ORDER BY ts DESC
       LIMIT 1
     ) s ON true

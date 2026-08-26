@@ -383,10 +383,28 @@ export function PortfolioScreen({
 
   const visibleOrders = expandedOrders ? orders : orders.slice(0, 3);
 
-  /** Dilim renklerinin sabit sırası — satır rozetleri çubukla eşleşsin. */
-  const sliceOrder = portfolio.positions
-    .filter((p) => p.sharePercent !== null)
-    .map((p) => p.symbol);
+  /**
+   * ÇUBUK SIRASI — paydan BÜYÜKTEN KÜÇÜĞE.
+   *
+   * Hem dilimlerin çizim sırası hem de renk atamasının kaynağı. İkisi
+   * de buradan türediği için satır rozeti ile çubuk dilimi her zaman
+   * aynı renkte.
+   *
+   * ⚠️ TABLO SIRALAMASINDAN BAĞIMSIZ — ve bu bir tutarsızlığın
+   * düzeltmesi. Dilimler `sorted` üzerinden kuruluyordu (kullanıcının
+   * seçtiği sıra), renkler ise sunucunun sırasından. Kullanıcı tabloyu
+   * "değişime göre" sıralayınca çubuktaki renkler satırlardakiyle
+   * UYUŞMUYORDU: mor dilim BTC, mor rozet ETH oluyordu.
+   *
+   * Çubuk bir kompozisyon gösteriyor; tablo nasıl sıralanırsa
+   * sıralansın en büyük dilim solda olmalı.
+   */
+  const barPositions = portfolio.positions
+    .filter((p) => p.sharePercent !== null && p.valueCents !== null)
+    .slice()
+    .sort((a, b) => Number(b.sharePercent) - Number(a.sharePercent));
+
+  const sliceOrder = barPositions.map((p) => p.symbol);
 
   /**
    * Sütun başlığına dokunulunca: azalan -> artan -> varsayılan.
@@ -415,7 +433,25 @@ export function PortfolioScreen({
    */
   const slices: Slice[] = [];
 
-  for (const p of positions) {
+  /*
+   * ⚠️ `positions` DEĞİL `sorted` — VE BU GERÇEK BİR HATANIN DÜZELTMESİ.
+   *
+   * `positions` ekranda GÖRÜNEN satırlar: liste kapalıyken yalnızca
+   * ilk 4. Dilimleri ondan kursaydık — kurulmuştu — çubuk portföyün
+   * tamamını değil, dört varlığı gösterirdi.
+   *
+   * Asıl zararı aşağıdaki nakit hesabındaydı: nakit yüzdesi
+   * `100 - (dilimlerin toplamı)` ile bulunuyor. Dilimler eksik olunca
+   * GİZLİ VARLIKLARIN PAYI NAKDE EKLENİYORDU.
+   *
+   * Ölçülen sonuç: 6.083 TL nakit (portföyün %6'sı) çubuğun yarısından
+   * fazlasını kaplıyordu. Sayı doğru yazılıyordu, çubuk yalan
+   * söylüyordu — en sinsi hata türü.
+   *
+   * Çubuk her zaman TÜM portföyü gösteriyor; "tümünü gör" yalnızca
+   * satır listesini açıyor.
+   */
+  for (const p of barPositions) {
     if (p.sharePercent === null || p.valueCents === null) continue;
 
     slices.push({

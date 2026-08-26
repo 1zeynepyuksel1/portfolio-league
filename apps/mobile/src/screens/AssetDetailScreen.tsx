@@ -383,10 +383,24 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
           </View>
         )}
 
+      </ScrollView>
+
+      {/*
+        AL/SAT ÇUBUĞU — ScrollView'un DIŞINDA, sabit.
+
+        ⚠️ İÇERİDEYDİ VE EN ALTTAYDI. Grafiğe, aralık düğmelerine ve
+        24 saat özetine baktıktan sonra ancak görünüyordu; oysa bu
+        ekranın VAR OLMA sebebi o düğme. Kullanıcı fiyata bakıp
+        "alayım" dediğinde kaydırmak zorunda kalıyordu.
+
+        Başlık gibi bu da sabit: ekranın iki ucu duruyor, ortası kayıyor.
+        Aynı desen — kaçış yolu ve asıl eylem her zaman görünür.
+      */}
+      <View style={styles.tradeBar}>
         <Pressable style={styles.tradeButton} onPress={onTrade}>
           <Text style={styles.tradeButtonText}>Al / Sat</Text>
         </Pressable>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -505,12 +519,20 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
 
+  // Sabit alt çubuk: kendi yatay boşluğu ve üst ayırıcı çizgisi var.
+  tradeBar: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
   tradeButton: {
     backgroundColor: colors.gain,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 24,
   },
   tradeButtonText: { color: colors.ink, fontSize: 17, fontFamily: fonts.bold },
 });

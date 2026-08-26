@@ -22,28 +22,41 @@ import { colors, fonts } from '../theme';
  */
 
 /**
- * Dilim renkleri.
+ * Dilim renkleri — TEMEL RENKLER, kırmızı ve yeşil dahil.
  *
- * ⚠️ ÖNCE GRİ TONLARDI, RENGE GEÇİLDİ — ve gerekçe değişti.
+ * ⚠️ ÜÇÜNCÜ PALET. Yol şöyle oldu:
  *
- * Gri seçilmişti çünkü yeşil/kırmızı bu uygulamada YÖN demek ve dağılımı
- * renklendirmek "yeşil dilim = kazanan varlık" gibi okunabilirdi.
+ *   1. Gri tonlar -> beş dilimin dördü birbirine benziyordu, hangi çubuğun
+ *      hangi varlık olduğu görünmüyordu.
+ *   2. Renkli ama kırmızı/yeşil YOK -> ayırt edilebilirlik arttı ama
+ *      kalan tonlar (mor/çivit/eflatun, sarı/turuncu) hâlâ birbirine
+ *      yakındı; küçük dilimlerde fark seçilmiyordu.
+ *   3. Bu palet: temel renk çemberinden altı ayrı ton.
  *
- * Ama uygulamada gri tonlar birbirinden ayırt edilemedi: beş dilimin
- * dördü aynı griye çalıyordu ve kullanıcı hangi çubuğun hangi varlık
- * olduğunu göremiyordu. Renk bu sorunu çözüyor.
+ * ⚠️ KIRMIZI VE YEŞİLİN BİLİNEN RİSKİ VAR — kayıt için burada duruyor.
  *
- * Karışma riski şöyle kapatıldı: paletten YEŞİL VE KIRMIZI ÇIKARILDI.
- * Mor, mavi, turuncu, camgöbeği, sarı — hiçbiri yön rengiyle karışmıyor.
+ * Bu uygulamada yeşil KAZANÇ, kırmızı KAYIP demek. Dağılım çubuğunda
+ * kırmızı bir dilim "bu varlık zararda" gibi okunabilir. Palet bunu
+ * KABUL EDİYOR, çünkü:
+ *
+ *   - Çubuk bir BÜYÜKLÜK gösteriyor, yön değil. Yanındaki her sayı
+ *     ayrıca kendi yön rengiyle yazılıyor.
+ *   - Tonlar yön renklerinden BİLEREK farklı seçildi: gain #34C28A
+ *     (nane), buradaki yeşil #37C978 (çimen); loss #E5484D (mercan),
+ *     buradaki kırmızı #F0483E (turuncuya çalan). Yan yana konduğunda
+ *     aynı renk olmadıkları görülüyor.
+ *   - Ayırt edilememek daha büyük bir zarar: kullanıcı hangi dilimin
+ *     hangi varlık olduğunu göremiyorsa çubuk hiçbir işe yaramıyor.
  */
 export const SLICE_COLORS = [
-  '#7C6BF5', // mor
+  '#F0483E', // kırmızı
   '#3E9BF0', // mavi
-  '#E8913A', // turuncu
-  '#37BFC0', // camgöbeği
-  '#D4C24A', // sarı
-  '#C56FC9', // eflatun
-  '#5F7FE8', // çivit
+  '#F5A524', // turuncu
+  '#37C978', // yeşil
+  '#A855F7', // mor
+  '#22D3EE', // camgöbeği
+  '#EAB308', // sarı
+  '#EC4899', // pembe
   colors.inkDisabled, // artanlar
 ] as const;
 
