@@ -7,7 +7,6 @@ import { YahooAdapter } from "./yahoo.js";
 import { isRegularSessionOpen } from "./market-hours.js";
 import type { MarketDataProvider } from "./provider.js";
 import { insertPrice, listActiveAssets } from "./repository.js";
-import { syncAllLeagueEntriesAndRanks } from "../leagues/twr-engine.js";
 
 /**
  * Fiyat çekme işi.
@@ -199,15 +198,6 @@ export async function fetchAndStorePrices(
         `[price-cron] ${asset.symbol} alınamadı:`,
         error instanceof Error ? error.message : error,
       );
-    }
-  }
-
-  // Fiyatlar güncellendiyse lig TWR oranlarını ve sıralamayı arka planda senkronize et
-  if (result.written > 0) {
-    try {
-      await syncAllLeagueEntriesAndRanks();
-    } catch (err) {
-      console.error('[price-cron] TWR senkronizasyon hatası:', err);
     }
   }
 
