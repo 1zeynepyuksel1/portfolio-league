@@ -1,0 +1,16 @@
+-- ABD hisseleri icin asset_kind enum'una 'stock' degeri.
+--
+-- NEDEN ELLE YAZILDI, drizzle-kit generate ILE DEGIL:
+-- Uretici komut `users` tablosunda cozemedigi bir kolon catismasi
+-- yuzunden interaktif soru soruyor (display_name -> first_name/last_name).
+-- Tam diff uretmesine izin verilseydi o refactor'u de kapsayan,
+-- muhtemelen yikici bir migration cikardi. Bu dosya sadece enum degerini
+-- ekliyor, baska hicbir seye dokunmuyor.
+--
+-- IF NOT EXISTS: gelistirme veritabanina deger elle eklenmisti.
+-- Onsuz bu migration o makinede "already exists" ile patlardi.
+--
+-- PostgreSQL 12+ ADD VALUE'yu transaction icinde kabul ediyor; tek sart
+-- yeni degerin AYNI transaction'da KULLANILMAMASI. Burada sadece
+-- ekleniyor, kullanan satir yok.
+ALTER TYPE "public"."asset_kind" ADD VALUE IF NOT EXISTS 'stock';

@@ -13,6 +13,65 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 20. `stock` migration'ı ve keşfedilen şema sapması — 26 Ağu 2026
+
+| Dosya | Ne |
+|---|---|
+| `drizzle/0009_add_stock_asset_kind.sql` 🆕 | `ALTER TYPE ... ADD VALUE 'stock'` |
+| `drizzle/meta/0009_snapshot.json` 🆕 | enum'a `stock` eklenmiş snapshot |
+| `drizzle/meta/_journal.json` | 10. kayıt |
+
+**Neden elle yazıldı.** `drizzle-kit generate` çalıştırılınca patladı:
+
+```
+promptColumnsConflicts -> Interactive prompts require a TTY
+```
+
+Yani üretici komut bir **kolon çatışması** soruyor. Sadece enum eklemesi
+olsa sormazdı. Snapshot ile canlı veritabanını karşılaştırdım:
+
+```
+users → DB'de              : first_name, last_name
+      → migration geçmişinde: display_name
+```
+
+Zeynep `display_name`'i ikiye bölmüş ama migration geçmişi bunu
+yakalamamış. drizzle-kit "bu yeniden adlandırma mı, silme+ekleme mi"
+diye soruyor ve cevaplayacak kimse yok.
+
+⚠️ **BUNUN ANLAMI: `npm run db:generate` şu an HERKES İÇİN KIRIK.**
+Zeynep'e söylenmeli — kendi refactor'ü, kendi düzeltmesi.
+
+⚠️ **Tam diff üretmesine izin verilseydi** o refactor'u de kapsayan,
+muhtemelen yıkıcı bir migration çıkardı (`0008_user_refactor.sql`
+zaten `TRUNCATE` içeriyor). Elle yazılan dosya sadece enum değerini
+ekliyor, başka hiçbir şeye dokunmuyor.
+
+---
+
+**Uygulamadan önce yapılan kontroller** — `0008` `TRUNCATE` içerdiği için:
+
+| Kontrol | Sonuç |
+|---|---|
+| DB'deki son `created_at` | 1787654099261 (`0008`) |
+| Yeni kaydın `when`'i | 1787760318227 → **sadece 0009 bekliyor** |
+| PostgreSQL sürümü | 16.15 → `ADD VALUE` transaction içinde çalışır (PG 12+) |
+
+Sonuç:
+
+```
+ONCE  -> kullanici: 6  varlik: 50  emir: 28
+NOTICE: enum label "stock" already exists, skipping
+SONRA -> kullanici: 6  varlik: 50  emir: 28
+```
+
+`IF NOT EXISTS` olmasaydı bu migration geliştirme makinesinde
+"already exists" ile patlardı — çünkü değeri oraya elle eklemiştim.
+
+⚠️ **Ders:** migration'ın idempotent olması "temiz kod" meselesi değil.
+Aynı SQL'in farklı durumdaki iki veritabanında (biri elle değiştirilmiş,
+biri sıfırdan) çalışması gerekiyor.
+
 ### 19. Hisse filtresi ve 30 şirket logosu — 26 Ağu 2026
 
 | Dosya | Ne |
