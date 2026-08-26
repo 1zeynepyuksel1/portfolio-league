@@ -35,7 +35,7 @@ export function AddFriend({ onSent }: { onSent?: () => void }) {
 
     if (trimmed === '') {
       setFailed(true);
-      setMessage('E-posta boş olamaz.');
+      setMessage('Kullanıcı adı ya da e-posta girin.');
       return;
     }
 
@@ -45,7 +45,7 @@ export function AddFriend({ onSent }: { onSent?: () => void }) {
     try {
       await apiFetch('/friends/requests', {
         method: 'POST',
-        body: JSON.stringify({ addresseeEmail: trimmed }),
+        body: JSON.stringify({ addressee: trimmed }),
       });
 
       setFailed(false);
@@ -78,15 +78,22 @@ export function AddFriend({ onSent }: { onSent?: () => void }) {
   return (
     <View style={styles.box}>
       <View style={styles.row}>
+        {/*
+          ⚠️ `keyboardType="email-address"` DEĞİL.
+
+          O klavye "@" ve "." tuşlarını öne çıkarır ama boşluğu daraltır —
+          alan yalnızca e-posta kabul ederken doğruydu. Artık kullanıcı adı
+          da girilebiliyor; düz klavye ikisine de uygun.
+        */}
         <TextInput
           style={styles.input}
           value={email}
           onChangeText={setEmail}
-          placeholder="arkadasin@eposta.com"
+          placeholder="@kullaniciadi ya da e-posta"
           placeholderTextColor={colors.inkDisabled}
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="email-address"
+          keyboardType="default"
           returnKeyType="send"
           onSubmitEditing={() => void send()}
         />

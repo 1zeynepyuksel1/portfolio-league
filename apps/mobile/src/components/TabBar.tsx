@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Path, Polyline, Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Polyline, Rect } from 'react-native-svg';
 import { colors, fonts } from '../theme';
 
 /**
@@ -20,13 +20,21 @@ import { colors, fonts } from '../theme';
  * imkânsız. SVG her yerde birebir aynı.
  */
 
-export type TabKey = 'wallet' | 'market' | 'league' | 'whatif';
+export type TabKey = 'wallet' | 'market' | 'league' | 'whatif' | 'profile';
 
+/**
+ * ⚠️ BEŞİNCİ SEKME EKLENDİ — ve etiketler buna göre KISALDI.
+ *
+ * 'Ya alsaydın' dört sekmede rahat sığıyordu; beşincide taşıyor.
+ * Etiketi kısaltmak, sekmeyi çıkarmaktan iyi: özellik duruyor,
+ * yalnızca adı daralıyor. Beşten fazlası alt çubuğu okunmaz yapar.
+ */
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'wallet', label: 'Cüzdan' },
   { key: 'market', label: 'Piyasa' },
   { key: 'league', label: 'Lig' },
-  { key: 'whatif', label: 'Ya alsaydın' },
+  { key: 'whatif', label: 'Alsaydın' },
+  { key: 'profile', label: 'Profil' },
 ];
 
 /** Cüzdan — kart yuvası. */
@@ -82,11 +90,23 @@ function HistoryIcon({ color }: { color: string }) {
 
 // ⚠️ `JSX.Element` DEĞİL, `ReactElement`. Yeni JSX dönüşümünde global
 // `JSX` ad alanı yok; React'ten içe aktarılan tip kullanılıyor.
+/** Profil — omuz ve baş. */
+function ProfileIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx={12} cy={8} r={3.6} />
+      <Path d="M4.5 20c0-3.6 3.4-5.6 7.5-5.6s7.5 2 7.5 5.6" />
+    </Svg>
+  );
+}
+
 const ICONS: Record<TabKey, (props: { color: string }) => ReactElement> = {
   wallet: WalletIcon,
   market: MarketIcon,
   league: LeagueIcon,
   whatif: HistoryIcon,
+  profile: ProfileIcon,
 };
 
 export function TabBar({

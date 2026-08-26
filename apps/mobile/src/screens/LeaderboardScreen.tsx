@@ -50,6 +50,8 @@ type LeaderboardEntry = {
   rank: number;
   userId: string;
   displayName: string;
+  /** Profil ekranının adresi. Eski kayıtlarda eksik olabilir. */
+  username?: string;
   isPublic: boolean;
   twrPercentRaw: number;
   twrPercentFormatted: string;
@@ -59,24 +61,23 @@ type LeaderboardEntry = {
 
 export function LeaderboardScreen({
   onOpenFriends,
+  onSelectUser,
 }: {
+  /**
+   * Bir yarışmacıya dokununca profilini açar.
+   *
+   * ⚠️ Kullanıcı adı olmayan satır dokunulamaz kalıyor: `undefined`
+   * bir profil adresine gitmektense hiç tepki vermemek daha az
+   * yanıltıcı. Bu durum yalnızca eski kayıtlarda olabilir.
+   */
+  onSelectUser?: (username: string) => void;
   /** Arkadaşlar katmanını açar. Verilmezse düğme çizilmez. */
   onOpenFriends?: () => void;
 }) {
   // Aktif Sekme (Genel Lig vs Arkadaşlarım)
   const [activeTab, setActiveTab] = useState<'global' | 'friends'>('global');
 
-  /**
-   * Bekleyen GELEN istek sayısı — rozetin kaynağı.
-   *
-   * ⚠️ NEDEN GEREKLİ: bildirim altyapısı yok (push yok, e-posta yok).
-   * Arkadaşlık isteği gönderilince karşı tarafa hiçbir şey ulaşmıyordu;
-   * istek ekranı açılmadıkça kimse varlığından haberdar olmuyordu.
-   *
-   * Rozet tam bir bildirim değil ama sessizliği kırıyor: kullanıcı Lig
-   * ekranına her girdiğinde bekleyen bir şey olduğunu görüyor.
-   */
-  const [pendingCount, setPendingCount] = useState(0);
+
 
   // Veri Durumları
   const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
@@ -103,19 +104,9 @@ export function LeaderboardScreen({
       const listRes = await apiFetch<{ leaderboard: LeaderboardEntry[] }>(endpoint);
       setEntries(listRes.leaderboard || []);
 
-      /**
-       * 3. Bekleyen gelen istek sayısı — rozet için.
-       *
-       * ⚠️ AYRI try/catch: bu sayı YAN BİLGİ. İstek listesi alınamazsa
-       * sıralama yine gösterilmeli. Ana akışın içinde bıraksaydık
-       * arkadaşlık ucundaki bir hata bütün lig ekranını düşürürdü.
-       */
-      try {
-        const reqRes = await apiFetch<{ incoming?: unknown[] }>('/friends/requests');
-        setPendingCount(reqRes.incoming?.length ?? 0);
-      } catch {
-        setPendingCount(0);
-      }
+      // ⚠️ Bekleyen istek sayacı BURADAN KALDIRILDI — Profil sekmesine
+      // taşındı. Aynı sayıyı iki ekranda saymak, biri eskidiğinde
+      // çelişkili rozet göstermek demekti.
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lig verileri alınamadı.');
     } finally {
@@ -235,16 +226,7 @@ export function LeaderboardScreen({
           {activeTab === 'friends' && (
             <>
               <AddFriend onSent={() => void loadData()} />
-              {onOpenFriends !== undefined && (
-                <TouchableOpacity style={styles.friendsLink} onPress={onOpenFriends}>
-                  <Text style={styles.friendsLinkText}>Arkadaşlar ve istekler</Text>
-                  {pendingCount > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{pendingCount}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              )}
+
             </>
           )}
         </View>
@@ -259,7 +241,14 @@ export function LeaderboardScreen({
             top1 || top2 || top3 ? (
               <View style={styles.podiumContainer}>
                 {/* 2. Sıra (Gümüş Podyum) */}
-                <View style={[styles.podiumColumn, styles.podiumCol2]}>
+                <TouchableOpacity
+                  style={[styles.podiumColumn, styles.podiumCol2]}
+                  disabled={top2?.username === undefined || onSelectUser === undefined}
+                  onPress={() => {
+                    if (top2?.username !== undefined) onSelectUser?.(top2.username);
+                  }}
+                  accessibilityRole="button"
+                >
                   {top2 ? (
                     <>
                       <View style={[styles.avatarCircle, styles.silverBorder]}>
@@ -277,10 +266,17 @@ export function LeaderboardScreen({
                   ) : (
                     <View style={styles.podiumPlaceholder} />
                   )}
-                </View>
+                </TouchableOpacity>
 
                 {/* 1. Sıra (Altın Podyum - En Yüksek) */}
-                <View style={[styles.podiumColumn, styles.podiumCol1]}>
+                <TouchableOpacity
+                  style={[styles.podiumColumn, styles.podiumCol1]}
+                  disabled={top1?.username === undefined || onSelectUser === undefined}
+                  onPress={() => {
+                    if (top1?.username !== undefined) onSelectUser?.(top1.username);
+                  }}
+                  accessibilityRole="button"
+                >
                   {top1 ? (
                     <>
                       <View style={[styles.avatarCircle, styles.goldBorder]}>
@@ -298,10 +294,17 @@ export function LeaderboardScreen({
                   ) : (
                     <View style={styles.podiumPlaceholder} />
                   )}
-                </View>
+                </TouchableOpacity>
 
                 {/* 3. Sıra (Bronz Podyum) */}
-                <View style={[styles.podiumColumn, styles.podiumCol3]}>
+                <TouchableOpacity
+                  style={[styles.podiumColumn, styles.podiumCol3]}
+                  disabled={top3?.username === undefined || onSelectUser === undefined}
+                  onPress={() => {
+                    if (top3?.username !== undefined) onSelectUser?.(top3.username);
+                  }}
+                  accessibilityRole="button"
+                >
                   {top3 ? (
                     <>
                       <View style={[styles.avatarCircle, styles.bronzeBorder]}>
@@ -319,15 +322,33 @@ export function LeaderboardScreen({
                   ) : (
                     <View style={styles.podiumPlaceholder} />
                   )}
-                </View>
+                </TouchableOpacity>
               </View>
             ) : null
           }
           // 4., 5., 6... Sıradaki Kullanıcı Satırları
           renderItem={({ item }) => {
             const isPositive = item.twrPercentRaw >= 0;
+            const openable = item.username !== undefined && onSelectUser !== undefined;
+
             return (
-              <View style={styles.userRow}>
+              /*
+                Satır profile açılıyor.
+
+                ⚠️ `disabled` KULLANILIYOR, satırı gizlemek değil: kullanıcı
+                adı olmayan eski bir kayıt yine sıralamada görünmeli, sadece
+                dokunulamaz olmalı. Listeden düşürseydik sıralama eksik
+                görünürdü ve sebebi anlaşılmazdı.
+              */
+              <TouchableOpacity
+                style={styles.userRow}
+                disabled={!openable}
+                onPress={() => {
+                  if (item.username !== undefined) onSelectUser?.(item.username);
+                }}
+                accessibilityRole={openable ? 'button' : undefined}
+                accessibilityLabel={`${item.displayName} profilini aç`}
+              >
                 <View style={styles.rankCircle}>
                   <Text style={styles.rankText}>{item.rank}</Text>
                 </View>
@@ -341,7 +362,7 @@ export function LeaderboardScreen({
                     {item.twrPercentFormatted}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           }}
           ListFooterComponent={
@@ -350,16 +371,7 @@ export function LeaderboardScreen({
               // TEK bir eleman bekliyor, sarmalayıcı olmadan sözdizimi hatası.
               <>
                 <AddFriend onSent={() => void loadData()} />
-                {onOpenFriends !== undefined && (
-                  <TouchableOpacity style={styles.friendsLink} onPress={onOpenFriends}>
-                    <Text style={styles.friendsLinkText}>Arkadaşlar ve istekler</Text>
-                    {pendingCount > 0 && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{pendingCount}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                )}
+
               </>
             ) : null
           }
@@ -370,38 +382,6 @@ export function LeaderboardScreen({
 }
 
 const styles = StyleSheet.create({
-  friendsLink: {
-    marginTop: 12,
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceRaised,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  friendsLinkText: {
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-    color: colors.inkBright,
-  },
-  // Rozet: bildirim altyapısı olmadığı için sessizliği kıran tek işaret.
-  badge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    backgroundColor: colors.gain,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    color: colors.onInverse,
-  },
 
   container: {
     flex: 1,
@@ -586,18 +566,18 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   goldBorder: {
-    borderColor: colors.warn,
+    borderColor: colors.gold,
     borderWidth: 2.5,
     width: 70,
     height: 70,
     borderRadius: 35,
   },
   silverBorder: {
-    borderColor: colors.inkMuted,
+    borderColor: colors.silver,
     borderWidth: 2,
   },
   bronzeBorder: {
-    borderColor: colors.warn,
+    borderColor: colors.bronze,
     borderWidth: 2,
   },
   avatarText: {
@@ -613,13 +593,13 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   goldBadge: {
-    backgroundColor: colors.warn,
+    backgroundColor: colors.gold,
   },
   silverBadge: {
-    backgroundColor: colors.inkFaint,
+    backgroundColor: colors.silver,
   },
   bronzeBadge: {
-    backgroundColor: colors.warn,
+    backgroundColor: colors.bronze,
   },
   medalText: {
     color: colors.ink,
@@ -652,20 +632,20 @@ const styles = StyleSheet.create({
   },
   goldStand: {
     height: 75,
-    backgroundColor: colors.warnSoft,
-    borderColor: colors.warn,
+    backgroundColor: colors.goldSoft,
+    borderColor: colors.gold,
     borderWidth: 1.5,
   },
   silverStand: {
     height: 55,
-    backgroundColor: colors.border,
-    borderColor: colors.inkMuted,
+    backgroundColor: colors.silverSoft,
+    borderColor: colors.silver,
     borderWidth: 1.5,
   },
   bronzeStand: {
     height: 40,
-    backgroundColor: colors.warnSoft,
-    borderColor: colors.warn,
+    backgroundColor: colors.bronzeSoft,
+    borderColor: colors.bronze,
     borderWidth: 1.5,
   },
   standRank: {

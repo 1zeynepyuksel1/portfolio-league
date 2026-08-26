@@ -8,6 +8,7 @@ import { leaguesRouter } from './leagues/router.js';
 import { marketRouter } from './market/router.js';
 import { ordersRouter } from './orders/router.js';
 import { portfolioRouter } from './portfolio/router.js';
+import { profileRouter } from './profile/router.js';
 import { whatIfRouter } from './what-if/router.js';
 
 export const app = express();
@@ -24,6 +25,8 @@ app.use('/leagues', leaguesRouter);
 app.use('/assets', marketRouter);
 app.use('/orders', ordersRouter);
 app.use('/portfolio', portfolioRouter);
+// Profil: /users/:username ve /users/me/visibility
+app.use('/users', profileRouter);
 app.use('/what-if', whatIfRouter);
 
 app.get('/health', (_request, response) => {

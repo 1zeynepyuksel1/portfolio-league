@@ -24,6 +24,14 @@ export type User = {
   id: string;
   email: string;
   displayName: string;
+  /**
+   * Profil ekranının adresi.
+   *
+   * ⚠️ `?` İŞARETLİ: kullanıcı adı 0008 migration'ıyla zorunlu oldu
+   * ama eski bir token'la gelen yanıtta olmayabilir. Zorunlu yapsaydık
+   * tip yalan söylerdi ve `undefined` bir URL'e girerdi.
+   */
+  username?: string;
 };
 
 export function setAccessToken(token: string | null) {

@@ -101,6 +101,32 @@ export const colors = {
   /** Uyarı. Ne yükseliş ne düşüş — "dikkat et". */
   warn: '#d9a441',
 
+  /**
+   * MADALYA RENKLERİ — podyum için.
+   *
+   * ⚠️ ÜÇÜ AYRI TOKEN OLMAK ZORUNDA. Önceden bronz da `warn` (altın
+   * sarısı) kullanıyordu; birinci ile üçüncü AYNI renkteydi ve podyum
+   * "kim kaçıncı" bilgisini renkle taşıyamıyordu.
+   *
+   * Gümüş bilerek soğuk gri, bronz bilerek kırmızıya çalan kahve:
+   * altın sarısından hem ton hem parlaklık olarak ayrışıyorlar, yani
+   * renk körlüğünde de sıra okunabiliyor.
+   */
+  /**
+   * ⚠️ `warn` İLE AYNI DEĞİL — VE OLMAMALI.
+   *
+   * İkisi de sarı ama işleri farklı: `warn` (#d9a441) bir UYARI rengi,
+   * dikkat çekmeli ama tedirgin etmemeli — bilerek soluk. Madalya ise
+   * bir ÖDÜL: parlak olması gerekiyor, birinciliğin ekranda ışıldaması
+   * lazım.
+   *
+   * Ayrı token olmasalardı birini parlatmak diğerini de değiştirirdi:
+   * uyarı mesajları gereksiz yere bağırmaya başlardı.
+   */
+  gold: '#ffc93c',
+  silver: '#b9bec8',
+  bronze: '#b0703a',
+
   // ---------------------------------------------------------------------
   // TERS ZEMİN — seçili çip ve birincil düğme
   // ---------------------------------------------------------------------
@@ -124,6 +150,9 @@ export const colors = {
   gainSoft: 'rgba(52, 194, 138, 0.15)',
   lossSoft: 'rgba(229, 72, 77, 0.15)',
   warnSoft: 'rgba(217, 164, 65, 0.15)',
+  goldSoft: 'rgba(255, 201, 60, 0.18)',
+  silverSoft: 'rgba(185, 190, 200, 0.14)',
+  bronzeSoft: 'rgba(176, 112, 58, 0.16)',
 
   // ---------------------------------------------------------------------
   // GRAFİK

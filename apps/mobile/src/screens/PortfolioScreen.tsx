@@ -136,10 +136,8 @@ type SortState = { key: SortKey; desc: boolean } | null;
 type Filter = 'all';
 
 export function PortfolioScreen({
-  onLogout,
   onSelectAsset,
 }: {
-  onLogout?: () => void;
   /**
    * Pozisyona dokununca piyasa detayına götürür.
    *
@@ -683,11 +681,14 @@ export function PortfolioScreen({
             </View>
           )}
 
-          {onLogout ? (
-            <TouchableOpacity style={styles.logout} onPress={onLogout}>
-              <Text style={styles.logoutText}>Çıkış yap</Text>
-            </TouchableOpacity>
-          ) : null}
+          {/*
+            ⚠️ ÇIKIŞ DÜĞMESİ BURADAN KALDIRILDI — Profil sekmesine taşındı.
+
+            Cüzdanın altındaydı çünkü o zaman başka bir yer yoktu. Ama
+            çıkış yapmak bir HESAP işi, bir portföy işi değil; kullanıcı
+            onu ararken cüzdanın en dibine bakmak zorunda kalıyordu.
+            Profil sekmesi açılınca doğru evi bulundu.
+          */}
         </View>
       }
     />
@@ -867,15 +868,4 @@ const styles = StyleSheet.create({
   orderQuantity: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkMuted },
   orderTime: { fontFamily: fonts.regular, fontSize: 10, color: colors.inkDisabled },
 
-  logout: {
-    alignSelf: 'center',
-    marginTop: 28,
-    marginBottom: 32,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 9,
-  },
-  logoutText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.inkMuted },
 });

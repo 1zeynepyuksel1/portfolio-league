@@ -13,6 +13,8 @@ export type LeaderboardEntryDto = {
   rank: number;
   userId: string;
   displayName: string;
+  /** Profil adresi. Eski kayıtlarda boş olabilir. */
+  username: string | null;
   isPublic: boolean;
   twrPercentRaw: number; // Örn: 0.3962
   twrPercentFormatted: string; // Örn: "+%39,62"

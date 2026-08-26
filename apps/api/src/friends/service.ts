@@ -4,6 +4,7 @@ import {
   findFriendshipBetweenUsers,
   findFriendshipById,
   findUserByEmail,
+  findUserByUsername,
   getAcceptedFriends,
   getPendingRequests,
   updateFriendshipStatus,
@@ -58,9 +59,22 @@ export class UnauthorizedFriendActionError extends FriendshipError {
 }
 
 // Arkadaşlık İsteği Gönderme
-export async function sendFriendRequest(requesterId: string, addresseeEmail: string) {
-  // 1. Hedef kullanıcıyı bul
-  const targetUser = await findUserByEmail(addresseeEmail);
+/**
+ * Arkadaşlık isteği gönderir.
+ *
+ * `addressee` KULLANICI ADI ya da E-POSTA olabilir; ayrım burada
+ * yapılıyor. Ölçüt "@" içeriyor mu: kullanıcı adlarında bu karakter
+ * yok, e-posta adreslerinde her zaman var.
+ */
+export async function sendFriendRequest(requesterId: string, addressee: string) {
+  // 1. Hedef kullanıcıyı bul — girilen değerin biçimine göre.
+  const targetUser = addressee.includes('@')
+    // ⚠️ E-postada DÜZ `toLowerCase()`: adresler ASCII, Türkçe yerel
+    // burada "I" harfini "ı" yapıp adresi bozardı.
+    ? await findUserByEmail(addressee.toLowerCase())
+    // Kullanıcı adı olduğu gibi geçiyor; karşılaştırma sorguda harf
+    // duyarsız yapılıyor.
+    : await findUserByUsername(addressee);
   if (!targetUser) {
     throw new UserNotFoundError();
   }

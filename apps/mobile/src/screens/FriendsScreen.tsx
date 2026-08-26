@@ -16,6 +16,8 @@ type Friend = {
   friendshipId?: string;
   friendId?: string;
   displayName?: string;
+  /** Ligdeki kimlik — e-postadan daha kullanışlı. */
+  username?: string;
   email?: string;
   since?: string;
 };
@@ -55,7 +57,20 @@ type RequestsResponse = {
  * Artık Lig ekranındaki "Arkadaşlar" alt sekmesinden bir katman olarak
  * açılıyor; `onClose` o katmanı kapatıyor.
  */
-export function FriendsScreen({ onClose }: { onClose?: () => void }) {
+export function FriendsScreen({
+  onClose,
+  onSelectUser,
+}: {
+  onClose?: () => void;
+  /**
+   * Bir arkadaşa dokununca profilini açar.
+   *
+   * ⚠️ Kullanıcı adı olmayan eski kayıtta satır dokunulamaz kalıyor:
+   * `undefined` bir profil adresine gitmektense hiç tepki vermemek
+   * daha az yanıltıcı.
+   */
+  onSelectUser?: (username: string) => void;
+}) {
   // Aktif Alt Sekme (Arkadaşlarım vs İstekler)
   const [activeTab, setActiveTab] = useState<'list' | 'requests'>('list');
 
@@ -105,7 +120,12 @@ export function FriendsScreen({ onClose }: { onClose?: () => void }) {
     try {
       await apiFetch('/friends/requests', {
         method: 'POST',
-        body: JSON.stringify({ addresseeEmail: emailInput.trim() }),
+        // ⚠️ ALAN ADI `addressee` — eskiden `addresseeEmail` idi.
+        // Bu ekranın KENDİ formu var (AddFriend bileşeninden ayrı) ve
+        // alan adı değişince burası unutulmuştu: kullanıcı adı yazınca
+        // sunucu "Geçersiz veri formatı" dönüyordu. Aynı isteği iki yerde
+        // kurmanın bedeli.
+        body: JSON.stringify({ addressee: emailInput.trim() }),
       });
 
       setSuccessMsg('Arkadaşlık isteği başarıyla gönderildi!');
@@ -178,17 +198,18 @@ export function FriendsScreen({ onClose }: { onClose?: () => void }) {
       <View style={styles.addSection}>
         <Text style={styles.sectionTitle}>👥 Arkadaş Ekle</Text>
         <Text style={styles.sectionSubtitle}>
-          E-posta adresi yazarak arkadaşınızı ligde yarışmaya davet edin.
+          Kullanıcı adı ya da e-posta yazarak arkadaşını ligde yarışmaya
+          davet et.
         </Text>
 
         <View style={styles.formRow}>
           <TextInput
             style={styles.input}
-            placeholder="ornek@gmail.com"
+            placeholder="@kullaniciadi ya da e-posta"
             placeholderTextColor={colors.inkFaint}
             value={emailInput}
             onChangeText={setEmailInput}
-            keyboardType="email-address"
+            keyboardType="default"
             autoCapitalize="none"
           />
 
@@ -271,15 +292,49 @@ export function FriendsScreen({ onClose }: { onClose?: () => void }) {
             const initials = name.slice(0, 2).toUpperCase();
             const removeId = item.friendshipId || item.id || '';
 
+            const openable =
+              item.username !== undefined && onSelectUser !== undefined;
+
             return (
-              <View style={styles.friendCard}>
+              /*
+                Arkadaş satırı profile açılıyor.
+
+                ⚠️ Kaldır düğmesi satırın İÇİNDE ve o da dokunulabilir.
+                İç içe dokunma hedeflerinde çocuk önce yakalar, yani
+                "Kaldır"a basmak profili AÇMAZ — React Native dokunmayı
+                en içteki hedefe veriyor. Ayrıca dış hedefi Pressable
+                yapıp iç düğmeyi hariç tutmaya gerek yok.
+              */
+              <TouchableOpacity
+                style={styles.friendCard}
+                disabled={!openable}
+                onPress={() => {
+                  if (item.username !== undefined) onSelectUser?.(item.username);
+                }}
+                accessibilityRole={openable ? 'button' : undefined}
+                accessibilityLabel={`${name} profilini aç`}
+              >
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarText}>{initials}</Text>
                 </View>
 
                 <View style={styles.friendDetails}>
                   <Text style={styles.friendName}>{name}</Text>
-                  <Text style={styles.friendEmail}>{item.email || ''}</Text>
+                  {/*
+                    ⚠️ E-POSTA YERİNE KULLANICI ADI.
+
+                    E-posta hem kişisel bir veri hem de arkadaş listesinde
+                    işe yaramıyor: kimse arkadaşını e-postasından tanımıyor.
+                    Kullanıcı adı ligde görünen kimlik — profilde,
+                    sıralamada, arkadaş eklemede hep o kullanılıyor.
+
+                    Kullanıcı adı yoksa (eski kayıt) e-postaya düşüyor:
+                    boş satır bırakmaktansa elimizdeki bilgiyi göstermek
+                    daha iyi.
+                  */}
+                  <Text style={styles.friendEmail}>
+                    {item.username !== undefined ? `@${item.username}` : item.email || ''}
+                  </Text>
                 </View>
 
                 {removeId ? (
@@ -290,7 +345,7 @@ export function FriendsScreen({ onClose }: { onClose?: () => void }) {
                     <Text style={styles.removeButtonText}>Çıkar</Text>
                   </TouchableOpacity>
                 ) : null}
-              </View>
+              </TouchableOpacity>
             );
           }}
         />

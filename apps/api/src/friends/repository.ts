@@ -1,4 +1,4 @@
-import { and, desc, eq, or } from 'drizzle-orm';
+import { and, desc, eq, or, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { friendships, users } from '../db/schema.js';
 
@@ -14,6 +14,45 @@ export async function findUserByEmail(email: string) {
     })
     .from(users)
     .where(eq(users.email, email))
+    .limit(1);
+
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: `${user.firstName} ${user.lastName}`,
+    isPublic: user.isPublic,
+  };
+}
+
+/**
+ * Kullanıcı adı ile kullanıcı arama.
+ *
+ * ⚠️ `findUserByEmail` İLE AYNI ŞEKLİ DÖNDÜRÜYOR — bilerek. Çağıran
+ * taraf hangi yoldan bulunduğunu bilmek zorunda kalmasın; iki farklı
+ * şekil dönseydi servis katmanında iki ayrı dal açmak gerekirdi.
+ */
+export async function findUserByUsername(username: string) {
+  const [user] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      isPublic: users.isPublic,
+    })
+    .from(users)
+    /**
+     * ⚠️ HARF DUYARSIZ. Kullanıcı adları kayıtta olduğu gibi saklanıyor
+     * ("Batuhan"), ama arayan kişi "batuhan" yazabilir. Düz eşitlik
+     * kullansaydık kullanıcı adını BİREBİR hatırlamak zorunda kalırdı.
+     *
+     * ⚠️ Bunun bir bedeli var: indeks kullanılamıyor (fonksiyon
+     * sonucuna göre arama). Kullanıcı sayısı büyürse `lower(username)`
+     * üzerinde bir indeks gerekir — o bir migration, yani Zeynep.
+     */
+    .where(sql`lower(${users.username}) = lower(${username})`)
     .limit(1);
 
   if (!user) return null;
@@ -104,6 +143,10 @@ export async function getAcceptedFriends(userId: string) {
       friendId: users.id,
       firstName: users.firstName,
       lastName: users.lastName,
+      // ⚠️ E-posta yerine bunu göstereceğiz: kullanıcı adı hem kısa hem
+      // ligde tanınan kimlik. E-posta kişisel bir veri ve arkadaş
+      // listesinde durmasının bir faydası yok.
+      username: users.username,
       email: users.email,
       isPublic: users.isPublic,
       since: friendships.updatedAt,
@@ -124,6 +167,10 @@ export async function getAcceptedFriends(userId: string) {
       friendId: users.id,
       firstName: users.firstName,
       lastName: users.lastName,
+      // ⚠️ E-posta yerine bunu göstereceğiz: kullanıcı adı hem kısa hem
+      // ligde tanınan kimlik. E-posta kişisel bir veri ve arkadaş
+      // listesinde durmasının bir faydası yok.
+      username: users.username,
       email: users.email,
       isPublic: users.isPublic,
       since: friendships.updatedAt,
@@ -141,6 +188,7 @@ export async function getAcceptedFriends(userId: string) {
     friendshipId: row.friendshipId,
     friendId: row.friendId,
     displayName: `${row.firstName} ${row.lastName}`,
+    username: row.username,
     email: row.email,
     isPublic: row.isPublic,
     since: row.since,
@@ -150,6 +198,7 @@ export async function getAcceptedFriends(userId: string) {
     friendshipId: row.friendshipId,
     friendId: row.friendId,
     displayName: `${row.firstName} ${row.lastName}`,
+    username: row.username,
     email: row.email,
     isPublic: row.isPublic,
     since: row.since,

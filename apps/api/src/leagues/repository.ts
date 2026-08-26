@@ -107,6 +107,8 @@ export async function getLeaderboardByLeagueId(
       userId: leagueEntries.userId,
       firstName: users.firstName,
       lastName: users.lastName,
+      // Profil ekranının adresi — /users/:username buna göre çalışıyor.
+      username: users.username,
       isPublic: users.isPublic,
       startValueCents: leagueEntries.startValueCents,
       endValueCents: leagueEntries.endValueCents,
@@ -117,7 +119,22 @@ export async function getLeaderboardByLeagueId(
     .from(leagueEntries)
     .innerJoin(users, eq(leagueEntries.userId, users.id))
     .where(eq(leagueEntries.periodId, leagueId))
-    .orderBy(sql`COALESCE(${leagueEntries.rank}, 999999) ASC`, desc(leagueEntries.twrPct))
+    /**
+     * ⚠️ ÖNCE TWR, SONRA rank — ESKİDEN TERSİYDİ VE SIRALAMA DONUYORDU.
+     *
+     * Eski hâli `COALESCE(rank, 999999) ASC, twr DESC` idi: yani sıralama
+     * MEVCUT sıralamaya göre yapılıyordu. `syncAllLeagueEntriesAndRanks`
+     * de bu listeyi alıp sırayla 1, 2, 3 diye yeniden yazıyordu.
+     *
+     * Sonuç dairesel: ilk atanan sıra sonsuza kadar kalıyordu. Ölçüldü —
+     * TWR %0,00 olan kullanıcı 1., %0,40 olan 3. sıradaydı ve hiçbir
+     * fiyat hareketi bunu değiştirmiyordu.
+     *
+     * Doğrusu: canlı sıralama HER ZAMAN TWR'den türetilir. Saklanan
+     * `rank` yalnızca lig kapandığında mühürlenen değer; eşitlik
+     * durumunda tie-break olarak kullanılıyor.
+     */
+    .orderBy(desc(leagueEntries.twrPct), sql`COALESCE(${leagueEntries.rank}, 999999) ASC`)
     .limit(limit)
     .offset(offset);
 
@@ -125,6 +142,7 @@ export async function getLeaderboardByLeagueId(
     periodId: row.periodId,
     userId: row.userId,
     displayName: `${row.firstName} ${row.lastName}`,
+    username: row.username,
     isPublic: row.isPublic,
     startValueCents: row.startValueCents,
     endValueCents: row.endValueCents,
@@ -166,6 +184,8 @@ export async function getFriendsLeaderboardByLeagueId(
       userId: leagueEntries.userId,
       firstName: users.firstName,
       lastName: users.lastName,
+      // Profil ekranının adresi — /users/:username buna göre çalışıyor.
+      username: users.username,
       isPublic: users.isPublic,
       startValueCents: leagueEntries.startValueCents,
       endValueCents: leagueEntries.endValueCents,
@@ -187,6 +207,7 @@ export async function getFriendsLeaderboardByLeagueId(
     periodId: row.periodId,
     userId: row.userId,
     displayName: `${row.firstName} ${row.lastName}`,
+    username: row.username,
     isPublic: row.isPublic,
     startValueCents: row.startValueCents,
     endValueCents: row.endValueCents,

@@ -54,6 +54,11 @@ export async function getGlobalLeaderboard(
       rank: entry.rank ?? query.offset + index + 1,
       userId: entry.userId,
       displayName: entry.displayName,
+      // ⚠️ Profil ekranının adresi. Repository bunu seçiyordu ama servis
+      // katmanı düşürüyordu — lig tablosundan profile geçiş bu yüzden
+      // çalışmıyordu. Tek tek alan sayan eşlemelerin bilinen bedeli:
+      // yeni alan eklemek İKİ yerde iş demek.
+      username: entry.username,
       isPublic: entry.isPublic,
       twrPercentRaw: twrFloat,
       twrPercentFormatted: formatTwrPercent(twrFloat),
@@ -85,6 +90,11 @@ export async function getFriendsLeaderboard(
       rank: index + 1, // Arkadaşlar arası göreceli sıralama
       userId: entry.userId,
       displayName: entry.displayName,
+      // ⚠️ Profil ekranının adresi. Repository bunu seçiyordu ama servis
+      // katmanı düşürüyordu — lig tablosundan profile geçiş bu yüzden
+      // çalışmıyordu. Tek tek alan sayan eşlemelerin bilinen bedeli:
+      // yeni alan eklemek İKİ yerde iş demek.
+      username: entry.username,
       isPublic: entry.isPublic,
       twrPercentRaw: twrFloat,
       twrPercentFormatted: formatTwrPercent(twrFloat),

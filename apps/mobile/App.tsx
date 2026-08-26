@@ -13,6 +13,7 @@ import {
   DMMono_500Medium,
 } from '@expo-google-fonts/dm-mono';
 import { FriendsScreen } from './src/screens/FriendsScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { MarketScreen } from './src/screens/MarketScreen';
 import { TradeScreen } from './src/screens/TradeScreen';
@@ -37,6 +38,7 @@ type User = {
   id: string;
   email: string;
   displayName: string;
+  username?: string;
 };
 
 /**
@@ -138,6 +140,17 @@ function AppShell() {
    * açılıyor, kapanınca lige dönüyor.
    */
   const [friendsOpen, setFriendsOpen] = useState(false);
+
+  /**
+   * BAŞKASININ profili. `null` = kapalı.
+   *
+   * ⚠️ KENDİ PROFİLİN SEKMEDE, BAŞKASININKİ KATMANDA. İkisi aynı ekran
+   * ama farklı yollarla açılıyor: kendi profilin sık bakılan bir yer,
+   * sekmede olmalı. Başkasınınki lig tablosundan bir kez açılıp
+   * kapanıyor — sekme değiştirseydik kullanıcı geri döndüğünde ligde
+   * değil profilde kalırdı.
+   */
+  const [viewingProfile, setViewingProfile] = useState<string | null>(null);
 
   // Saklanan oturum kontrol edilirken a├ğ─▒l─▒┼ş ekran─▒ g├Âsterilir. Bu bayrak
   // olmasayd─▒ uygulama bir an giri┼ş ekran─▒n─▒ g├Âsterip sonra ana ekrana
@@ -274,7 +287,6 @@ function AppShell() {
             // veri: nakit, pozisyonlar, toplam de─şer, k├ór/zarar.
             <PortfolioScreen
               key={portfolioVersion}
-              onLogout={() => void handleLogout()}
               /**
                * C├╝zdandaki bir varl─▒─şa dokununca piyasadaki detay─▒na git.
                *
@@ -286,7 +298,32 @@ function AppShell() {
               onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })}
             />
           ) : activeTab === 'league' ? (
-            <LeaderboardScreen onOpenFriends={() => setFriendsOpen(true)} />
+            <LeaderboardScreen
+              onOpenFriends={() => setFriendsOpen(true)}
+              onSelectUser={(username) => setViewingProfile(username)}
+            />
+          ) : activeTab === 'profile' ? (
+            /*
+              ⚠️ KENDİ PROFİLİN — kullanıcı adı `currentUser`'dan geliyor.
+
+              `username` eski bir oturumda eksik olabilir (0008 migration'ından
+              önce açılmış token). O durumda profil ekranı yerine kısa bir
+              uyarı gösteriyoruz: `undefined` bir URL'e girip 404 almaktansa
+              ne yapılacağını söylemek doğru.
+            */
+            currentUser?.username ? (
+              <ProfileScreen
+                username={currentUser.username}
+                onOpenFriends={() => setFriendsOpen(true)}
+                onLogout={() => void handleLogout()}
+              />
+            ) : (
+              <View style={styles.splash}>
+                <Text style={styles.notice}>
+                  Profilini görmek için çıkıp tekrar giriş yap.
+                </Text>
+              </View>
+            )
           ) : (
             <WhatIfScreen />
           )}
@@ -308,7 +345,32 @@ function AppShell() {
           */}
           {friendsOpen && (
             <View style={StyleSheet.absoluteFill}>
-              <FriendsScreen onClose={() => setFriendsOpen(false)} />
+              <FriendsScreen
+                onClose={() => setFriendsOpen(false)}
+                onSelectUser={(username) => setViewingProfile(username)}
+              />
+            </View>
+          )}
+
+          {/*
+            ⚠️ PROFİL KATMANI ARKADAŞLAR KATMANININ ALTINDA DEĞİL ÜSTÜNDE —
+            ve sıra bu yüzden değişti.
+
+            JSX'te sonra çizilen üstte durur. Profil önce yazılıydı; arkadaş
+            listesinden bir kişiye dokunulduğunda profil AÇILIYOR ama arkadaş
+            ekranının ALTINDA kalıyordu. Ekranda hiçbir şey olmuyormuş gibi
+            görünürdü.
+
+            Profil en son: hem ligden hem arkadaş listesinden açılabiliyor,
+            ikisinin de üstünde olması gerekiyor. Kapanınca altındaki ekran
+            neyse ona dönülüyor.
+          */}
+          {viewingProfile !== null && (
+            <View style={StyleSheet.absoluteFill}>
+              <ProfileScreen
+                username={viewingProfile}
+                onClose={() => setViewingProfile(null)}
+              />
             </View>
           )}
 
@@ -341,6 +403,12 @@ function AppShell() {
 }
 
 const styles = StyleSheet.create({
+  notice: {
+    color: colors.inkMuted,
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
   container: {
     flex: 1,
     backgroundColor: '#0B132B',

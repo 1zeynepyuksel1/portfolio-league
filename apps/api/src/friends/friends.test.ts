@@ -14,24 +14,66 @@ import {
 
 describe('Arkadaşlık Modülü Doğrulama ve Kural Testleri', () => {
   describe('Zod Şema Doğrulamaları', () => {
-    it('geçerli bir e-postayı kabul etmeli, boşlukları kırpmalı ve küçük harfe çevirmeli', () => {
+    /**
+     * ⚠️ ŞEMA ARTIK KÜÇÜK HARFE ÇEVİRMİYOR — ve bu testin kendisi sebebi.
+     *
+     * İlk yazımda şemada `toLocaleLowerCase("tr")` vardı. Bu test
+     * "AliYuksel@GMAIL.COM" -> "aliyuksel@gmaıl.com" bulup patladı:
+     * Türkçe yerelde "I" harfi "ı" oluyor ve E-POSTA BOZULUYOR.
+     *
+     * Küçültme doğru katmana taşındı: e-posta serviste düz
+     * `toLowerCase()` ile, kullanıcı adı ise veritabanında harf duyarsız
+     * karşılaştırmayla. Şema yalnızca kırpıyor ve baştaki "@" işaretini
+     * atıyor — girdiyi BOZMUYOR.
+     */
+    it('e-postayı olduğu gibi bırakmalı, sadece boşlukları kırpmalı', () => {
       const result = sendFriendRequestSchema.safeParse({
-        addresseeEmail: '  AliYuksel@GMAIL.COM  ',
+        addressee: '  AliYuksel@GMAIL.COM  ',
       });
 
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.addresseeEmail).toBe('aliyuksel@gmail.com');
+        expect(result.data.addressee).toBe('AliYuksel@GMAIL.COM');
       }
     });
 
-    it('geçersiz formatlı e-postaları reddetmeli', () => {
-      const invalidEmails = ['gecersiz-eposta', '@gmail.com', 'ali@', 'ali@.com'];
+    /**
+     * ⚠️ BU TEST ESKİDEN "geçersiz e-postaları reddetmeli" idi.
+     *
+     * Kural DEĞİŞTİ: alan artık kullanıcı adı da kabul ediyor, o yüzden
+     * "gecersiz-eposta" geçerli bir GİRDİ (bir kullanıcı adı olabilir).
+     * Eski testi silmek yerine yeni sözleşmeyi kilitliyoruz.
+     */
+    it('kullanıcı adını kabul etmeli ve baştaki @ işaretini atmalı', () => {
+      const result = sendFriendRequestSchema.safeParse({
+        addressee: '  @AliYuksel  ',
+      });
 
-      for (const email of invalidEmails) {
-        const result = sendFriendRequestSchema.safeParse({
-          addresseeEmail: email,
-        });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.addressee).toBe('AliYuksel');
+      }
+    });
+
+    /**
+     * ⚠️ BÜYÜK/KÜÇÜK HARF KORUNUYOR.
+     *
+     * Kullanıcı adları kayıtta olduğu gibi saklanıyor ("Batuhan").
+     * Şemada küçültseydik "Batuhan" diye kayıtlı birini bulamazdık.
+     * Harf duyarsızlığı SORGUDA sağlanıyor (lower() = lower()).
+     */
+    it('kullanıcı adının harf durumunu bozmamalı', () => {
+      const result = sendFriendRequestSchema.safeParse({ addressee: 'ILKER' });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.addressee).toBe('ILKER');
+      }
+    });
+
+    it('boş girdiyi reddetmeli', () => {
+      for (const value of ['', '   ', '@']) {
+        const result = sendFriendRequestSchema.safeParse({ addressee: value });
         expect(result.success).toBe(false);
       }
     });

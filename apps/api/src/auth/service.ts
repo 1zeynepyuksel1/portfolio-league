@@ -223,6 +223,10 @@ export async function loginUser(input: LoginBody) {
       id: user.id,
       email: user.email,
       displayName: user.displayName,
+      // ⚠️ Kayıt yanıtında vardı, GİRİŞ yanıtında yoktu. Profil sekmesi
+      // kullanıcı adını adres olarak kullaniyor; eksik olunca giris
+      // yapan kullanici kendi profilini goremiyordu.
+      username: user.username,
       isEmailVerified: true,
     },
     accessToken: await createAccessToken(user.id),

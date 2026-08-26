@@ -1,7 +1,7 @@
 import { calculateTwr, type TwrSubPeriod } from '@portfolio-league/contracts';
 import { db } from '../db/client.js';
 import { cashMovements, portfolioSnapshots, users } from '../db/schema.js';
-import { and, asc, eq, gte, lte, ne } from 'drizzle-orm';
+import { and, asc, eq, gte, lte, inArray } from 'drizzle-orm';
 import { getPortfolio } from '../portfolio/service.js';
 import {
   ensureCurrentLeaguePeriod,
@@ -90,7 +90,7 @@ export async function calculateTwrForUser(
     .where(
       and(
         eq(cashMovements.userId, userId),
-        ne(cashMovements.kind, 'signup_bonus'),
+        inArray(cashMovements.kind, EXTERNAL_FLOW_KINDS),
         gte(cashMovements.createdAt, league.startsAt),
         lte(cashMovements.createdAt, league.endsAt),
       ),
@@ -153,6 +153,57 @@ export async function calculateTwrForUser(
     endValueCents: currentTotalValue,
   };
 }
+
+/**
+ * TWR alt dönemlerini bölen DIŞ nakit akışları.
+ *
+ * ⚠️ BURASI TWR'NİN TAMAMININ DAYANDIĞI AYRIM — ve yanlış yapıldığında
+ * sayı sessizce anlamsızlaşıyor.
+ *
+ * TWR'nin varlık sebebi: portföye DIŞARIDAN giren/çıkan parayı getiriden
+ * ayıklamak. Kullanıcı 1.000 TL bonus aldıysa portföyü büyür ama bu bir
+ * yatırım başarısı değildir.
+ *
+ * `buy` / `sell` / `fee` DIŞ AKIŞ DEĞİLDİR. Bir alım yaparken para
+ * portföyden ÇIKMIYOR — nakit, varlığa dönüşüyor. Toplam değer aynı
+ * kalıyor.
+ *
+ * ⚠️ ÖLÇÜLDÜ, GERÇEK BİR HATAYDI. Eskiden yalnızca `signup_bonus`
+ * dışlanıyordu; `buy` ve `fee` akış sayılıyordu. Sonuç:
+ *
+ *   nakit 100.000 -> BTC alımı (-99.900) -> "akış" sanıldı
+ *   alt dönem başlangıcı: 100.000 - 99.900 = 100 TL
+ *   alt dönem sonu: 99.909 TL
+ *   çarpan: ~1000x  ->  TWR ~%99.900
+ *
+ * `twr_pct` kolonu numeric(10,4) olduğu için bu sayı sığmıyor ve INSERT
+ * "numeric field overflow" ile patlıyordu. Yani lig sıralamasında
+ * KİMSENİN kârı yazılamıyordu — ne ligde, ne profilde. Cüzdan doğruydu
+ * çünkü o TWR kullanmıyor.
+ *
+ * Bu liste bilerek BEYAZ (izin verilen) liste: yeni bir hareket türü
+ * eklendiğinde varsayılan olarak akış SAYILMAZ. Kara liste olsaydı yeni
+ * tür sessizce TWR'yi bozardı.
+ */
+const EXTERNAL_FLOW_KINDS = ['daily_bonus'] as const;
+
+/*
+ * ⚠️ LİSTEDE NEDEN SADECE BİR TÜR VAR — hepsi tek tek:
+ *
+ *   buy / sell / fee  -> DIŞ AKIŞ DEĞİL. Nakit varlığa dönüşüyor,
+ *                        portföy toplamı değişmiyor.
+ *   signup_bonus      -> DIŞ AKIŞ AMA alt dönem bölmüyor: ligin
+ *                        BAŞLANGIÇ sermayesi. Onu akış saymak ilk
+ *                        alt dönemi 0'dan başlatır ve getiriyi
+ *                        sonsuza götürür.
+ *   daily_bonus       -> GERÇEK dış akış. Kullanıcı hiçbir şey
+ *                        yapmadan portföyü büyüyor; TWR bunu
+ *                        ayıklamak için var.
+ *
+ * `deposit` / `withdrawal` HENÜZ YOK — gerçek parayla bakiye alımı
+ * Faz 3'e ertelendi (CLAUDE.md). Şema o türleri tanımıyor; eklendiğinde
+ * buraya da eklenmeleri gerekecek.
+ */
 
 /**
  * Tek bir kullanıcının lig kaydını günceller ve TWR'sini hesaplar.

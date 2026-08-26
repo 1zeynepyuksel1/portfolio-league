@@ -35,7 +35,7 @@ friendsRouter.post('/requests', async (req, res) => {
   try {
     const result = await sendFriendRequest(
       userId,
-      parseResult.data.addresseeEmail,
+      parseResult.data.addressee,
     );
     res.status(201).json({
       message: 'Arkadaşlık isteği başarıyla gönderildi.',

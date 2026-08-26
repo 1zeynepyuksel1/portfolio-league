@@ -86,7 +86,9 @@ type MultiplesResponse = {
   assets: Multiple[];
 };
 
-type PricePoint = { ts: string; priceTry: string };
+// ⚠️ Alan adı `price`, `priceTry` DEĞİL — grafik ucu artık dolar da
+// dönebiliyor, birim ayrı alanda (`currency`) geliyor.
+type PricePoint = { ts: string; price: string };
 
 /** 104.3 -> "104×" · 12.83 -> "12,8×" */
 function formatMultiple(value: number): string {
@@ -545,14 +547,14 @@ function AreaChart({
     );
   }
 
-  const base = Number(points[0]?.priceTry ?? 0);
+  const base = Number(points[0]?.price ?? 0);
 
   if (!Number.isFinite(base) || base <= 0) {
     return <View style={styles.chartBox} />;
   }
 
   // Kat cinsinden seri. Piksel geometrisi float — para değil.
-  const multiples = points.map((p) => Number(p.priceTry) / base);
+  const multiples = points.map((p) => Number(p.price) / base);
   const top = Math.max(...multiples, inflationMultiple) * 1.05;
 
   const x = (i: number) => (i / (multiples.length - 1)) * width;
