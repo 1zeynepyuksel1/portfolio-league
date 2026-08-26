@@ -19,14 +19,31 @@ app.use(express.json());
 
 app.use('/auth', authRouter);
 app.use('/me', meRouter);
+/*
+ * ⚠️ İKİ PROFİL UCU YAZILDI — AYNI ADRESE.
+ *
+ * Aynı gün paralel çalışırken ikimiz de GET /users/:username yazmışız:
+ *   users/router.ts   (Zeynep) — kimlik + rank + twr
+ *   profile/router.ts (Batuhan) — üstüne varlık DAĞILIMI, pozisyon kârı,
+ *                                 bekleyen istek yönü, gizlilik ayarı
+ *
+ * Express aynı yola bağlı iki router'ı SIRAYLA deniyor: önce bağlanan
+ * kazanıyor. İkisi de açık kalsaydı hangisinin cevap verdiği bağlanma
+ * sırasına bağlı olurdu — sessiz ve anlaşılması zor bir hata.
+ *
+ * profile/ bağlı çünkü ProfileScreen onun alanlarına dayanıyor
+ * (allocation, pending, friendCount). users/ modülü DURUYOR ve testleri
+ * geçiyor — servisi doğrudan test ediliyor, router'ı değil. Zeynep
+ * ikisini birleştirmeye ya da silmeye karar verecek.
+ */
+// app.use('/users', usersRouter);   <- profile/router.js ile çakışıyor
+app.use('/users', profileRouter);
 app.use('/bonus', bonusRouter);
 app.use('/friends', friendsRouter);
 app.use('/leagues', leaguesRouter);
 app.use('/assets', marketRouter);
 app.use('/orders', ordersRouter);
 app.use('/portfolio', portfolioRouter);
-// Profil: /users/:username ve /users/me/visibility
-app.use('/users', profileRouter);
 app.use('/what-if', whatIfRouter);
 
 app.get('/health', (_request, response) => {

@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { accounts, cashMovements, portfolioSnapshots } from '../db/schema.js';
 import { getPortfolio } from '../portfolio/service.js';
@@ -17,6 +17,25 @@ export async function getLastDailyBonus(userId: string, sinceDate: Date) {
         gte(cashMovements.createdAt, sinceDate),
       ),
     )
+    .limit(1);
+
+  return bonus;
+}
+
+export async function getAbsoluteLastDailyBonus(userId: string) {
+  const [bonus] = await db
+    .select({
+      id: cashMovements.id,
+      createdAt: cashMovements.createdAt,
+    })
+    .from(cashMovements)
+    .where(
+      and(
+        eq(cashMovements.userId, userId),
+        eq(cashMovements.kind, 'daily_bonus'),
+      ),
+    )
+    .orderBy(desc(cashMovements.createdAt))
     .limit(1);
 
   return bonus;

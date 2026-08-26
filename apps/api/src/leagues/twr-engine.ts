@@ -90,6 +90,11 @@ export async function calculateTwrForUser(
     .where(
       and(
         eq(cashMovements.userId, userId),
+        // ⚠️ ZEYNEP DE AYNI HATAYI BULDU ve `eq(kind, "daily_bonus")` ile
+        // düzeltti — davranış aynı. Beyaz liste hâli tutuldu çünkü yeni bir
+        // hareket türü eklendiğinde (deposit/withdrawal Faz 3'te gelecek)
+        // varsayılan olarak akış SAYILMIYOR. Doğrudan eşitlikte o türler
+        // sessizce dışarıda kalırdı ve TWR yine yanlış olurdu.
         inArray(cashMovements.kind, EXTERNAL_FLOW_KINDS),
         gte(cashMovements.createdAt, league.startsAt),
         lte(cashMovements.createdAt, league.endsAt),

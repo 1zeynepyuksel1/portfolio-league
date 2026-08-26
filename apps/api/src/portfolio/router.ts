@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAccessToken } from '../auth/middleware.js';
 import { AMOUNT_SCALE, PRICE_SCALE, formatScaled } from '../lib/money.js';
 import { PortfolioNotFoundError, getPortfolio } from './service.js';
+import { calculateTwrForUser } from '../leagues/twr-engine.js';
 import { centsTryToUsd, parseCurrency, tryToUsd } from '../lib/fx.js';
 import { latestUsdTryRate } from '../market/repository.js';
 import { toPrice } from '../lib/money.js';
@@ -35,6 +36,8 @@ portfolioRouter.get('/', requireAccessToken, async (request, response) => {
 
   try {
     const portfolio = await getPortfolio(userId);
+    const twrInfo = await calculateTwrForUser(userId);
+    const twrPercent = (twrInfo.twrFloat * 100).toFixed(2);
 
     const fx = currency === 'usd' ? await latestUsdTryRate() : null;
 
@@ -100,6 +103,7 @@ portfolioRouter.get('/', requireAccessToken, async (request, response) => {
        * sıralanırdı.
        */
       profitPercent: portfolio.profitPercent,
+      twrPercent,
 
       // ⚠️ Fiyatı okunamayan varlık varsa toplam EKSİK hesaplanmıştır.
       // Ekran bunu kullanıcıya söylemeli; sessizce düşük toplam göstermek
