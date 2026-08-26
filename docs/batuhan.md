@@ -13,6 +13,142 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 16. Eşzamanlılık testi — 26 Ağu 2026
+
+**1 yeni dosya · 5 test · Faz 1'in bitiş kriteri**
+
+| Dosya | Ne |
+|---|---|
+| `apps/api/src/orders/concurrency.test.ts` | Emir motorunun üç savunma katmanının testi |
+
+Projenin anlatılacak sorusu buydu ve testi yoktu:
+
+> *"Kullanıcı aynı anda iki alım emri gönderirse bakiyesi eksiye düşer mi?"*
+
+**Senaryo (sayılar elle doğrulanabilir):** bakiye 100.000 TL, her emir
+20.020 TL (20.000 brüt + %0,1 komisyon). 100.000 / 20.020 = 4,99 → **4 emir
+sığıyor.** 10 emir aynı anda gönderiliyor, 4'ü geçmeli.
+
+**Neden mock'la yazılamaz:** test edilen şey uygulama kodu değil, veritabanının
+davranışı. Sahte bir `db` nesnesi `FOR UPDATE`'i bekletmez — mock testi
+yazsaydık kilit satırını tamamen silsek bile YEŞİL kalırdı.
+
+---
+
+⚠️ **ASIL DERS — geçen bir test hiçbir şey kanıtlamaz.**
+
+Testi yazdım, 5/5 geçti. Sonra kilidi koddan **sildim** ve tekrar çalıştırdım.
+Üç deneme gerekti:
+
+| Deneme | Test neyi sınıyordu | Kilit silinince |
+|---|---|---|
+| 1 | Ham SQL ile `FOR UPDATE NOWAIT` hata veriyor mu | ✅ **yine geçti** |
+| 2 | Emir kilit tutulurken bekliyor mu | ✅ **yine geçti** |
+| 3 | Emir bakiyeyi **okumadan önce** mi bekliyor | ❌ düştü |
+
+**1. deneme neden yetersizdi:** `executeOrder`'a hiç dokunmuyordu. Sadece
+"PostgreSQL `FOR UPDATE`'i onurlandırıyor mu" diyordu — onu zaten biliyoruz.
+
+**2. deneme neden yetersizdi:** bu incesi. Kilit olmasa bile `UPDATE accounts`
+kendi satır kilidini alıyor. Emir yine bekliyordu ama **yanlış yerde**: bakiyeyi
+çoktan (eski değeriyle) okuduktan sonra.
+
+```
+FOR UPDATE VARSA  ->  önce BEKLER,        sonra GÜNCEL bakiyeyi okur
+FOR UPDATE YOKSA  ->  önce ESKİ bakiyeyi okur, sonra yazarken bekler
+                      ve araya giren değişikliği EZER
+```
+
+İkincisinin adı **kayıp güncelleme (lost update)**. 3. deneme onu kuruyor:
+başka bağlantı bakiyeyi 10.000 TL'ye çekip kilidi tutuyor, 20.020 TL'lik emir
+başlatılıyor, kilit bırakılıyor. Kilit varsa emir güncel bakiyeyi görüp
+"yetersiz" der; yoksa 100.000'i okumuştur, geçer ve diğerinin yazdığını siler.
+
+**Mutasyon sonucu (`.for("update")` silinmiş hâlde):**
+
+```
+× 10 emir aynı anda ...        -> 4 yerine 10 geçti
+× kayıp güncelleme olmuyor     -> promise reddedilmedi, çözüldü
+× aynı anahtarla 5 istek ...   -> 5 yerine 1 tamamlandı
+✓ CHECK cash_cents >= 0        -> geçmeli, kilide bağlı değil
+✓ UNIQUE(user, idem_key)       -> geçmeli, kilide bağlı değil
+```
+
+---
+
+⚠️ **İZOLASYON — `leagues/cron.test.ts` bu hatayı yapıyor.** O test gerçek ligi
+kapatıp yenisini açıyor; her `npm test` bir çöp lig dönemi ekliyor (bir ara 47
+tane birikmişti, temizlemiştik). Yeni test kendi kullanıcısını ve kendi
+varlığını yaratıp sonunda siliyor — `afterAll` sonrası veritabanında sıfır artık
+kaldığı doğrulandı.
+
+**Test sayısı: 186 → 191.**
+
+### 15. Podyum rengi ve on hayalet sunucu — 26 Ağu 2026
+
+**1 dosya · 1 kod düzeltmesi · 1 ortam bulgusu**
+
+| Dosya | Ne değişti |
+|---|---|
+| `apps/mobile/src/screens/LeaderboardScreen.tsx` | `twrColor()` yardımcısı eklendi; podyumdaki sabit yeşil kaldırıldı; eksi rengi `accent` → `loss` |
+
+**Hata neydi:** Lig ekranında 2. ve 3. sıradaki EKSİ getiriler **yeşil**
+görünüyordu. Alttaki 4-5-6. sıradaki aynı sayılar kırmızıydı. Yani tek ekran
+aynı bilgiyi iki farklı renkte gösteriyordu.
+
+**Neden oldu:** Renk kuralı ekranda İKİ KEZ yazılıydı.
+
+```
+liste satırı :  item.twrPercentRaw >= 0 ? yeşil : kırmızı   ✅ işarete bakıyor
+podyum       :  podiumTwr = { color: colors.gain }          ❌ SABİT yeşil
+```
+
+Kuralın kopyalanması hatanın kendisi değil, **hatanın sebebiydi.** Düzeltme de
+buna göre: kural `twrColor()` içinde tek yerde, dört çağıran da onu kullanıyor.
+
+**Gözden kaçmasının sebebi ilginç:** "podyumdakiler kazanıyor" varsayımı doğal
+görünüyor. Halbuki podyum **sıralamayı** gösteriyor, kârı değil — piyasanın
+düştüğü bir haftada birinci de ekside olur. Ekran yanlış olduğunu değil,
+"herkes kazanıyor"u anlatıyordu.
+
+**İkinci düzeltme — hangi kırmızı:** Lig ekranı, tüm uygulamada eksi sayı için
+`accent` kullanan TEK yerdi.
+
+| Token | Değer | İşi |
+|---|---|---|
+| `loss` | `#E5484D` | "para eridi" — Cüzdan, Profil, Alsaydın hepsi bunu kullanıyor |
+| `accent` | `#ec3013` | marka rengi — düğme, bağlantı, grafik çizgisi |
+
+Üstelik rozetin arka planı `accentSoft` idi ve o `rgba(229,72,77)` — yani
+`loss`'un RGB'si. Arka plan `loss`, yazı `accent`: kimse fark etmemişti çünkü
+ikisi de kırmızı. İkisi de `loss`'a çekildi.
+
+---
+
+**Ortam bulgusu — kod değil, makine.** Ölçüm yaparken çıktı: **10 tane
+`npm run dev:api` aynı anda çalışıyordu** (12:27'den 15:18'e, her açılışta
+eskisi ölmemiş).
+
+| | Temizlik öncesi | Sonrası |
+|---|---|---|
+| `server.ts` süreci | 10 | 1 |
+| Veritabanı bağlantısı | **51** (Postgres sınırı 100) | 8 |
+| İşlem/saniye (boştayken) | 52,2 | 7,4 |
+| Fiyat cron turu/dakika | 23-40 | 4 (olması gereken) |
+
+⚠️ **Neden ölmüyorlar:** `server.ts` ilk satırda `db`'yi import ediyor →
+`postgres.js` bağlantı havuzu açılıyor. Port 3000'i alamayan süreç sunucu
+olarak çalışmıyor ama **havuz Node'un olay döngüsünü açık tutuyor**, süreç
+hiç çıkmıyor. Sessiz sızıntı: CPU yakmıyor, log basmıyor, sadece bağlantı ve
+cron turu tüketiyor.
+
+⚠️ **Bunun asıl tehlikesi ölçüm yalanı:** ilk ölçümüm 52 işlem/saniye dedi ve
+bunu "cron çok pahalı" diye okumaya hazırdım. Gerçek sayı 7,4'tü — 10 katı
+şişikti. Ölçtüğün makinenin temiz olduğunu doğrulamadan çıkan sayıya güvenme.
+
+**Bilmen gereken alışkanlık:** `npm run dev:api` yazmadan önce eski süreç var
+mı bak. Terminali kapatmak süreci öldürmüyor.
+
 ### 13. Çıkmaz sokaklar, para birimi merceği ve Zeynep'in yeni cron'ları — 25 Ağu 2026
 
 Bu turun ortak teması: **hata mesajı doğru, çıkış yolu yok.** Üç ayrı yerde
@@ -440,7 +576,10 @@ Varlık, fiyat, emir, portföy tipleri. Bu paket iki şeridin sözleşmesi — t
 - [x] `GET /assets`
 - [x] **Emir motoru** ← şeridin kalbi
       3 katman: `calculate.ts` (saf hesap) · `repository.ts` (transaction + `FOR UPDATE`) · `router.ts` (`POST /orders`)
-      ⚠️ **Eşzamanlılık testi YOK** — gerçek PostgreSQL gerektiriyor, mock'la yazılamaz
+      ✅ **Eşzamanlılık testi YAZILDI** — 26 Ağu 2026, `orders/concurrency.test.ts`
+      Gerçek PostgreSQL'e bağlanıyor (mock'la yazılamazdı). Üç katmanı ayrı ayrı
+      sınıyor ve **mutasyonla doğrulandı**: `.for("update")` silinince 3 test kırmızı.
+      Faz 1'in bitiş kriteri artık gerçekten karşılanıyor.
 - [x] `GET /portfolio`
       Çekirdeği ortak hesap: `toplam değer = nakit + Σ(miktar × güncel fiyat)`.
       Aynı fonksiyon gece cron'unu da besleyecek (`portfolio_snapshots`, `reason='daily'`).

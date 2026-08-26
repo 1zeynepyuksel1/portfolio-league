@@ -59,6 +59,37 @@ type LeaderboardEntry = {
   endValueCents: string;
 };
 
+/**
+ * Bir TWR yuzdesinin metin rengi — ARTI yeşil, EKSİ kırmızı.
+ *
+ * ⚠️ KURAL TEK YERDE OLMAK ZORUNDA — VE HATA TAM DA BU YÜZDEN ÇIKTI.
+ *
+ * Eskiden aynı kural ekranda İKİ KEZ yazılıydı:
+ *   • liste satırı  -> `item.twrPercentRaw >= 0` diye işareti KONTROL ediyordu
+ *   • podyum       -> `color: colors.gain` diye SABİT yeşil yazıyordu
+ *
+ * Sonuç: 2. ve 3. sıradaki eksi getiriler yeşil görünüyordu. Alttaki aynı
+ * sayılar kırmızıydı — yani ekran aynı bilgiyi iki farklı renkte gösteriyordu.
+ * Fark edilmesi zordu çünkü "podyumdakiler kazanıyor" varsayımı doğal
+ * görünüyor; halbuki podyum SIRALAMAYI gösteriyor, karı değil. Herkesin
+ * zararda olduğu bir haftada birinci de eksidedir.
+ *
+ * ⚠️ `loss` KULLANILIYOR, `accent` DEĞİL — ikisi de kırmızı ama işleri farklı:
+ *   `loss`   #E5484D  "para eridi" demek. Cüzdan, Profil ve Alsaydın
+ *                     ekranlarının hepsi bunu kullanıyor.
+ *   `accent` #ec3013  marka rengi: düğmeler, bağlantılar, grafik çizgisi.
+ *
+ * Lig ekranı tüm uygulamada `accent`'i eksi sayı için kullanan TEK yerdi.
+ * Aynı anlamı iki farklı kırmızıyla göstermek, kullanıcıya aradaki farkın
+ * bir şey ifade ettiğini düşündürür.
+ *
+ * ⚠️ `>= 0` — tam sıfır yeşile sayılıyor. Ne kazanç ne kayıp ama bir renk
+ * seçmek zorunlu; liste satırı zaten böyle davranıyordu, aynı kaldı.
+ */
+function twrColor(twrPercentRaw: number) {
+  return { color: twrPercentRaw >= 0 ? colors.gain : colors.loss };
+}
+
 export function LeaderboardScreen({
   onOpenFriends,
   onSelectUser,
@@ -258,7 +289,7 @@ export function LeaderboardScreen({
                         </View>
                       </View>
                       <Text style={styles.podiumName} numberOfLines={1}>{top2.displayName}</Text>
-                      <Text style={styles.podiumTwr}>{top2.twrPercentFormatted}</Text>
+                      <Text style={[styles.podiumTwr, twrColor(top2.twrPercentRaw)]}>{top2.twrPercentFormatted}</Text>
                       <View style={[styles.podiumStand, styles.silverStand]}>
                         <Text style={styles.standRank}>2</Text>
                       </View>
@@ -286,7 +317,7 @@ export function LeaderboardScreen({
                         </View>
                       </View>
                       <Text style={styles.podiumName} numberOfLines={1}>{top1.displayName}</Text>
-                      <Text style={[styles.podiumTwr, styles.goldTwr]}>{top1.twrPercentFormatted}</Text>
+                      <Text style={[styles.podiumTwr, styles.goldTwr, twrColor(top1.twrPercentRaw)]}>{top1.twrPercentFormatted}</Text>
                       <View style={[styles.podiumStand, styles.goldStand]}>
                         <Text style={styles.standRank}>1</Text>
                       </View>
@@ -314,7 +345,7 @@ export function LeaderboardScreen({
                         </View>
                       </View>
                       <Text style={styles.podiumName} numberOfLines={1}>{top3.displayName}</Text>
-                      <Text style={styles.podiumTwr}>{top3.twrPercentFormatted}</Text>
+                      <Text style={[styles.podiumTwr, twrColor(top3.twrPercentRaw)]}>{top3.twrPercentFormatted}</Text>
                       <View style={[styles.podiumStand, styles.bronzeStand]}>
                         <Text style={styles.standRank}>3</Text>
                       </View>
@@ -614,14 +645,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   podiumTwr: {
-    color: colors.gain,
+    // Renk YOK - twrColor() veriyor. Buraya sabit renk yazmak hatanin ta kendisiydi.
     fontFamily: fonts.bold,
     fontSize: 14,
     marginTop: 2,
   },
   goldTwr: {
+    // Sadece boyut. Renk twrColor()'dan geliyor; birinci de ekside olabilir.
     fontSize: 16,
-    color: colors.gain,
   },
   podiumStand: {
     width: '100%',
@@ -697,7 +728,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gainSoft,
   },
   twrBadgeNegative: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.lossSoft,
   },
   twrBadgeText: {
     fontFamily: fonts.bold,
@@ -707,6 +738,6 @@ const styles = StyleSheet.create({
     color: colors.gain,
   },
   twrTextNegative: {
-    color: colors.accent,
+    color: colors.loss,
   },
 });
