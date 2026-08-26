@@ -3,6 +3,8 @@ import { usdToTry } from "../lib/fx.js";
 import { BinanceAdapter } from "./binance.js";
 import { LbmaAdapter } from "./lbma.js";
 import { TcmbAdapter, type FxRateProvider } from "./tcmb.js";
+import { YahooAdapter } from "./yahoo.js";
+import { isRegularSessionOpen } from "./market-hours.js";
 import type { MarketDataProvider } from "./provider.js";
 import { insertPrice, listActiveAssets } from "./repository.js";
 import { syncAllLeagueEntriesAndRanks } from "../leagues/twr-engine.js";
@@ -24,7 +26,48 @@ import { syncAllLeagueEntriesAndRanks } from "../leagues/twr-engine.js";
 export type CronResult = {
   written: number;
   failed: string[];
+  /**
+   * Bilerek atlanan varlık sayısı — HATA DEĞİL.
+   *
+   * `failed` ile karıştırılmamalı: orası "denedik, olmadı" demek ve
+   * log'a uyarı basılıyor. Burası "hiç denemedik, gerek yoktu" demek.
+   * Tek kaynağı şu an hisseler: piyasa kapalıyken ya da 60 saniyelik
+   * kadans dolmadan Yahoo'ya sorulmuyor.
+   *
+   * Ayrı sayılmasa hisseler ya sahte hata üretirdi ya da hiç görünmezdi.
+   */
+  skipped: number;
 };
+
+/**
+ * Hisselerin kendi kadansı: 60 saniye.
+ *
+ * ⚠️ NEDEN 15 SANİYELİK TURA GİRMİYORLAR.
+ *
+ * Yahoo çoklu sembol ucunu kapatmış (401), yani sembol başına bir istek.
+ * 30 hisse × dakikada 4 tur = dakikada 120 istek, seans boyunca günde
+ * ~47.000. Resmi API olmadığı için yayımlanmış limit yok — o hacim
+ * engellenme riski demek.
+ *
+ * 60 saniyede: günde ~11.700 istek. Tazelik açısından kayıp yok, çünkü
+ * emir motorundaki hisse bayatlık sınırı 300 saniye (5 tur pay).
+ */
+const STOCK_INTERVAL_MS = 60_000;
+
+/**
+ * Son hisse turunun zamanı.
+ *
+ * ⚠️ MODÜL DÜZEYİNDE DEĞİŞKEN — `scheduler.ts`'teki `running` bayrağıyla
+ * aynı desen. Alternatifi her turda veritabanına "bu varlığın son fiyatı
+ * ne zaman yazıldı" diye sormaktı: 30 hisse için 30 fazla sorgu, hem de
+ * sadece atlayıp atlamayacağımıza karar vermek için.
+ */
+let lastStockRoundAt = 0;
+
+/** Test için: hisse kadans sayacını sıfırlar. */
+export function resetStockSchedule(): void {
+  lastStockRoundAt = 0;
+}
 
 /**
  * Parametre tipleri ARAYÜZ, varsayılan değerleri somut sınıf.
@@ -61,9 +104,10 @@ export async function fetchAndStorePrices(
   market: MarketDataProvider = new BinanceAdapter(),
   fx: FxRateProvider = new TcmbAdapter(),
   metal: MarketDataProvider = new LbmaAdapter(),
+  stock: MarketDataProvider = new YahooAdapter(),
 ): Promise<CronResult> {
   const assets = await listActiveAssets();
-  const result: CronResult = { written: 0, failed: [] };
+  const result: CronResult = { written: 0, failed: [], skipped: 0 };
 
   if (assets.length === 0) return result;
 
@@ -74,6 +118,19 @@ export async function fetchAndStorePrices(
   const usdRate = await fx.getUsdTry(today);
 
   const ts = new Date();
+
+  /**
+   * Hisse turu bu turda çalışacak mı — DÖNGÜDEN ÖNCE, BİR KEZ.
+   *
+   * ⚠️ Kararı döngü içinde verseydik 30 hissenin her biri için ayrı
+   * `Date.now()` okunur ve kadans penceresi hisseler arasında kayardı:
+   * ilk hisse turu başlatır, sonrakiler "daha 60 saniye olmadı" der ve
+   * her turda sadece bir hisse güncellenirdi. Sessiz ve bulunması zor.
+   */
+  const stocksDue =
+    isRegularSessionOpen() && Date.now() - lastStockRoundAt >= STOCK_INTERVAL_MS;
+
+  if (stocksDue) lastStockRoundAt = Date.now();
 
   for (const asset of assets) {
     // try/catch DÖNGÜNÜN İÇİNDE, dışında değil.
@@ -107,6 +164,28 @@ export async function fetchAndStorePrices(
         }
 
         priceTry = usdToTry(point.price, usdRate.rate);
+      } else if (asset.kind === 'stock') {
+        /**
+         * ⚠️ PİYASA KAPALIYKEN HİÇ SORULMUYOR — ve bu sadece istek
+         * tasarrufu değil, DEPOLAMA kararı.
+         *
+         * Yahoo kapalıyken son kapanışı döndürüyor. Yazsaydık her tur
+         * AYNI fiyatı yeni bir damgayla kaydederdik: hafta sonu 30 hisse
+         * × 2 gün × dakikada bir = ~86.000 satır, hepsi aynı bilgiyi
+         * taşıyan kopya. Grafik de bozulurdu — düz bir çizgi, sanki
+         * fiyat gerçekten sabit kalmış gibi.
+         *
+         * Yazmayınca son satır cuma kapanışı olarak kalıyor; portföy
+         * değeri ondan hesaplanıyor (doğru), emir ise `MARKET_CLOSED`
+         * ile reddediliyor (orders/repository.ts).
+         */
+        if (!stocksDue) {
+          result.skipped++;
+          continue;
+        }
+
+        // Hisse de USD geliyor — kripto ile birebir aynı boru hattı.
+        priceTry = usdToTry((await stock.getLatest(asset.symbol)).price, usdRate.rate);
       } else {
         // Kripto USD geliyor, o günün kuruyla TL'ye çevriliyor.
         priceTry = usdToTry((await market.getLatest(asset.symbol)).price, usdRate.rate);

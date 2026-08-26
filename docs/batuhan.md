@@ -13,6 +13,175 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 17. ABD hisseleri — 26 Ağu 2026
+
+**3 yeni dosya · 9 değişen · +20 test (191 → 211)**
+
+| Dosya | Ne |
+|---|---|
+| `market/yahoo.ts` 🆕 | Yahoo Finance adaptörü, 30 sembol tablosu |
+| `market/market-hours.ts` 🆕 | ABD borsası seans takvimi (ağ isteği YOK) |
+| `market/market-hours.test.ts` 🆕 | 16 test — özellikle yaz/kış saati |
+| `orders/repository.ts` | `MARKET_CLOSED` + türe göre bayatlık sınırı |
+| `orders/router.ts` | `MARKET_CLOSED` → 422 |
+| `market/price-cron.ts` | 4. dal + 60 sn hisse kadansı + `skipped` sayacı |
+| `market/price-backfill.ts` | 4. aşama |
+| `market/seed.ts` | 30 hisse |
+| `market/router.ts` | `GET /assets` → `tradable` alanı |
+| `db/schema.ts` | enum'a `stock` ⚠️ **migration bekliyor** |
+| `mobile/TradeScreen.tsx` | Kapalıyken düğme pasif + gerekçe |
+
+---
+
+**Kaynak seçimi — tahminle değil, istek atarak.** (`docs/00-veri-saglayici-dogrulama.md` geleneği)
+
+| Kaynak | Sonuç |
+|---|---|
+| **Yahoo `v8/chart`** | ✅ 30/30 sembol, 2017'den 2.425 günlük mum, anahtarsız |
+| Stooq | ❌ JS proof-of-work koymuş, sunucudan çekilemiyor |
+| Yahoo `v7/quote` (çoklu sembol) | ❌ 401 — sembol başına ayrı istek şart |
+
+---
+
+⚠️ **ASIL MESELE VERİ DEĞİL, YILIN %81,4'ÜNDE PİYASANIN KAPALI OLMASI.**
+
+```
+251 işlem günü × 6,5 saat = 1.631 saat / yıl
+yılın toplamı             = 8.760 saat
+-> açık oran              = %18,6
+```
+
+`MAX_PRICE_AGE_MS` (120 sn) hisseye uygulansaydı kalan %81,4'te her emir
+`STALE_PRICE` ile reddedilirdi. Kural doğru çalışıyordu ama **yanlış şeyi
+söylüyordu**:
+
+```
+kripto  ->  "fiyat bayat" = CRON BOZULDU   -> bizim arızamız
+hisse   ->  "fiyat bayat" = PİYASA KAPALI  -> normal, beklenen
+```
+
+Çözüm üç parça: (1) `MARKET_CLOSED` kontrolü bayatlık kontrolünden **önce**,
+(2) hisse için ayrı 300 sn sınırı, (3) `GET /assets`'te `tradable` alanı.
+
+---
+
+⚠️ **YAZ SAATİ — sessiz bir saat kayması.**
+
+New York yazın UTC-4, kışın UTC-5. Saat dilimini sabit yazsaydık yılın
+yarısında seans açılışında **60 dakika boyunca "kapalı"** derdik. Kod
+`Intl.DateTimeFormat` kullanıyor, DST'yi işletim sistemi çözüyor.
+
+Testte aynı UTC saati iki mevsimde farklı sonuç veriyor:
+
+| | 13:30 UTC | 14:30 UTC |
+|---|---|---|
+| Ağustos (EDT) | AÇIK | açık |
+| Ocak (EST) | KAPALI | AÇIK |
+
+`hourCycle: 'h23'` de şart: `hour12: false` bazı ICU sürümlerinde gece
+yarısını "24" veriyor → 1440 dakika → "gece yarısı seans açık".
+
+---
+
+⚠️ **BÖLÜNME (SPLIT) — ölçülerek doğrulandı.**
+
+```
+AAPL 24 Ağu 2020 gerçek fiyatı : ~503 USD
+Yahoo'nun verdiği close        :  125,86 USD
+31 Ağu 2020'de 4:1 bölündü     :  503 / 4 = 125,75  ✔
+```
+
+Yahoo düzeltilmiş veriyor. Ham veri kullansaydık "2019'da alsaydın" hesabı
+**tam dört kat** şişerdi ve hiçbir yerde hata çıkmazdı.
+
+**Ama düzeltme geriye dönük ve bu kalıcı bir borç:** Yahoo geçmişi BUGÜNKÜ
+hisse adedine göre düzeltiyor. AAPL yine bölünürse kayıtlı geçmişimizin
+tamamı yanlış olur ve o varlık silinip baştan doldurulmalı. Kripto ve
+dövizde böyle bir şey yok.
+
+`adjclose` bilerek kullanılmadı — o temettüyü de düzeltiyor, yani "toplam
+getiri" modeli. Uygulama temettüyü nakit olarak modellemiyor.
+
+---
+
+⚠️ **İKİ TUZAK — ikisi de ölçülerek bulundu.**
+
+**1. User-Agent olmadan 429.** Aynı URL, tek fark başlık:
+
+```
+UA yok       -> HTTP 429 (Too Many Requests)
+UA "Mozilla" -> HTTP 200
+```
+
+Node'un `fetch`'i varsayılan olarak `node` gönderiyor. 429 "çok istek
+attın" dediği için hata mesajı bizi hız sınırı aramaya yönlendirirdi;
+oysa sorun kimlikte.
+
+**2. `range=max` sessizce seyreltiyor.**
+
+```
+range=max&interval=1d       -> 168 mum   (1984-2026)
+period1/period2&interval=1d -> 2.425 mum (2017-2026)
+```
+
+Hata vermiyor. Grafik çizilir, sadece geçmiş 14 kat seyrek olur.
+
+---
+
+⚠️ **FLOAT GÜRÜLTÜSÜ — ilk çalıştırmada patladı.**
+
+`getLatest` çalıştı, geçmiş serisi düştü:
+
+```
+Fiyat çevrilemedi: 74.70249938964844      <- 14 ondalık basamak
+```
+
+`parseScaled` ölçekten (8) fazla ondalık gelince **bilerek** hata
+fırlatıyor — kullanıcının girdiği değeri sessizce yutmamak için. Ama
+buradaki fazla basamaklar veri değil, float gösterim gürültüsü.
+`toString()` → `toFixed(PRICE_SCALE)`. Kırpma değil yuvarlama, dolayısıyla
+sistematik yön hatası da yok.
+
+---
+
+**Cron kararı: hisseler 15 saniyelik tura girmiyor.**
+
+| | 15 sn | 60 sn |
+|---|---|---|
+| İstek/gün (seans içi) | ~47.000 | **~11.700** |
+| Emir bayatlık payı | — | 5 tur (300 sn sınır) |
+
+Kapalıyken **hiç sorulmuyor** — ve bu sadece istek tasarrufu değil,
+depolama kararı: yazsaydık hafta sonu 30 hisse × 2 gün × dakikada bir =
+~86.000 kopya satır olurdu ve grafik düz çizgi çizerdi.
+
+---
+
+⚠️ **BEKLEYEN — `asset_kind` enum'ında `stock` yok.**
+
+`db/schema.ts`'e eklendi ama migration ÜRETİLMEDİ (Zeynep'in şeridi).
+Gereken tek satır:
+
+```sql
+ALTER TYPE asset_kind ADD VALUE IF NOT EXISTS 'stock';
+```
+
+O çalışana kadar kod derlenir ve testler geçer ama **hisseler
+tohumlanamaz** — insert `invalid input value for enum` ile düşer.
+Eksiklik sessiz değil, ilk denemede görünür.
+
+---
+
+**Yan bulgu — `TradeScreen`'deki `ERROR_MESSAGES` tablosu ölü kod.**
+
+Sunucu `{code, message}` gönderiyor, `client.ts` sadece `message`'ı
+alıyor, ekran ise mesaj METNİNİN İÇİNDE kod arıyor
+(`raw.includes('INSUFFICIENT_FUNDS')`). "Bakiye yetersiz" metni o kodu
+içermiyor → tablo hiç eşleşmiyor, kullanıcı sunucunun mesajını görüyor.
+Şu an zararsız (sunucu mesajları zaten Türkçe) ve `MARKET_CLOSED`'ın
+dinamik açılış saati de bu sayede bozulmadan geçiyor. Düzeltilmedi,
+kayda geçti.
+
 ### 16. Eşzamanlılık testi — 26 Ağu 2026
 
 **1 yeni dosya · 5 test · Faz 1'in bitiş kriteri**
@@ -736,6 +905,11 @@ Araştırman gerekenler: transaction izolasyon seviyeleri, `SELECT FOR UPDATE` n
       yakınlaştırma, 24 saat özeti (yüksek/düşük/açılış/kapanış), canlı fiyat.
       ⚠️ **Karar notu alanı hâlâ YOK** — "bunu neden aldım" notu. Ayrı madde
       olarak aşağıda duruyor.
+- [x] **ABD hisseleri (30 sembol)** — 26 Ağu 2026
+      Yahoo Finance adaptörü, seans takvimi, `MARKET_CLOSED` kuralı.
+      ⚠️ Migration bekliyor: `ALTER TYPE asset_kind ADD VALUE 'stock'` (Zeynep).
+      ⚠️ Geri doldurma o migration'dan SONRA çalıştırılacak: `[4/4]` aşaması
+      30 × 2.425 = ~72.750 satır yazacak (~10 MB).
 - [ ] Karar notu alanı — emir verirken "neden" yazılabilsin, sonra geri okunsun
       Faz 3'ün "karar profili" özelliğinin temeli (01-plan.md). Şema değişikliği
       gerektiriyor → Zeynep.

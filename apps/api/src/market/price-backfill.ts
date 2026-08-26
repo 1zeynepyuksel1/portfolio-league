@@ -36,6 +36,7 @@ import { type Price, formatScaled, PRICE_SCALE } from '../lib/money.js';
 import { usdToTry } from '../lib/fx.js';
 import { BinanceAdapter } from './binance.js';
 import { LbmaAdapter } from './lbma.js';
+import { YahooAdapter } from './yahoo.js';
 import { fetchFxHistory } from './evds.js';
 import { insertPrices, listActiveAssets, type AssetRow } from './repository.js';
 
@@ -224,6 +225,77 @@ async function backfillMetal(
   };
 }
 
+/**
+ * ABD hissesi geri doldurma.
+ *
+ * ⚠️ MADEN AKIŞININ NEREDEYSE AYNISI — ve bu tesadüf değil. Üçü de
+ * (kripto, maden, hisse) kaynaktan USD alıp o GÜNÜN kuruyla TL'ye
+ * çeviriyor. Ortak fonksiyona indirmedim çünkü farkları küçük ama
+ * gerçek: kripto sayfalama istiyor, maden ons çevrimi yapıyor, hisse
+ * hiçbirini yapmıyor. Üçünü tek fonksiyona sıkıştırmak parametre
+ * bayrakları doğururdu.
+ *
+ * ⚠️ SAYFALAMA YOK: Yahoo 2017-bugün aralığının 2.425 mumunu TEK yanıtta
+ * veriyor (ölçüldü, 265 KB). Binance'te 1000 mum sınırı olduğu için
+ * `backfillCrypto` döngü kuruyor; burada gereksiz olurdu.
+ *
+ * ⚠️ HAFTA SONU BOŞLUĞU BEKLENEN DAVRANIŞ. Hisse yılda ~251 gün işlem
+ * görüyor, kripto 365. Yani hisse serisi kripto serisinden seyrek — bu
+ * eksik veri değil, piyasanın kendisi.
+ */
+async function backfillStock(
+  asset: AssetRow,
+  usdRates: Map<string, Price>,
+  endDate: string,
+): Promise<{
+  written: number;
+  missingRate: number;
+  first?: string | undefined;
+  last?: string | undefined;
+}> {
+  const yahoo = new YahooAdapter();
+  const points = await yahoo.getHistory(asset.symbol, START_DATE, endDate);
+
+  if (points.length === 0) {
+    return { written: 0, missingRate: 0 };
+  }
+
+  let missingRate = 0;
+  const rows = [];
+
+  for (const point of points) {
+    const rate = usdRates.get(point.date);
+
+    /**
+     * ⚠️ KURSUZ GÜN ATLANIYOR, SIFIRLA DOLDURULMUYOR.
+     *
+     * `buildRateMap` hafta sonlarını son iş gününden forward-fill ettiği
+     * için burası normalde hiç çalışmıyor. Devreye girdiği tek durum:
+     * ABD borsasının açık, Türkiye'nin resmî tatilde olduğu bir gün.
+     * O günü yazmamak, uydurma kurla yazmaktan doğru.
+     */
+    if (rate === undefined) {
+      missingRate++;
+      continue;
+    }
+
+    rows.push({
+      assetId: asset.id,
+      ts: new Date(`${point.date}T00:00:00Z`),
+      priceTry: formatScaled(usdToTry(point.price, rate), PRICE_SCALE),
+    });
+  }
+
+  await writeInChunks(rows);
+
+  return {
+    written: rows.length,
+    missingRate,
+    first: dayOf(rows[0]),
+    last: dayOf(rows[rows.length - 1]),
+  };
+}
+
 async function backfillCrypto(
   asset: AssetRow,
   usdRates: Map<string, Price>,
@@ -287,6 +359,7 @@ async function main(): Promise<void> {
   const fxAssets = assets.filter((a) => a.kind === 'fx');
   const cryptoAssets = assets.filter((a) => a.kind === 'crypto');
   const metalAssets = assets.filter((a) => a.kind === 'metal');
+  const stockAssets = assets.filter((a) => a.kind === 'stock');
   const skipped = assets.filter(
     (a) => a.kind !== 'fx' && a.kind !== 'crypto' && a.kind !== 'metal',
   );
@@ -296,7 +369,7 @@ async function main(): Promise<void> {
   // Döviz ÖNCE geliyor çünkü USD kur haritası kripto çevrimi için gerekli.
   // Aynı veri iki işe yarıyor: hem USD varlığının kendi fiyat geçmişi,
   // hem de bütün kriptoların TL'ye çevrilmesinde kullanılan kur.
-  console.log(`\n[1/3] ${fxAssets.length} döviz (EVDS, ${startYear}-${endYear})...`);
+  console.log(`\n[1/4] ${fxAssets.length} döviz (EVDS, ${startYear}-${endYear})...`);
 
   let usdRates: Map<string, Price> | null = null;
 
@@ -336,7 +409,7 @@ async function main(): Promise<void> {
   }
 
   // --- 2. AŞAMA: kripto ---
-  console.log(`\n[2/3] ${cryptoAssets.length} kripto (Binance)...`);
+  console.log(`\n[2/4] ${cryptoAssets.length} kripto (Binance)...`);
 
   for (const asset of cryptoAssets) {
     try {
@@ -362,11 +435,38 @@ async function main(): Promise<void> {
   // --- 3. AŞAMA: maden ---
   if (metalAssets.length > 0) {
     console.log(`
-[3/3] ${metalAssets.length} maden (LBMA)...`);
+[3/4] ${metalAssets.length} maden (LBMA)...`);
 
     for (const asset of metalAssets) {
       try {
         const r = await backfillMetal(asset, usdRates, endDate);
+
+        if (r.written === 0) {
+          console.warn(`  ${asset.symbol}: veri gelmedi, atlandı`);
+          continue;
+        }
+
+        console.log(
+          `  ${asset.symbol}: ${r.written} gün yazıldı (${r.first} -> ${r.last})` +
+            (r.missingRate > 0 ? `, ${r.missingRate} gün kursuz atlandı` : ''),
+        );
+      } catch (error) {
+        console.error(
+          `  ${asset.symbol}: BAŞARISIZ —`,
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+  }
+
+  // --- 4. AŞAMA: ABD hisseleri ---
+  if (stockAssets.length > 0) {
+    console.log(`
+[4/4] ${stockAssets.length} ABD hissesi (Yahoo)...`);
+
+    for (const asset of stockAssets) {
+      try {
+        const r = await backfillStock(asset, usdRates, endDate);
 
         if (r.written === 0) {
           console.warn(`  ${asset.symbol}: veri gelmedi, atlandı`);

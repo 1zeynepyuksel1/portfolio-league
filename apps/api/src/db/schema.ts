@@ -54,12 +54,31 @@ export const refreshTokens = pgTable('refresh_tokens', {
   revokedAt: timestamp('revoked_at'),
 });
 
-// Asset Kind Enum
+/**
+ * Varlık türü.
+ *
+ * ⚠️ `stock` = ABD HİSSESİ. `bist` ile karıştırma: ikisi de hisse ama
+ * farklı borsa, farklı para birimi, farklı seans takvimi ve farklı veri
+ * kaynağı. `bist` Faz 3 için ayrılmış, henüz kullanılmıyor.
+ *
+ * ⚠️⚠️ MIGRATION BEKLİYOR — 26 Ağu 2026.
+ *
+ * `stock` bu TypeScript listesine eklendi ama VERİTABANI ENUM'INDA HENÜZ
+ * YOK. Migration'ların tek sahibi Zeynep (CLAUDE.md), o yüzden buradan
+ * migration üretilmedi. Gereken tek satır:
+ *
+ *     ALTER TYPE asset_kind ADD VALUE IF NOT EXISTS 'stock';
+ *
+ * O çalışana kadar: kod derlenir, testler geçer, ama hisse varlıkları
+ * TOHUMLANAMAZ — insert `invalid input value for enum` ile düşer.
+ * Yani eksiklik sessiz değil, ilk denemede görünür.
+ */
 export const assetKindEnum = pgEnum('asset_kind', [
   'crypto',
   'fx',
   'metal',
   'bist',
+  'stock',
 ]);
 
 // Assets Table (Supported tradable instruments: BTC, ETH, USD, EUR, GRAM_ALTIN)

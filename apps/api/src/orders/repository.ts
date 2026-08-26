@@ -51,6 +51,18 @@ import {
   OrderValidationError,
   calculateOrder,
 } from "./calculate.js";
+/**
+ * ⚠️ `market/` KLASÖRÜNDEN IMPORT — ama AĞ İSTEĞİ GELMİYOR.
+ *
+ * `market-hours.ts` saf bir takvim: `Intl` dışında hiçbir şeye dokunmuyor,
+ * fetch yok, veritabanı yok. Bu yüzden aşağıdaki transaction'ın içinden
+ * çağrılması güvenli. Yahoo yanıtında da seans bilgisi var ama onu
+ * kullanmak "transaction içinde ağ isteği yapma" kuralını çiğnerdi.
+ */
+import {
+  describeNextSessionOpen,
+  isRegularSessionOpen,
+} from "../market/market-hours.js";
 
 // ---------------------------------------------------------------------------
 // 1. SABİT
@@ -68,6 +80,26 @@ import {
  * emirler gereksiz reddedilirdi.
  */
 export const MAX_PRICE_AGE_MS = 120_000;
+
+/**
+ * Hisse için ayrı ve daha geniş sınır: 300 saniye.
+ *
+ * ⚠️ NEDEN AYRI — cron kadansı farklı. Kripto/döviz/maden 15 saniyede bir
+ * yazılıyor, hisse seans boyunca 60 saniyede bir. 120 saniyelik sınır
+ * hisseye uygulansaydı tek bir gecikmiş tur emirleri durdururdu; 300
+ * saniye beş tur pay bırakıyor.
+ *
+ * ⚠️ BU SINIR YALNIZCA SEANS İÇİNDE ANLAMLI. Piyasa kapalıyken fiyat
+ * zaten saatlerce eski olur ve bu NORMALDİR — o durum aşağıda ayrıca,
+ * `MARKET_CLOSED` ile ele alınıyor. Bayatlık kontrolü hisse için sadece
+ * şu soruyu soruyor: "seans açıkken beslememiz çalışıyor mu?"
+ */
+export const STOCK_MAX_PRICE_AGE_MS = 300_000;
+
+/** Varlık türüne göre kabul edilebilir fiyat yaşı. */
+function maxPriceAgeMs(kind: string): number {
+  return kind === "stock" ? STOCK_MAX_PRICE_AGE_MS : MAX_PRICE_AGE_MS;
+}
 
 // ---------------------------------------------------------------------------
 // 2. GİRDİ / ÇIKTI
@@ -194,7 +226,9 @@ export async function executeOrder(
     // 3c. VARLIK
     // -----------------------------------------------------------------------
     const [asset] = await tx
-      .select({ id: assets.id, symbol: assets.symbol })
+      // `kind` de okunuyor: aşağıdaki seans ve bayatlık kuralları
+      // varlık türüne göre değişiyor.
+      .select({ id: assets.id, symbol: assets.symbol, kind: assets.kind })
       .from(assets)
       .where(and(eq(assets.symbol, input.symbol), eq(assets.isActive, true)))
       .limit(1);
@@ -228,10 +262,32 @@ export async function executeOrder(
       );
     }
 
+    /**
+     * ⚠️ PİYASA KAPALI KONTROLÜ BAYATLIK KONTROLÜNDEN ÖNCE — SIRA ÖNEMLİ.
+     *
+     * ABD borsası yılın %81,4'ünde kapalı (market-hours.ts'te hesabı var).
+     * Kapalıyken son kapanış fiyatı saatlerce, hafta sonu ise günlerce
+     * eski olur. Sıra ters olsaydı kullanıcı şunu görürdü:
+     *
+     *     "Fiyat 216.000 saniye eski, emir alınamıyor"
+     *
+     * Mesaj teknik olarak doğru ama kullanıcıya YANLIŞ ŞEYİ söylüyor:
+     * bir arıza olduğunu, biraz bekleyince düzeleceğini ima ediyor.
+     * Oysa sistemde hiçbir sorun yok, sadece pazar günü.
+     *
+     * Doğru sıra önce "kapalı mı" diye sorup açılış saatini söylemek.
+     */
+    if (asset.kind === "stock" && !isRegularSessionOpen()) {
+      throw new OrderValidationError(
+        describeNextSessionOpen(),
+        "MARKET_CLOSED",
+      );
+    }
+
     // ⚠️ Kolon `timestamp` (saat dilimsiz). Sürücü Date döndürse de içeriği
     // UTC; `timestamptz` olsaydı bu yorum gerekmezdi (market/repository.ts).
     const priceAge = Date.now() - pricePoint.ts.getTime();
-    if (priceAge > MAX_PRICE_AGE_MS) {
+    if (priceAge > maxPriceAgeMs(asset.kind)) {
       throw new OrderValidationError(
         `Fiyat ${Math.floor(priceAge / 1000)} saniye eski, emir alınamıyor`,
         "STALE_PRICE",

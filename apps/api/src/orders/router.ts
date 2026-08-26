@@ -41,6 +41,19 @@ const STATUS_BY_CODE: Record<string, number> = {
   // dene" demek.
   STALE_PRICE: 503,
   NO_PRICE: 503,
+  /**
+   * Piyasa kapalı: 422, **503 DEĞİL**.
+   *
+   * 503 "hizmet geçici olarak yok, birazdan tekrar dene" demek ve
+   * istemciler bunu genelde otomatik tekrar denemeyle karşılıyor. Ama
+   * piyasa kapalıysa "birazdan" saatler, hafta sonuysa günler sonra —
+   * tekrar denemek boşuna istek üretirdi.
+   *
+   * 422 ise "isteğin biçimsel olarak doğru ama şu anki durumda
+   * işlenemez" demek. `INSUFFICIENT_FUNDS` ile aynı aile: kullanıcının
+   * yapması gereken bir şey var (beklemek), sistemde arıza yok.
+   */
+  MARKET_CLOSED: 422,
 };
 
 /**

@@ -7,6 +7,7 @@ import {
   listAssetsWithLatestPrice,
 } from "./repository.js";
 import { parseCurrency, tryToUsd } from "../lib/fx.js";
+import { isRegularSessionOpen } from "./market-hours.js";
 import { PRICE_SCALE, formatScaled, toPrice } from "../lib/money.js";
 import {
   isRange,
@@ -121,6 +122,21 @@ marketRouter.get("/", async (request, response) => {
         // kırılgan olurdu: farklı adlandırılmış bir varlık sessizce
         // yanlış kutuya düşerdi.
         kind: asset.kind,
+        /**
+         * Varlık şu an işlem görebiliyor mu.
+         *
+         * ⚠️ EKRAN BUNU KENDİ HESAPLAMASIN DİYE SUNUCUDAN GELİYOR.
+         * İstemci de New York saatini hesaplayabilirdi ama o zaman aynı
+         * kural iki yerde yaşardı: telefonun saati yanlışsa (ya da
+         * kullanıcı bilerek değiştirdiyse) ekran "açık" der, sunucu
+         * reddederdi. Kullanıcı düğmeye basıp anlamadığı bir hata alırdı.
+         *
+         * ⚠️ HİSSE DIŞINDAKİLER İÇİN HER ZAMAN `true`. Kripto 7/24;
+         * döviz ve maden hafta sonu yeni fiyat almasa da son fiyattan
+         * işlem görmeye devam ediyor (forward-fill kuralı). Yani bu alan
+         * "seansı olan varlık sınıfı" için anlamlı, diğerleri için sabit.
+         */
+        tradable: asset.kind === "stock" ? isRegularSessionOpen() : true,
         /**
          * Son 24 saatteki yüzde değişim, iki ondalıklı metin.
          *

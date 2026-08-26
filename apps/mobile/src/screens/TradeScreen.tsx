@@ -50,7 +50,20 @@ type Props = {
   onOrderPlaced?: () => void;
 };
 
-type AssetRow = { symbol: string; priceTry: string | null; asOf: string | null };
+type AssetRow = {
+  symbol: string;
+  priceTry: string | null;
+  asOf: string | null;
+  /**
+   * Sunucudan gelir. Hisse dışındaki her varlıkta `true`.
+   *
+   * ⚠️ `?` İLE İSTEĞE BAĞLI: sunucu bu alanı yeni döndürmeye başladı.
+   * Zorunlu yapsaydık, eski bir sunucuya bağlanan uygulama (ya da alanın
+   * eklenmediği bir uç) `undefined` verirdi ve aşağıdaki `!== false`
+   * kontrolü olmasa düğme sessizce kapanırdı.
+   */
+  tradable?: boolean;
+};
 
 type PortfolioResponse = {
   cashCents: string;
@@ -128,6 +141,9 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
   const [holding, setHolding] = useState<string>('0');
 
   const [submitting, setSubmitting] = useState(false);
+  // Varsayılan AÇIK: bilgi gelene kadar düğmeyi kapatmak, kripto alacak
+  // kullanıcıyı da bekletirdi. Sunucu zaten son sözü söylüyor.
+  const [tradable, setTradable] = useState(true);
   const [error, setError] = useState('');
   const [result, setResult] = useState<OrderResponse | null>(null);
 
@@ -165,6 +181,8 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
       if (row) {
         setPrice(row.priceTry);
         setAsOf(row.asOf);
+        // ⚠️ `!== false` — `undefined` gelirse AÇIK sayılıyor (bkz. AssetRow).
+        setTradable(row.tradable !== false);
       }
     } catch {
       // Fiyat tazelemesi sessizce başarısız olabilir — ekranda son bilinen
@@ -202,7 +220,7 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
    */
   const tooSmall = estimate !== null && estimate.grossCents < MIN_ORDER_CENTS;
   const canSubmit =
-    !submitting && estimate !== null && !tooSmall && price !== null;
+    !submitting && estimate !== null && !tooSmall && price !== null && tradable;
 
   async function handleSubmit() {
     if (!canSubmit || estimate === null) return;
@@ -462,6 +480,25 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
           </View>
         )}
 
+        {/*
+          Piyasa kapalıysa SEBEBİ yazılıyor, sadece düğme kapatılmıyor.
+
+          ⚠️ Tepkisiz bir düğme, hata mesajından DAHA KÖTÜ. Kullanıcı
+          basar, hiçbir şey olmaz, uygulamanın bozuk olduğunu düşünür.
+          Kapatmanın işe yaraması için gerekçenin görünmesi şart.
+
+          Metin sunucudakiyle aynı olmak zorunda değil: burada henüz emir
+          göndermedik, dolayısıyla açılış saatini bilmiyoruz. Sunucu
+          reddederken tam saati söylüyor (`describeNextSessionOpen`).
+        */}
+        {!tradable && (
+          <View style={styles.closedBox}>
+            <Text style={styles.closedText}>
+              🔴 ABD borsası kapalı. İşlem saatleri hafta içi 16:30 – 23:00.
+            </Text>
+          </View>
+        )}
+
         <Pressable
           onPress={() => void handleSubmit()}
           disabled={!canSubmit}
@@ -620,6 +657,15 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   errorText: { color: colors.error, fontSize: 13 },
+  closedBox: {
+    backgroundColor: colors.fieldFill,
+    borderWidth: 1,
+    borderColor: colors.warn,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  closedText: { color: colors.warn, fontSize: 13, lineHeight: 18 },
 
   resultBox: {
     backgroundColor: colors.gainSoft,

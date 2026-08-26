@@ -43,6 +43,57 @@ const SEED_ASSETS = [
   // lbma.ts'te tek yerde ve testli — 1 troy ons = 31,1034768 gram.
   { symbol: "GRAM_ALTIN", name: "Gram Altın", kind: "metal" as const, sortOrder: 90 },
   { symbol: "GRAM_GUMUS", name: "Gram Gümüş", kind: "metal" as const, sortOrder: 91 },
+
+  // --- ABD hisseleri (Yahoo Finance) ---
+  //
+  // Kaynak: market/yahoo.ts. Anahtarsız, 2017'den bugüne günlük mum,
+  // otuzunun da veri döndürdüğü tek tek doğrulandı (26 Ağu 2026).
+  //
+  // ⚠️ İSİM VE SEMBOL LİSTESİ İKİ YERDE: burada ve `yahoo.ts`'teki
+  // `STOCKS` tablosunda. Bilerek: `yahoo.ts` "hangi sembolü çekebilirim"
+  // sorusunun cevabı, burası "hangi varlık listede görünsün" sorusunun.
+  // Biri diğerinden türetilseydi, bir hisseyi geçici kapatmak (kaynak
+  // bozuldu, şirket birleşti) kaynağı da bozmak zorunda bırakırdı.
+  // Uyumsuzluk sessiz kalmıyor: tabloda olmayan sembol cron'da
+  // "Yahoo tablosunda olmayan sembol" hatası basar.
+  //
+  // ⚠️ SIRALAMA 100'DEN BAŞLIYOR — listenin en sonunda dursunlar.
+  // Kripto 1-10, döviz 11-18, maden 90-91. Ekranda önce Türkiye'den
+  // takip edilen varlıklar, sonra hisseler.
+  //
+  // ⚠️ MIGRATION BEKLİYOR: `asset_kind` enum'ında `stock` yok. Bu satırlar
+  // Zeynep'in migration'ı çalışana kadar `invalid input value for enum`
+  // ile düşer (db/schema.ts'te ayrıntısı yazılı).
+  { symbol: "AAPL", name: "Apple", kind: "stock" as const, sortOrder: 100 },
+  { symbol: "MSFT", name: "Microsoft", kind: "stock" as const, sortOrder: 101 },
+  { symbol: "NVDA", name: "Nvidia", kind: "stock" as const, sortOrder: 102 },
+  { symbol: "GOOGL", name: "Alphabet", kind: "stock" as const, sortOrder: 103 },
+  { symbol: "AMZN", name: "Amazon", kind: "stock" as const, sortOrder: 104 },
+  { symbol: "META", name: "Meta", kind: "stock" as const, sortOrder: 105 },
+  { symbol: "TSLA", name: "Tesla", kind: "stock" as const, sortOrder: 106 },
+  { symbol: "NFLX", name: "Netflix", kind: "stock" as const, sortOrder: 107 },
+  { symbol: "AMD", name: "AMD", kind: "stock" as const, sortOrder: 108 },
+  { symbol: "INTC", name: "Intel", kind: "stock" as const, sortOrder: 109 },
+  { symbol: "JPM", name: "JPMorgan Chase", kind: "stock" as const, sortOrder: 110 },
+  { symbol: "V", name: "Visa", kind: "stock" as const, sortOrder: 111 },
+  { symbol: "MA", name: "Mastercard", kind: "stock" as const, sortOrder: 112 },
+  { symbol: "BAC", name: "Bank of America", kind: "stock" as const, sortOrder: 113 },
+  { symbol: "WMT", name: "Walmart", kind: "stock" as const, sortOrder: 114 },
+  { symbol: "KO", name: "Coca-Cola", kind: "stock" as const, sortOrder: 115 },
+  { symbol: "PEP", name: "PepsiCo", kind: "stock" as const, sortOrder: 116 },
+  { symbol: "MCD", name: "McDonald's", kind: "stock" as const, sortOrder: 117 },
+  { symbol: "NKE", name: "Nike", kind: "stock" as const, sortOrder: 118 },
+  { symbol: "DIS", name: "Disney", kind: "stock" as const, sortOrder: 119 },
+  { symbol: "BA", name: "Boeing", kind: "stock" as const, sortOrder: 120 },
+  { symbol: "CAT", name: "Caterpillar", kind: "stock" as const, sortOrder: 121 },
+  { symbol: "XOM", name: "Exxon Mobil", kind: "stock" as const, sortOrder: 122 },
+  { symbol: "CVX", name: "Chevron", kind: "stock" as const, sortOrder: 123 },
+  { symbol: "PFE", name: "Pfizer", kind: "stock" as const, sortOrder: 124 },
+  { symbol: "JNJ", name: "Johnson & Johnson", kind: "stock" as const, sortOrder: 125 },
+  { symbol: "UNH", name: "UnitedHealth", kind: "stock" as const, sortOrder: 126 },
+  { symbol: "ORCL", name: "Oracle", kind: "stock" as const, sortOrder: 127 },
+  { symbol: "CSCO", name: "Cisco", kind: "stock" as const, sortOrder: 128 },
+  { symbol: "ADBE", name: "Adobe", kind: "stock" as const, sortOrder: 129 },
 ];
 
 /**

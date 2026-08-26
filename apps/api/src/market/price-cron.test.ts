@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fetchAndStorePrices } from "./price-cron.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchAndStorePrices, resetStockSchedule } from "./price-cron.js";
 import { toPrice } from "../lib/money.js";
 import type { MarketDataProvider } from "./provider.js";
 
@@ -179,5 +179,129 @@ describe("fetchAndStorePrices", () => {
     // Aynı turda yazılan kayıtlar aynı ana ait olmalı — aksi hâlde
     // "portföyün şu andaki değeri" hesabı iki farklı zamanı karıştırır.
     expect(firstTs).toEqual(secondTs);
+  });
+});
+
+/**
+ * ABD HİSSELERİ — seans ve kadans davranışı.
+ *
+ * ⚠️ SAHTE SAAT ZORUNLU. `isRegularSessionOpen()` gerçek saati okuyor;
+ * bu testler gerçek saatle yazılsaydı sonuçları GÜNÜN SAATİNE bağlı olurdu.
+ * Batuhan akşam çalışırken geçer, sabah çalışırken düşerdi — ve sebebi
+ * kodda değil takvimde olduğu için saatlerce aranırdı.
+ *
+ * `toFake: ["Date"]` ile SADECE saat sahteleniyor. Hepsini sahtelersek
+ * (setTimeout dahil) `await` zincirleri ilerlemez ve testler asılı kalır.
+ */
+describe("fetchAndStorePrices · ABD hisseleri", () => {
+  const STOCK_ASSETS = [
+    { id: "id-aapl", symbol: "AAPL", name: "Apple", kind: "stock" as const },
+    { id: "id-msft", symbol: "MSFT", name: "Microsoft", kind: "stock" as const },
+  ];
+
+  // 26 Ağustos 2026 Çarşamba, 11:00 New York -> seans AÇIK
+  const MARKET_OPEN = new Date("2026-08-26T15:00:00Z");
+  // 29 Ağustos 2026 Cumartesi -> seans KAPALI
+  const MARKET_CLOSED = new Date("2026-08-29T15:00:00Z");
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    resetStockSchedule();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("seans açıkken hisse fiyatı yazılır", async () => {
+    vi.setSystemTime(MARKET_OPEN);
+    vi.mocked(listActiveAssets).mockResolvedValue(STOCK_ASSETS);
+
+    const stock = fakeMarket({ AAPL: "200", MSFT: "400" });
+    const result = await fetchAndStorePrices(
+      fakeMarket({}),
+      fakeFx("40"),
+      fakeMarket({}),
+      stock,
+    );
+
+    expect(result.written).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(stock.getLatest).toHaveBeenCalledTimes(2);
+
+    // 200 USD × 40 = 8.000 TL
+    expect(vi.mocked(insertPrice).mock.calls[0]![2]).toBe("8000.00000000");
+  });
+
+  it("piyasa KAPALIYKEN Yahoo'ya hiç sorulmaz", async () => {
+    vi.setSystemTime(MARKET_CLOSED);
+    vi.mocked(listActiveAssets).mockResolvedValue(STOCK_ASSETS);
+
+    const stock = fakeMarket({ AAPL: "200", MSFT: "400" });
+    const result = await fetchAndStorePrices(
+      fakeMarket({}),
+      fakeFx("40"),
+      fakeMarket({}),
+      stock,
+    );
+
+    expect(result.written).toBe(0);
+    expect(result.skipped).toBe(2);
+
+    // ⚠️ ASIL KANIT: ağ isteği HİÇ yapılmadı.
+    // Sadece `written === 0` baksaydık, "istek atıldı ama yazma başarısız"
+    // senaryosu da testi geçerdi.
+    expect(stock.getLatest).not.toHaveBeenCalled();
+
+    // Atlanan varlık HATA sayılmamalı — log'a uyarı basılmasın.
+    expect(result.failed).toEqual([]);
+  });
+
+  it("60 saniye dolmadan ikinci tur hisseyi atlar", async () => {
+    vi.setSystemTime(MARKET_OPEN);
+    vi.mocked(listActiveAssets).mockResolvedValue(STOCK_ASSETS);
+
+    const stock = fakeMarket({ AAPL: "200", MSFT: "400" });
+
+    const first = await fetchAndStorePrices(
+      fakeMarket({}), fakeFx("40"), fakeMarket({}), stock,
+    );
+    expect(first.written).toBe(2);
+
+    // 15 saniye sonra — bir sonraki normal cron turu
+    vi.setSystemTime(new Date(MARKET_OPEN.getTime() + 15_000));
+
+    const second = await fetchAndStorePrices(
+      fakeMarket({}), fakeFx("40"), fakeMarket({}), stock,
+    );
+    expect(second.written).toBe(0);
+    expect(second.skipped).toBe(2);
+    expect(stock.getLatest).toHaveBeenCalledTimes(2); // artmadı
+
+    // 60 saniye dolunca tekrar çekilir
+    vi.setSystemTime(new Date(MARKET_OPEN.getTime() + 61_000));
+
+    const third = await fetchAndStorePrices(
+      fakeMarket({}), fakeFx("40"), fakeMarket({}), stock,
+    );
+    expect(third.written).toBe(2);
+    expect(stock.getLatest).toHaveBeenCalledTimes(4);
+  });
+
+  it("hisse atlansa bile kripto aynı turda yazılmaya devam eder", async () => {
+    vi.setSystemTime(MARKET_CLOSED);
+    vi.mocked(listActiveAssets).mockResolvedValue([...ASSETS, ...STOCK_ASSETS]);
+
+    const result = await fetchAndStorePrices(
+      fakeMarket({ BTC: "1000", ETH: "100" }),
+      fakeFx("40"),
+      fakeMarket({}),
+      fakeMarket({ AAPL: "200", MSFT: "400" }),
+    );
+
+    // Kripto 7/24 — hafta sonu da yazılmalı.
+    expect(result.written).toBe(2);
+    expect(result.skipped).toBe(2);
+    expect(result.failed).toEqual([]);
   });
 });
