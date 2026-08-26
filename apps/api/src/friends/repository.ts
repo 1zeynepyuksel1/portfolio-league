@@ -8,14 +8,22 @@ export async function findUserByEmail(email: string) {
     .select({
       id: users.id,
       email: users.email,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
       isPublic: users.isPublic,
     })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
 
-  return user;
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: `${user.firstName} ${user.lastName}`,
+    isPublic: user.isPublic,
+  };
 }
 
 // İki kullanıcı arasında zaten bir ilişki var mı? (A -> B veya B -> A)
@@ -94,7 +102,8 @@ export async function getAcceptedFriends(userId: string) {
     .select({
       friendshipId: friendships.id,
       friendId: users.id,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
       email: users.email,
       isPublic: users.isPublic,
       since: friendships.updatedAt,
@@ -113,7 +122,8 @@ export async function getAcceptedFriends(userId: string) {
     .select({
       friendshipId: friendships.id,
       friendId: users.id,
-      displayName: users.displayName,
+      firstName: users.firstName,
+      lastName: users.lastName,
       email: users.email,
       isPublic: users.isPublic,
       since: friendships.updatedAt,
@@ -127,7 +137,25 @@ export async function getAcceptedFriends(userId: string) {
       ),
     );
 
-  return [...asRequester, ...asAddressee];
+  const mappedRequester = asRequester.map((row) => ({
+    friendshipId: row.friendshipId,
+    friendId: row.friendId,
+    displayName: `${row.firstName} ${row.lastName}`,
+    email: row.email,
+    isPublic: row.isPublic,
+    since: row.since,
+  }));
+
+  const mappedAddressee = asAddressee.map((row) => ({
+    friendshipId: row.friendshipId,
+    friendId: row.friendId,
+    displayName: `${row.firstName} ${row.lastName}`,
+    email: row.email,
+    isPublic: row.isPublic,
+    since: row.since,
+  }));
+
+  return [...mappedRequester, ...mappedAddressee];
 }
 
 // Bekleyen gelen ve giden istekleri listeleme
@@ -137,7 +165,8 @@ export async function getPendingRequests(userId: string) {
     .select({
       requestId: friendships.id,
       senderId: users.id,
-      senderDisplayName: users.displayName,
+      senderFirstName: users.firstName,
+      senderLastName: users.lastName,
       senderEmail: users.email,
       createdAt: friendships.createdAt,
     })
@@ -156,7 +185,8 @@ export async function getPendingRequests(userId: string) {
     .select({
       requestId: friendships.id,
       recipientId: users.id,
-      recipientDisplayName: users.displayName,
+      recipientFirstName: users.firstName,
+      recipientLastName: users.lastName,
       recipientEmail: users.email,
       createdAt: friendships.createdAt,
     })
@@ -170,7 +200,23 @@ export async function getPendingRequests(userId: string) {
     )
     .orderBy(desc(friendships.createdAt));
 
-  return { incoming, outgoing };
+  const mappedIncoming = incoming.map((row) => ({
+    requestId: row.requestId,
+    senderId: row.senderId,
+    senderDisplayName: `${row.senderFirstName} ${row.senderLastName}`,
+    senderEmail: row.senderEmail,
+    createdAt: row.createdAt,
+  }));
+
+  const mappedOutgoing = outgoing.map((row) => ({
+    requestId: row.requestId,
+    recipientId: row.recipientId,
+    recipientDisplayName: `${row.recipientFirstName} ${row.recipientLastName}`,
+    recipientEmail: row.recipientEmail,
+    createdAt: row.createdAt,
+  }));
+
+  return { incoming: mappedIncoming, outgoing: mappedOutgoing };
 }
 
 // Arkadaşlığı veya isteği silme

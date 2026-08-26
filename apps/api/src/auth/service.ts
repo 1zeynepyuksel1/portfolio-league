@@ -3,16 +3,19 @@ import {
   addRefreshToken,
   createUserWithAccount,
   findUserByEmail,
+  findUserByUsername,
   findUserForLogin,
   findUserVerificationInfo,
   markEmailVerified,
   revokeRefreshToken,
   rotateRefreshToken,
   updateVerificationCode,
+  updateUserPassword,
 } from './repository.js';
 import type { LoginBody } from './login.schema.js';
 import type { RegisterBody } from './register.schema.js';
 import type { RefreshBody } from './refresh.schema.js';
+import type { ResetPasswordBody } from './reset-password.schema.js';
 import {
   createAccessToken,
   createRefreshToken,
@@ -22,6 +25,12 @@ import {
 export class EmailAlreadyInUseError extends Error {
   constructor() {
     super('Bu e-posta adresi zaten kullanılıyor.');
+  }
+}
+
+export class UsernameAlreadyInUseError extends Error {
+  constructor() {
+    super('Bu kullanıcı adı zaten alınmış.');
   }
 }
 
@@ -70,6 +79,12 @@ export async function registerUser(input: RegisterBody) {
     throw new EmailAlreadyInUseError();
   }
 
+  const existingUsername = await findUserByUsername(input.username);
+
+  if (existingUsername) {
+    throw new UsernameAlreadyInUseError();
+  }
+
   const passwordHash = await argon2.hash(input.password);
   const refreshToken = createRefreshToken();
   const verificationCode = generate6DigitCode();
@@ -78,14 +93,17 @@ export async function registerUser(input: RegisterBody) {
     const user = await createUserWithAccount({
       email: input.email,
       passwordHash,
-      displayName: input.displayName,
+      firstName: input.firstName,
+      lastName: input.lastName,
       username: input.username,
       verificationCode,
       refreshTokenHash: refreshToken.tokenHash,
       refreshTokenExpiresAt: refreshToken.expiresAt,
     });
 
-    console.log(`[E-POSTA SİMÜLATÖRÜ] ${input.email} adresine doğrulama kodu gönderildi: ${verificationCode}`);
+    console.log(`[KAYIT] ${input.email} başarıyla doğrudan kayıt oldu (doğrulama atlandı).`);
+
+    const accessToken = await createAccessToken(user.id);
 
     return {
       user: {
@@ -93,14 +111,15 @@ export async function registerUser(input: RegisterBody) {
         email: user.email,
         displayName: user.displayName,
         username: user.username,
-        isEmailVerified: false,
+        isEmailVerified: true,
       },
-      requiresVerification: true,
-      demoCode: verificationCode,
+      accessToken,
+      refreshToken: refreshToken.value,
+      requiresVerification: false,
     };
   } catch (error) {
     if (isUniqueViolation(error)) {
-      throw new EmailAlreadyInUseError();
+      throw new Error('E-posta veya kullanıcı adı zaten kullanımda.');
     }
 
     throw error;
@@ -192,10 +211,6 @@ export async function loginUser(input: LoginBody) {
     throw new InvalidCredentialsError();
   }
 
-  if (!user.isEmailVerified) {
-    throw new EmailNotVerifiedError(user.id);
-  }
-
   const refreshToken = createRefreshToken();
   await addRefreshToken({
     userId: user.id,
@@ -237,4 +252,32 @@ export async function refreshUserSession(input: RefreshBody) {
 
 export async function logoutUser(input: RefreshBody) {
   await revokeRefreshToken(hashRefreshToken(input.refreshToken));
+}
+
+export class UserNotFoundError extends Error {
+  constructor() {
+    super('Kullanıcı bulunamadı.');
+  }
+}
+
+export class SameAsOldPasswordError extends Error {
+  constructor() {
+    super('Yeni şifreniz, eski şifrenizle aynı olamaz.');
+  }
+}
+
+export async function resetUserPassword(input: ResetPasswordBody) {
+  const user = await findUserForLogin(input.email);
+
+  if (!user) {
+    throw new UserNotFoundError();
+  }
+
+  const isSame = await argon2.verify(user.passwordHash, input.password);
+  if (isSame) {
+    throw new SameAsOldPasswordError();
+  }
+
+  const passwordHash = await argon2.hash(input.password);
+  await updateUserPassword(input.email, passwordHash);
 }
