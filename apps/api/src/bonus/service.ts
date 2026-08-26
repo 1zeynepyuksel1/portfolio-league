@@ -2,6 +2,7 @@ import {
   getCashMovementsByUserId,
   getLastDailyBonus,
   grantDailyBonus,
+  getAbsoluteLastDailyBonus,
 } from './repository.js';
 
 export class DailyBonusAlreadyClaimedError extends Error {
@@ -20,6 +21,32 @@ export async function claimDailyBonus(userId: string) {
   }
 
   return grantDailyBonus(userId, 100000n); // 1.000 TL = 100.000 kuruş
+}
+
+export async function getDailyBonusStatus(userId: string) {
+  const lastBonus = await getAbsoluteLastDailyBonus(userId);
+
+  if (!lastBonus) {
+    return {
+      canClaim: true,
+      lastClaimedAt: null,
+      nextClaimAt: null,
+      remainingSeconds: 0,
+    };
+  }
+
+  const nextClaimAt = new Date(lastBonus.createdAt.getTime() + 24 * 60 * 60 * 1000);
+  const remainingSeconds = Math.max(
+    0,
+    Math.floor((nextClaimAt.getTime() - Date.now()) / 1000)
+  );
+
+  return {
+    canClaim: remainingSeconds === 0,
+    lastClaimedAt: lastBonus.createdAt,
+    nextClaimAt,
+    remainingSeconds,
+  };
 }
 
 export async function getUserCashHistory(userId: string) {

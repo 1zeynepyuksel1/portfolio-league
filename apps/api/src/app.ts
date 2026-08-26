@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { authRouter } from './auth/router.js';
 import { meRouter } from './auth/me.router.js';
+import { usersRouter } from './users/router.js';
 import { bonusRouter } from './bonus/router.js';
 import { friendsRouter } from './friends/router.js';
 import { leaguesRouter } from './leagues/router.js';
@@ -18,6 +19,7 @@ app.use(express.json());
 
 app.use('/auth', authRouter);
 app.use('/me', meRouter);
+app.use('/users', usersRouter);
 app.use('/bonus', bonusRouter);
 app.use('/friends', friendsRouter);
 app.use('/leagues', leaguesRouter);

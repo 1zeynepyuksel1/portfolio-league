@@ -8,6 +8,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import { apiFetch } from '../api/client';
 import {
@@ -85,8 +86,16 @@ type Portfolio = {
   profitUsdCents: string | null;
 
   profitPercent: string | null;
+  twrPercent: string | null;
   hasIncompletePrices: boolean;
   positions: Position[];
+};
+
+type BonusStatus = {
+  canClaim: boolean;
+  lastClaimedAt: string | null;
+  nextClaimAt: string | null;
+  remainingSeconds: number;
 };
 
 /** Piyasa ekranıyla aynı sebeple cron aralığından farklı — faz kilitlenmesin. */
@@ -161,6 +170,8 @@ export function PortfolioScreen({
   const [expandedPositions, setExpandedPositions] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [bonusStatus, setBonusStatus] = useState<BonusStatus | null>(null);
+  const [claiming, setClaiming] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -186,15 +197,22 @@ export function PortfolioScreen({
        * `catch` ile boş diziye düşüyor. `Promise.all` kullansaydık
        * işlem sorgusundaki bir hata bütün ekranı düşürürdü.
        */
-      const [data, orderData] = await Promise.all([
+      const [data, orderData, bonusData] = await Promise.all([
         apiFetch<Portfolio>(`/portfolio${queryRef.current}`),
         apiFetch<{ orders: Order[] }>('/orders?limit=20').catch(() => ({
           orders: [] as Order[],
+        })),
+        apiFetch<BonusStatus>('/bonus/daily/status').catch(() => ({
+          canClaim: false,
+          lastClaimedAt: null,
+          nextClaimAt: null,
+          remainingSeconds: 0,
         })),
       ]);
 
       setPortfolio(data);
       setOrders(orderData.orders);
+      setBonusStatus(bonusData);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Portföy alınamadı.');
@@ -203,6 +221,52 @@ export function PortfolioScreen({
       setRefreshing(false);
     }
   }, []);
+
+  // Sayaç etkisi: Kalan saniyeleri saniyede bir azaltır.
+  useEffect(() => {
+    if (!bonusStatus || bonusStatus.remainingSeconds <= 0) return;
+
+    const timer = setInterval(() => {
+      setBonusStatus((prev) => {
+        if (!prev || prev.remainingSeconds <= 0) {
+          clearInterval(timer);
+          return prev ? { ...prev, canClaim: true, remainingSeconds: 0 } : null;
+        }
+        return {
+          ...prev,
+          remainingSeconds: prev.remainingSeconds - 1,
+        };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [bonusStatus?.remainingSeconds]);
+
+  // Günlük bonusu talep etme işlemi
+  async function handleClaimBonus() {
+    if (claiming) return;
+    setClaiming(true);
+    try {
+      const res = await apiFetch<{ message: string; newBalanceCents: string }>('/bonus/daily', {
+        method: 'POST',
+      });
+      // Portföy ve bonus durumunu yeniden yükle
+      await load(false);
+      Alert.alert('Başarılı', res.message);
+    } catch (err) {
+      Alert.alert('Hata', err instanceof Error ? err.message : 'Bonus alınamadı.');
+    } finally {
+      setClaiming(false);
+    }
+  }
+
+  // Saniye bilgisini HH:MM:SS formatına dönüştürür
+  function formatCountdown(sec: number): string {
+    const hours = Math.floor(sec / 3600);
+    const mins = Math.floor((sec % 3600) / 60);
+    const secs = sec % 60;
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
 
   /**
    * Seçili para birimine göre doğru alanı seçip biçimlendirir.
@@ -421,9 +485,9 @@ export function PortfolioScreen({
                 {money(portfolio.profitCents, portfolio.profitUsdCents)}
               </Text>
 
-              <ChangeText percent={portfolio.profitPercent} />
+              <ChangeText percent={portfolio.twrPercent} />
 
-              <Text style={styles.deltaLabel}>TÜM ZAMANLAR</Text>
+              <Text style={styles.deltaLabel}>HAFTALIK GETİRİ</Text>
             </View>
 
             {currency === 'usd' && portfolio.usdTryRate != null && (
@@ -437,6 +501,33 @@ export function PortfolioScreen({
           <View style={styles.allocation}>
             <AllocationBar slices={slices} />
           </View>
+
+          {/* --- günlük bonus banner --- */}
+          {bonusStatus && (
+            <View style={styles.bonusBanner}>
+              <View style={styles.bonusInfo}>
+                <Text style={styles.bonusTitle}>Günlük Giriş Bonusu</Text>
+                <Text style={styles.bonusSubtitle}>Her gün 1.000 ₺ hediye bakiye kazanın.</Text>
+              </View>
+              {bonusStatus.canClaim ? (
+                <TouchableOpacity
+                  style={styles.bonusButton}
+                  onPress={handleClaimBonus}
+                  disabled={claiming}
+                >
+                  <Text style={styles.bonusButtonText}>
+                    {claiming ? 'Alınıyor...' : 'Bonus Al (1.000 ₺)'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.bonusDisabledButton}>
+                  <Text style={styles.bonusDisabledButtonText}>
+                    {formatCountdown(bonusStatus.remainingSeconds)}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* --- filtre --- */}
           <View style={styles.chipRow}>
@@ -694,6 +785,60 @@ const styles = StyleSheet.create({
   },
 
   allocation: { paddingHorizontal: spacing.screen, paddingTop: 18 },
+
+  bonusBanner: {
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: spacing.screen,
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  bonusInfo: {
+    flex: 1,
+  },
+  bonusTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    color: colors.ink,
+  },
+  bonusSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: colors.inkMuted,
+    marginTop: 4,
+  },
+  bonusButton: {
+    backgroundColor: colors.gain,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  bonusButtonText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    color: colors.onInverse,
+  },
+  bonusDisabledButton: {
+    backgroundColor: colors.surfacePressed,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  bonusDisabledButtonText: {
+    fontFamily: fonts.monoSemibold,
+    fontSize: 12,
+    color: colors.inkDisabled,
+  },
 
   chipRow: {
     flexDirection: 'row',
