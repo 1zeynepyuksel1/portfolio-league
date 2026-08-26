@@ -5,9 +5,9 @@ import { and, asc, eq, gte, lte } from 'drizzle-orm';
 import { getPortfolio } from '../portfolio/service.js';
 import {
   ensureCurrentLeaguePeriod,
-  getLeaderboardByLeagueId,
   updateEntryRank,
   upsertLeagueEntry,
+  getEntriesForRanking,
 } from './repository.js';
 
 /**
@@ -198,7 +198,7 @@ export async function syncAllLeagueEntriesAndRanks() {
   }
 
   // TWR getirisine göre sıralayıp rank'leri güncelle
-  const entries = await getLeaderboardByLeagueId(league.id, 10000, 0);
+  const entries = await getEntriesForRanking(league.id);
   let rank = 1;
   for (const entry of entries) {
     await updateEntryRank(league.id, entry.userId, rank);

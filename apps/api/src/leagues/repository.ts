@@ -134,6 +134,18 @@ export async function getLeaderboardByLeagueId(
   }));
 }
 
+// Derecelendirme güncellemesi için saf TWR yüzdesine göre sıralı kayıtları getir
+export async function getEntriesForRanking(leagueId: string) {
+  return db
+    .select({
+      userId: leagueEntries.userId,
+      twrPct: leagueEntries.twrPct,
+    })
+    .from(leagueEntries)
+    .where(eq(leagueEntries.periodId, leagueId))
+    .orderBy(desc(leagueEntries.twrPct));
+}
+
 // Sadece arkadaşların (ve kendisinin) olduğu mini lig sıralamasını getir
 export async function getFriendsLeaderboardByLeagueId(
   leagueId: string,
