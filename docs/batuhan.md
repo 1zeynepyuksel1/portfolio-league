@@ -13,6 +13,81 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 19. Hisse filtresi ve 30 şirket logosu — 26 Ağu 2026
+
+| Dosya | Ne |
+|---|---|
+| `mobile/MarketScreen.tsx` | Çipler: Tümü · ABD Hissesi · Kripto · Döviz + kaydırılabilir satır |
+| `mobile/components/AssetLogo.tsx` | 30 hisse logosu, dördüncü kaynak |
+| `mobile/assets/logos/stocks/` 🆕 | 30 PNG, 408 KB |
+
+**1 · Filtre çipleri.** Satır sabit genişlikte (`flexDirection: 'row'`,
+kaydırma yok) ve beş çip sığmıyordu. Seçim gerekti: 30 hisse mi 2 maden mi.
+
+⚠️ **Bedeli kayda geçsin:** gram altın ve gümüş artık yalnızca "Tümü"
+altında ya da ARAMA ile bulunuyor. Kaybolmadılar, bir tık uzaktalar.
+Satır ayrıca `ScrollView`'a çevrildi — ileride çip eklenirse etiketler
+kırpılmayacak. Kırpılan etiket hata vermiyor, sadece okunmaz oluyor.
+
+---
+
+**2 · Logolar — ve ölçmenin nasıl yanılttığı.**
+
+Kaynak arayışı: dört servis denendi, üçü elendi.
+
+| Kaynak | Sonuç |
+|---|---|
+| **financialmodelingprep** | ✅ 100×100 PNG, RGBA, 30/30 |
+| Clearbit | ❌ ölü |
+| companiesmarketcap | ❌ gri tonlamalı |
+| tradingview / parqet | ❌ SVG |
+
+⚠️ **Yer tutucu kontrolü:** bazı servisler bulamadığı sembol için herkese
+aynı boş görseli döndürür ve bu FARK EDİLMEZ — otuz varlık aynı gri
+daireyle görünür, "logolar böyle" sanılır. Otuz dosyanın MD5'i alındı,
+otuzu da benzersiz.
+
+⚠️ **ASIL DERS — "ölçtüm" demek yetmiyor, DOĞRU ŞEYİ ölçmek gerekiyor.**
+
+Koyu arayüzde hangi logolar kaybolur diye otuzunun saydam olmayan
+piksellerinin **ortalama parlaklığını** hesapladım:
+
+```
+INTC    3   GORUNMEZ
+NFLX   42   GORUNMEZ
+XOM    55   GORUNMEZ
+KO     65   zor secilir
+...
+sorunlu: 14 / 30
+```
+
+Sonra hepsini gerçek arayüz rengine (#0B132B) basıp **gözle** baktım:
+**14'ün 13'ü gayet okunur.** Coca-Cola'nın kırmızısı ortalamada 65 ama
+lacivert zeminde net görünüyor.
+
+Ortalama yanıltıcıydı çünkü çok renkli bir logoda koyu ve açık pikseller
+birbirini götürüyor. Gerçekten kaybolan tek logo **INTEL** — neredeyse
+siyah bir yazı. Ona açık daire (`NEEDS_LIGHT_BACKDROP`), diğer 29'u
+kripto gibi zeminsiz.
+
+Sayıya güvenip 14 logoya beyaz daire koysaydım listenin yarısı beyaz
+lekelerle dolardı ve "ölçerek karar verdim" derdim.
+
+⚠️ **AAPL'ın beyaz karesi sorun değil:** `styles.base`'te `overflow:
+hidden` + `borderRadius: size/2` var, kare daireye kırpılıyor.
+
+⚠️ **Lisans:** logolar marka işareti, bir varlığı TANIMLAMAK için
+kullanmak olağan kullanım (kripto logoları için verilen gerekçenin
+aynısı). Dosyalar DEĞİŞTİRİLMEDİ — yeniden renklendirmek marka açısından
+daha sorunlu olurdu.
+
+---
+
+**Yan bulgu:** `AssetLogo.tsx` uzun süredir `scripts/prepare-logos.mjs`'e
+atıf yapıyordu — **o dosya repoda yok**, hiç commit'lenmemiş. "Nasıl
+hazırlandı" sorusunun cevabı var olmayan bir dosyayı gösteriyordu.
+Yorum, işlemi anlatacak şekilde yeniden yazıldı.
+
 ### 18. Açılış sekmesi ve App.tsx'in bozuk yorumları — 26 Ağu 2026
 
 | Dosya | Ne |

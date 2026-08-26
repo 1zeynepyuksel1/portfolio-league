@@ -4,6 +4,7 @@ import {
   AppState,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -58,21 +59,21 @@ const REFRESH_MS = 5_000;
 /** Tür filtreleri. `null` = tümü. */
 const KINDS = [
   { key: 'all', label: 'Tümü' },
+  { key: 'stock', label: 'ABD Hissesi' },
   { key: 'crypto', label: 'Kripto' },
   { key: 'fx', label: 'Döviz' },
-  { key: 'metal', label: 'Metal' },
-  /**
-   * ⚠️ ÇİP EKLENMEZSE VARLIK KAYBOLMUYOR, SAKLANIYOR — daha kötüsü.
-   *
-   * Filtre `kind !== seçili` diye eliyor, yani hisseler yalnızca "Tümü"
-   * altında görünürdü. 30 hisse 50 varlığın içinde 20 kriptonun/dövizin
-   * arasına dağılır, kullanıcı aradığını bulamazdı. Liste "çalışıyor"
-   * göründüğü için de kimse eksik olduğunu fark etmezdi.
-   *
-   * `bist` bilerek YOK: şemada duruyor ama hiç varlığı olmadığı için
-   * çipi boş liste açardı.
-   */
-  { key: 'stock', label: 'Hisse' },
+  /*
+    ⚠️ `metal` ÇİPİ BİLEREK YOK — ve bedeli kayda geçsin.
+
+    Satıra beş çip sığmıyor (yatay, sabit genişlik). Seçim yapmak
+    gerekti: 30 hisse mi 2 maden mi. Sayı hisseden yana.
+
+    Bedeli: gram altın ve gümüş artık yalnızca "Tümü" altında ya da
+    ARAMA ile bulunuyor. Kaybolmuyorlar, sadece bir tık uzaktalar.
+
+    ⚠️ `bist` de yok, ama farklı sebeple: şemada duruyor, hiç varlığı
+    yok. Çipi boş liste açardı.
+  */
 ] as const;
 
 type KindKey = (typeof KINDS)[number]['key'];
@@ -249,7 +250,21 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
         {searching ? (
           <SectionLabel>{visible.length} SONUÇ</SectionLabel>
         ) : (
-          <View style={styles.chipRow}>
+          /*
+            ⚠️ KAYDIRILABİLİR — düz `View` DEĞİL.
+
+            Etiketler büyüdükçe (ör. "ABD Hissesi") sabit genişlikli bir
+            satırda çipler sıkışıp yazıları kırpılıyordu. Kırpılan bir
+            etiket hata vermiyor, sadece okunmaz oluyor — sessiz bozulma.
+
+            `ScrollView` ile taşan çip kaybolmuyor, kaydırılıyor. Şu an
+            dördü sığıyor; ileride biri eklenirse düzen yine bozulmayacak.
+          */
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRow}
+          >
             {KINDS.map((item) => (
               <Chip
                 key={item.key}
@@ -259,7 +274,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
                 onPress={() => setKind(item.key)}
               />
             ))}
-          </View>
+          </ScrollView>
         )}
 
         <CurrencyToggle />
