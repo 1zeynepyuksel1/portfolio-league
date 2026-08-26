@@ -116,7 +116,7 @@ export async function findMultiplesForDate(targetDateStr: string): Promise<
     currentPriceTry: string;
   }>
 > {
-  const endOfDay = `${targetDateStr}T23:59:59.999Z`;
+  const endOfDay = new Date(`${targetDateStr}T23:59:59.999Z`);
 
   const rows = await db.execute<{
     symbol: string;
@@ -130,7 +130,7 @@ export async function findMultiplesForDate(targetDateStr: string): Promise<
     LEFT JOIN LATERAL (
       SELECT price_try AS start_price
       FROM price_history
-      WHERE asset_id = a.id AND ts <= ${endOfDay}::timestamp
+      WHERE asset_id = a.id AND ts <= ${endOfDay}
       ORDER BY ts DESC
       LIMIT 1
     ) s ON true

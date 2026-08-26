@@ -4,6 +4,7 @@ import {
   claimDailyBonus,
   DailyBonusAlreadyClaimedError,
   getUserCashHistory,
+  getDailyBonusStatus,
 } from './service.js';
 
 export const bonusRouter = Router();
@@ -40,6 +41,29 @@ bonusRouter.post('/daily', requireAccessToken, async (_request, response) => {
       error: {
         code: 'INTERNAL_ERROR',
         message: 'Günlük bonus eklenirken beklenmeyen bir hata oluştu.',
+      },
+    });
+  }
+});
+
+// Günlük bonus durumunu alma (alınabilir mi, kalan süre ne kadar?)
+bonusRouter.get('/daily/status', requireAccessToken, async (_request, response) => {
+  const userId = response.locals.userId as string;
+
+  try {
+    const status = await getDailyBonusStatus(userId);
+    return response.status(200).json({
+      canClaim: status.canClaim,
+      lastClaimedAt: status.lastClaimedAt?.toISOString() ?? null,
+      nextClaimAt: status.nextClaimAt?.toISOString() ?? null,
+      remainingSeconds: status.remainingSeconds,
+    });
+  } catch (error) {
+    console.error('[GET /bonus/daily/status] beklenmeyen hata:', error);
+    return response.status(500).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Günlük bonus durumu sorgulanırken beklenmeyen bir hata oluştu.',
       },
     });
   }
