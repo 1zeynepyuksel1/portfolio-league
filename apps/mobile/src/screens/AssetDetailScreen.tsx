@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
+import { useCurrency } from '../lib/currency';
 import {
   formatChartDate,
   PriceChart,
@@ -64,6 +65,20 @@ const CHART_WIDTH = Dimensions.get('window').width - 40;
 const CHART_HEIGHT = 250;
 
 export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
+  /**
+   * ⚠️ ÇEVRİM SUNUCUDA, BURADA DEĞİL.
+   *
+   * Ekranda çevirseydik elimizde yalnızca GÜNCEL kur olurdu ve bütün
+   * eğriyi ona bölerdik — her nokta aynı sayıya bölününce grafiğin
+   * ŞEKLİ hiç değişmez, sadece etiketler değişir. Liranın değer kaybı
+   * dolar kazancı gibi görünürdü.
+   *
+   * Ölçüldü (BTC, 90 gün): TL +%12,2 · dolar +%6,6.
+   *
+   * Sunucu her noktaya O ANIN kurunu uyguluyor. Buradaki iş sadece
+   * tercihi soruya eklemek ve gelen sayıyı doğru simgeyle yazmak.
+   */
+  const { currency } = useCurrency();
   const [range, setRange] = useState<RangeValue>('1m');
   const [data, setData] = useState<SeriesResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,7 +127,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
           : `range=${range}`;
 
       const res = await apiFetch<SeriesResponse>(
-        `/assets/${symbol}/prices?${query}`,
+        `/assets/${symbol}/prices?${query}&currency=${currency}`,
       );
       setData(res);
     } catch (err) {
@@ -120,7 +135,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [symbol, range, zoom]);
+  }, [symbol, range, zoom, currency]);
 
   useEffect(() => {
     void load();
@@ -159,7 +174,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
       open: string | null;
       close: string | null;
       volume: string | null;
-    }>(`/assets/${symbol}/stats`)
+    }>(`/assets/${symbol}/stats?currency=${currency}`)
       .then((res) => {
         if (!cancelled) setStats(res);
       })
@@ -187,8 +202,8 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
    */
   const changePercent =
     first !== undefined && last !== undefined
-      ? ((Number(last.priceTry) - Number(first.priceTry)) /
-          Number(first.priceTry)) *
+      ? ((Number(last.price) - Number(first.price)) /
+          Number(first.price)) *
         100
       : null;
 
@@ -196,24 +211,34 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* Başlık */}
-        <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={12}>
-            <Text style={styles.back}>‹ Geri</Text>
-          </Pressable>
-          <Text style={styles.title}>
-            {name} ({symbol})
-          </Text>
-        </View>
+      {/*
+        Başlık ScrollView'un DIŞINDA — SABİT.
 
+        ⚠️ ÖNCEDEN İÇİNDEYDİ VE BU BİR ÇIKMAZ SOKAKTI. Kullanıcı grafiğe
+        veya 24 saat özetine bakmak için aşağı kaydırınca "‹ Geri" ekrandan
+        çıkıyordu. Buton vardı, görünmüyordu; geri dönmek için ta yukarı
+        kaydırmak gerekiyordu ve bunu bilmek imkânsızdı.
+
+        Kaçış yolu her zaman görünür olmalı. Ekranın geri kalanı kayar,
+        başlık kaymaz.
+      */}
+      <View style={styles.header}>
+        <Pressable onPress={onClose} hitSlop={12}>
+          <Text style={styles.back}>‹ Geri</Text>
+        </Pressable>
+        <Text style={styles.title}>
+          {name} ({symbol})
+        </Text>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {/* Güncel fiyat ve değişim */}
         <View style={styles.priceBlock}>
           <Text style={styles.price}>
             {scrubbed !== null
-              ? formatPrice(scrubbed.priceTry)
+              ? formatPrice(scrubbed.price, currency)
               : last !== undefined
-                ? formatPrice(last.priceTry)
+                ? formatPrice(last.price, currency)
                 : '—'}
           </Text>
           {changePercent !== null && (
@@ -259,6 +284,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
               bucketSeconds={data?.bucketSeconds ?? 86400}
               onScrub={setScrubbed}
               onZoom={setZoom}
+              currency={currency}
             />
           )}
         </View>
@@ -336,15 +362,15 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
           <View style={styles.statsBlock}>
             <Text style={styles.statsTitle}>24 SAAT</Text>
 
-            <StatLine label="Yüksek" value={formatPrice(stats.high)} />
+            <StatLine label="Yüksek" value={formatPrice(stats.high, currency)} />
             {stats.low !== null && (
-              <StatLine label="Düşük" value={formatPrice(stats.low)} />
+              <StatLine label="Düşük" value={formatPrice(stats.low, currency)} />
             )}
             {stats.open !== null && (
-              <StatLine label="Açılış" value={formatPrice(stats.open)} />
+              <StatLine label="Açılış" value={formatPrice(stats.open, currency)} />
             )}
             {stats.close !== null && (
-              <StatLine label="Kapanış" value={formatPrice(stats.close)} />
+              <StatLine label="Kapanış" value={formatPrice(stats.close, currency)} />
             )}
 
             {/*
@@ -401,9 +427,19 @@ const styles = StyleSheet.create({
   statValue: { fontFamily: fonts.monoSemibold, fontSize: 13, color: colors.ink },
 
   container: { flex: 1, backgroundColor: colors.surface },
-  content: { padding: 20, paddingBottom: 40 },
+  // Başlık artık dışarıda, o yüzden üst boşluk ona ait.
+  content: { paddingHorizontal: 20, paddingBottom: 40 },
 
-  header: { gap: 8, marginBottom: 16 },
+  // Sabit başlık: yatay boşluğu kendi taşıyor, alt kenarı içeriği ayırıyor.
+  header: {
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
   back: { color: colors.gain, fontSize: 15, fontFamily: fonts.semibold },
   title: { color: colors.ink, fontSize: 22, fontFamily: fonts.bold },
 

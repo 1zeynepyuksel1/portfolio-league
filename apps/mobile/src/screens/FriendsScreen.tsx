@@ -41,7 +41,21 @@ type RequestsResponse = {
   outgoing: OutgoingRequest[];
 };
 
-export function FriendsScreen() {
+/**
+ * ⚠️ BU EKRAN BİR SÜRE ERİŞİLEMEZ DURUMDAYDI.
+ *
+ * Tasarım turunda 'friends' sekmesi kaldırıldı (App.tsx'te gerekçesi var)
+ * ama yerine bir kapı açılmadı. Dosya yazılıydı, App.tsx'te import bile
+ * ediliyordu — hiçbir yerde ÇİZİLMİYORDU.
+ *
+ * Sonucu backend'de değil kullanışta görünüyordu: istek gönderiliyor,
+ * karşı taraf onu GÖREMİYOR ve kabul EDEMİYORDU. Arkadaşlık sistemi
+ * sunucuda tam, arayüzde yarımdı.
+ *
+ * Artık Lig ekranındaki "Arkadaşlar" alt sekmesinden bir katman olarak
+ * açılıyor; `onClose` o katmanı kapatıyor.
+ */
+export function FriendsScreen({ onClose }: { onClose?: () => void }) {
   // Aktif Alt Sekme (Arkadaşlarım vs İstekler)
   const [activeTab, setActiveTab] = useState<'list' | 'requests'>('list');
 
@@ -145,6 +159,21 @@ export function FriendsScreen() {
 
   return (
     <View style={styles.container}>
+      {/*
+        Kapatma başlığı — yalnızca katman olarak açıldığında.
+
+        ⚠️ Kaçış yolu her zaman görünür olmalı: bu ekran tam sayfa
+        açılıyor ve altındaki sekme çubuğunu kapatıyor. Geri tuşu
+        olmasaydı kullanıcı burada kilitlenirdi.
+      */}
+      {onClose !== undefined && (
+        <View style={styles.backRow}>
+          <TouchableOpacity onPress={onClose} hitSlop={12}>
+            <Text style={styles.backText}>‹ Lige dön</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* 1. Üst Kısım: Arkadaş Ekleme Formu */}
       <View style={styles.addSection}>
         <Text style={styles.sectionTitle}>👥 Arkadaş Ekle</Text>
@@ -349,6 +378,16 @@ export function FriendsScreen() {
 }
 
 const styles = StyleSheet.create({
+  backRow: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 10,
+  },
+  backText: {
+    color: colors.gain,
+    fontSize: 15,
+    fontFamily: fonts.semibold,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.surface,

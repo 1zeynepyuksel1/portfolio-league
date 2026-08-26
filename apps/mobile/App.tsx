@@ -18,7 +18,11 @@ import { MarketScreen } from './src/screens/MarketScreen';
 import { TradeScreen } from './src/screens/TradeScreen';
 import { AssetDetailScreen } from './src/screens/AssetDetailScreen';
 import { WhatIfScreen } from './src/screens/WhatIfScreen';
-import { clearSession, restoreSession } from './src/api/client';
+import {
+  clearSession,
+  restoreSession,
+  setSessionExpiredHandler,
+} from './src/api/client';
 import { PortfolioScreen } from './src/screens/PortfolioScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -123,6 +127,17 @@ function AppShell() {
    */
   const [portfolioVersion, setPortfolioVersion] = useState(0);
 
+  /**
+   * Arkadaşlar katmanı. `false` = kapalı.
+   *
+   * ⚠️ SEKME DEĞİL, KATMAN — AssetDetail ve Trade ile aynı desen.
+   * 'friends' sekmesi tasarım kararıyla kaldırılmıştı ama yerine kapı
+   * açılmadığı için ekran ERİŞİLEMEZ kalmıştı: istek gönderiliyor, karşı
+   * taraf göremiyordu. Lig ekranındaki "Arkadaşlar" alt sekmesinden
+   * açılıyor, kapanınca lige dönüyor.
+   */
+  const [friendsOpen, setFriendsOpen] = useState(false);
+
   // Saklanan oturum kontrol edilirken a├ğ─▒l─▒┼ş ekran─▒ g├Âsterilir. Bu bayrak
   // olmasayd─▒ uygulama bir an giri┼ş ekran─▒n─▒ g├Âsterip sonra ana ekrana
   // atlard─▒ ÔÇö kullan─▒c─▒ "├ğ─▒k─▒┼ş yapm─▒┼ş─▒m" san─▒r.
@@ -162,6 +177,29 @@ function AppShell() {
     void restoreSession()
       .then((user) => setCurrentUser(user))
       .finally(() => setRestoring(false));
+  }, []);
+
+  /**
+   * Oturum uygulama AÇIKKEN ölürse giriş ekranına dön.
+   *
+   * ⚠️ NEDEN GEREKLİ: erişim token'ı 15 dakikada ölüyor. Eskiden bunun
+   * bir karşılığı yoktu — kabuk "giriş yapılmış" ekranını çizmeye devam
+   * ediyor, her istek "Access token gereklidir" diyor, o ekranda çıkış
+   * tuşu da olmadığı için kullanıcı KİLİTLENİYORDU. Tek çıkış yolu
+   * tarayıcı deposunu elle temizlemekti.
+   *
+   * client.ts önce sessizce yenilemeyi deniyor; yalnızca o da başarısız
+   * olursa burası çağrılıyor. Yani kullanıcı normalde hiçbir şey fark
+   * etmiyor, sadece gerçekten oturumu bittiğinde giriş ekranını görüyor.
+   */
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      setCurrentUser(null);
+      setAuthView('login');
+    });
+
+    // Ekran sökülürken bırak — yoksa eski state'e tutunan bir kapanış kalır.
+    return () => setSessionExpiredHandler(null);
   }, []);
 
   // ├ç─▒k─▒┼ş yap fonksiyonu ÔÇö token'─▒ diskten de siliyor
@@ -241,7 +279,7 @@ function AppShell() {
               onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })}
             />
           ) : activeTab === 'league' ? (
-            <LeaderboardScreen />
+            <LeaderboardScreen onOpenFriends={() => setFriendsOpen(true)} />
           ) : (
             <WhatIfScreen />
           )}
@@ -261,6 +299,12 @@ function AppShell() {
             Sekme ├ğubu─şunu da kapat─▒yor: emir verirken kullan─▒c─▒ yanl─▒┼şl─▒kla
             ba┼şka sekmeye ge├ğip yar─▒m kalm─▒┼ş bir formu kaybetmesin.
           */}
+          {friendsOpen && (
+            <View style={StyleSheet.absoluteFill}>
+              <FriendsScreen onClose={() => setFriendsOpen(false)} />
+            </View>
+          )}
+
           {detailAsset !== null && (
             <View style={StyleSheet.absoluteFill}>
               <AssetDetailScreen

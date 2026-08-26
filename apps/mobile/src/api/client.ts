@@ -46,6 +46,74 @@ export async function saveSession(
   await saveTokens(accessToken, refreshToken);
 }
 
+/**
+ * Oturum düştüğünde çağrılacak geri çağrı — App.tsx kaydediyor.
+ *
+ * ⚠️ NEDEN GEREKLİ: `client.ts` React'i tanımıyor, ekran state'ine
+ * erişemiyor. Token ölünce depoyu temizlemek YETMİYOR — uygulama hâlâ
+ * "giriş yapılmış" ekranını çiziyor ve her istek patlıyor. Kullanıcı
+ * çıkmaz sokakta kalıyor, çıkış tuşu bile yok.
+ *
+ * Bu geri çağrı köprü: veri katmanı "oturum bitti" diyor, App karar
+ * veriyor (giriş ekranına dön).
+ */
+let onSessionExpired: (() => void) | null = null;
+
+export function setSessionExpiredHandler(handler: (() => void) | null): void {
+  onSessionExpired = handler;
+}
+
+/**
+ * Aynı anda birden çok istek 401 alırsa TEK yenileme yapılsın.
+ *
+ * ⚠️ Bu olmadan: ekran açılışında 4 istek paralel gider, dördü de 401
+ * alır, dördü de yenileme ister. İlki refresh token'ı tüketir, kalan üçü
+ * ARTIK GEÇERSİZ token'la yenilemeye çalışır ve oturumu düşürür.
+ * Kullanıcı sebepsiz yere çıkışa atılır.
+ *
+ * Devam eden bir yenileme varsa diğerleri onu bekliyor.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight !== null) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    if (currentRefreshToken === null) return false;
+
+    try {
+      const response = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: currentRefreshToken }),
+      });
+
+      if (!response.ok) return false;
+
+      const session = (await response.json()) as {
+        accessToken?: string;
+        refreshToken?: string;
+      };
+
+      if (!session.accessToken || !session.refreshToken) return false;
+
+      await saveSession(session.accessToken, session.refreshToken);
+      return true;
+    } catch {
+      // Ağ hatası yenileme başarısızlığı SAYILMAZ diye düşünülebilir ama
+      // burada ayıramıyoruz; false dönüp çağıranın oturumu düşürmesi,
+      // kullanıcıyı sonsuza kadar bozuk ekranda tutmaktan iyi.
+      return false;
+    }
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
 /** Çıkışta: hem bellekten hem diskten sil. */
 export async function clearSession(): Promise<void> {
   currentAccessToken = null;
@@ -99,6 +167,14 @@ export async function restoreSession(): Promise<User | null> {
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
+  /**
+   * İç kullanım: bu çağrı zaten bir yenileme sonrası tekrar mı?
+   *
+   * ⚠️ SONSUZ DÖNGÜ KORUMASI. Yenileme başarılı görünüp yeni token da
+   * 401 alırsa, bayrak olmadan sonsuza kadar yenile-tekrarla dönerdik.
+   * Bir tekrar hakkı var, o kadar.
+   */
+  isRetry = false,
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
 
@@ -115,6 +191,35 @@ export async function apiFetch<T>(
     ...options,
     headers,
   });
+
+  /**
+   * ⚠️ 401 BURADA KESİLİYOR — eskiden düz bir hata gibi geçiyordu.
+   *
+   * Erişim token'ı 15 dakikada ölüyor (JWT_ACCESS_TTL_SECONDS=900).
+   * `restoreSession` yalnızca AÇILIŞTA yeniliyor; uygulama açıkken token
+   * ölünce devreye giren hiçbir şey yoktu. Sonuç: kabuk "giriş yapılmış"
+   * sanıyor, her istek "Access token gereklidir" diyor, çıkış tuşu bile
+   * olmadığı için kullanıcı kilitleniyordu.
+   *
+   * Şimdi iki adım:
+   *   1. Yenilemeyi dene, isteği bir kez tekrarla — kullanıcı fark etmesin
+   *   2. Yenileme de olmuyorsa oturumu KAPAT ve App'e haber ver
+   *
+   * İkinci adım şart: sessizce başarısız olmak, kullanıcıyı bozuk bir
+   * ekranda bırakmak demek.
+   */
+  if (response.status === 401 && !isRetry && !endpoint.startsWith('/auth/')) {
+    const refreshed = await refreshAccessToken();
+
+    if (refreshed) {
+      return apiFetch<T>(endpoint, options, true);
+    }
+
+    await clearSession();
+    onSessionExpired?.();
+
+    throw new Error('Oturumun sona erdi, lütfen tekrar giriş yap.');
+  }
 
   const data = await response.json().catch(() => ({}));
 

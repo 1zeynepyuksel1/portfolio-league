@@ -32,12 +32,29 @@ import Svg, {
   Polyline,
   Stop,
 } from 'react-native-svg';
-import { formatPrice } from '../lib/format';
+import { formatPrice, type DisplayCurrency } from '../lib/format';
 import { colors, fonts } from '../theme';
 
-export type ChartPoint = { ts: string; priceTry: string };
+/**
+ * ⚠️ ALAN ADI `priceTry` DEĞİL `price`.
+ *
+ * Grafik artık dolar da gösterebiliyor; alanı `priceTry` bırakmak,
+ * içinde dolar taşırken "TL" demek olurdu. Para birimi ayrı alanda
+ * (`currency`) geliyor — sayı ile birimi ayrı tutmak, birimi sayının
+ * ADINA gömmekten güvenli.
+ */
+export type ChartPoint = { ts: string; price: string };
 
 type Props = {
+  /**
+   * Okuma balonundaki tutarın para birimi.
+   *
+   * ⚠️ Noktalar zaten o para biriminde geliyor — bu yalnızca SİMGE için.
+   * Çevrim burada YAPILMIYOR; sunucu her noktayı o anın kuruyla çevirip
+   * gönderiyor. Ekranda çevirseydik bütün eğriyi tek bir güncel kura
+   * bölerdik ve grafiğin şekli yalan söylerdi.
+   */
+  currency?: DisplayCurrency;
   points: ChartPoint[];
   width: number;
   height: number;
@@ -150,6 +167,7 @@ export function PriceChart({
   color,
   onScrub,
   onZoom,
+  currency = 'try',
 }: Props) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
@@ -187,7 +205,7 @@ export function PriceChart({
   const plotWidthRef = useRef(plotWidth);
   plotWidthRef.current = plotWidth;
 
-  const values = points.map((p) => toPlot(p.priceTry));
+  const values = points.map((p) => toPlot(p.price));
 
   const min = values.length > 0 ? Math.min(...values) : 0;
   const max = values.length > 0 ? Math.max(...values) : 0;
@@ -512,7 +530,9 @@ export function PriceChart({
             activeX < plotWidth / 2 ? { right: 0 } : { left: 0 },
           ]}
         >
-          <Text style={styles.readoutPrice}>{formatPrice(active.priceTry)}</Text>
+          <Text style={styles.readoutPrice}>
+            {formatPrice(active.price, currency)}
+          </Text>
           <Text style={styles.readoutDate}>{formatChartDate(active.ts)}</Text>
         </View>
       )}

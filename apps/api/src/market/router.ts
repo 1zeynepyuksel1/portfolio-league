@@ -193,6 +193,14 @@ marketRouter.get("/", async (request, response) => {
 marketRouter.get("/:symbol/stats", async (request, response) => {
   const { symbol } = request.params;
 
+  const currency = parseCurrency(request.query.currency);
+
+  if (currency === null) {
+    return response.status(400).json({
+      error: { code: "INVALID_CURRENCY", message: "Geçersiz para birimi." },
+    });
+  }
+
   try {
     const asset = await findAssetIdBySymbol(symbol);
 
@@ -204,13 +212,43 @@ marketRouter.get("/:symbol/stats", async (request, response) => {
 
     const stats = await getDailyStats(asset.id);
 
+    /**
+     * ⚠️ 24 SAAT ÖZETİ BURADA GÜNCEL KURLA ÇEVRİLİYOR — ve bu DOĞRU.
+     *
+     * Grafikte her noktaya o anın kuru uygulanıyor çünkü aylar öncesine
+     * gidiyor. Burada pencere yalnızca 24 SAAT; kur gün içinde zaten
+     * değişmiyor (TCMB günde bir yayımlıyor). Aynı özeni göstermek
+     * dört ayrı kur araması demekti, karşılığı sıfır.
+     */
+    const fx = currency === "usd" ? await latestUsdTryRate() : null;
+
+    if (currency === "usd" && fx === null) {
+      return response.status(503).json({
+        error: {
+          code: "FX_UNAVAILABLE",
+          message: "Dolar kuru bulunamadı, TL görünümünü kullanın.",
+        },
+      });
+    }
+
+    const conv = (value: string | null | undefined): string | null => {
+      if (value === null || value === undefined) return null;
+      if (fx === null) return value;
+
+      return formatScaled(
+        tryToUsd(toPrice(value), toPrice(fx.rate)),
+        PRICE_SCALE,
+      );
+    };
+
     return response.json({
       symbol: symbol.toUpperCase(),
+      currency,
       // Veri yoksa null — sıfır göndermek "fiyat sıfırdı" demek olurdu.
-      high: stats?.high ?? null,
-      low: stats?.low ?? null,
-      open: stats?.open ?? null,
-      close: stats?.close ?? null,
+      high: conv(stats?.high),
+      low: conv(stats?.low),
+      open: conv(stats?.open),
+      close: conv(stats?.close),
       // ⚠️ Hacim saklanmıyor. Binance veriyor ama kolonu yok (migration).
       // Alanı göndermek, ekranın onu beklediğini ve bir gün geleceğini
       // görünür kılıyor.
@@ -255,6 +293,14 @@ marketRouter.get("/:symbol/prices", async (request, response) => {
     ? parseWindow(request.query.from, request.query.to)
     : null;
 
+  const currency = parseCurrency(request.query.currency);
+
+  if (currency === null) {
+    return response.status(400).json({
+      error: { code: "INVALID_CURRENCY", message: "Geçersiz para birimi." },
+    });
+  }
+
   if (window !== null && !window.ok) {
     return response.status(400).json({
       error: { code: "INVALID_WINDOW", message: window.message },
@@ -280,19 +326,62 @@ marketRouter.get("/:symbol/prices", async (request, response) => {
     const since = window?.ok === true ? window.from : startOf(range as never, new Date());
     const until = window?.ok === true ? window.to : null;
 
-    const points = await getPriceSeries(asset.id, bucketSeconds, since, until);
+    /**
+     * ⚠️ DOLAR GÖRÜNÜMÜ HER NOKTAYA O ANIN KURUNU UYGULUYOR.
+     *
+     * Bütün eğriyi bugünkü kura bölmek kolay ve YANLIŞ olurdu: her nokta
+     * aynı sayıya bölününce eğrinin ŞEKLİ değişmez, yalnızca etiketler
+     * değişir. Grafik liranın değer kaybını dolar kazancı gibi gösterir.
+     *
+     * Ölçüldü (BTC, 90 gün): TL +%12,2 · dolar +%6,6. Fark tamamen kur.
+     */
+    const usd = currency === "usd" ? await findAssetIdBySymbol("USD") : null;
+
+    if (currency === "usd" && usd === null) {
+      return response.status(503).json({
+        error: {
+          code: "FX_UNAVAILABLE",
+          message: "Dolar kuru bulunamadı, TL görünümünü kullanın.",
+        },
+      });
+    }
+
+    const points = await getPriceSeries(
+      asset.id,
+      bucketSeconds,
+      since,
+      until,
+      usd?.id ?? null,
+    );
 
     return response.json({
       symbol: symbol.toUpperCase(),
       name: asset.name,
       range: window?.ok === true ? "custom" : range,
       bucketSeconds,
+      currency,
       // ⚠️ Fiyat STRING. Sayı olarak gönderseydik istemcide float'a düşerdi
       // ve money.ts'ten beri taşıdığımız bigint zinciri son adımda kırılırdı.
-      points: points.map((p) => ({
-        ts: p.ts.toISOString(),
-        priceTry: p.priceTry,
-      })),
+      //
+      // ⚠️ Kuru olmayan nokta ATLANIYOR, 0 ya da 1 uydurulmuyor: varlık
+      // kur geçmişinden eskiyse o gün için dolar fiyatı BİLİNMİYOR.
+      // Uydurulan bir kur, TL tutarını dolar diye göstermek olurdu.
+      points: points.flatMap((p) => {
+        if (currency === "try") {
+          return [{ ts: p.ts.toISOString(), price: p.priceTry }];
+        }
+
+        if (p.usdRate === null) return [];
+
+        const usdPrice = tryToUsd(toPrice(p.priceTry), toPrice(p.usdRate));
+
+        return [
+          {
+            ts: p.ts.toISOString(),
+            price: formatScaled(usdPrice, PRICE_SCALE),
+          },
+        ];
+      }),
     });
   } catch (error) {
     console.error(`[GET /assets/${symbol}/prices] başarısız:`, error);

@@ -248,7 +248,27 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
  * kova mantığı ikisini de aynı şekilde seyreltiyor. Kolon yine gerekli —
  * ama temizlik/özetleme işi için (docs/01-plan.md §5.1), grafik için değil.
  */
-export type PricePoint = { ts: Date; priceTry: string };
+export type PricePoint = {
+  ts: Date;
+  priceTry: string;
+  /**
+   * O NOKTANIN ANINDAKİ USD/TRY kuru — yalnızca `usdAssetId` verilirse dolu.
+   *
+   * ⚠️ "O ANIN" VURGUSU HAYATİ. Dolar görünümü için bütün eğriyi BUGÜNKÜ
+   * kura bölmek kolay ve YANLIŞ: her nokta aynı sayıya bölünürse eğrinin
+   * ŞEKLİ hiç değişmez, sadece etiketler değişir. Grafik TL'deki artışı
+   * dolar artışı gibi gösterir.
+   *
+   * Ölçüldü (BTC, 90 gün): TL'de +%12,2, dolarda +%6,6. Aradaki farkın
+   * tamamı liranın değer kaybı. Bugünkü kurla bölseydik bu fark tamamen
+   * kaybolur, grafik iki para biriminde de aynı yükselişi gösterirdi.
+   *
+   * `null` olabilir: varlığın fiyatı kur geçmişinden eskiyse o nokta için
+   * kur yok. Çağıran tarafın o noktayı ATLAMASI gerekiyor — `1` varsaymak
+   * TL tutarını dolar diye göstermek olurdu.
+   */
+  usdRate: string | null;
+};
 
 export async function getPriceSeries(
   assetId: string,
@@ -262,6 +282,14 @@ export async function getPriceSeries(
    * yakınlaştırabiliyor ve o zaman iki uç da lazım.
    */
   until: Date | null = null,
+  /**
+   * USD varlığının kimliği. Verilirse her noktaya O ANIN kuru eklenir.
+   *
+   * ⚠️ NEDEN PARAMETRE, NEDEN İÇERİDE ARANMIYOR: bu fonksiyon her grafik
+   * isteğinde çağrılıyor. Kimliği içeride aramak her istekte fazladan bir
+   * sorgu demekti. Çağıran zaten yalnızca dolar görünümünde arıyor.
+   */
+  usdAssetId: string | null = null,
 ): Promise<PricePoint[]> {
   /**
    * `since === null` -> "Tümü": alt sınır yok, varlığın ilk kaydından başlar.
@@ -292,32 +320,52 @@ export async function getPriceSeries(
       ? sql`TRUE`
       : sql`ts <= ${until.toISOString()}::timestamp`;
 
+  /**
+   * Kur join'i — YALNIZCA dolar görünümünde ve SEYRELTMEDEN SONRA.
+   *
+   * ⚠️ SIRA ÖNEMLİ. Kuru alt sorguya koysaydık ham satırların HEPSİ için
+   * (ölçüldü: 14.179) kur aranırdı; oysa ekrana ~288 nokta çıkıyor. Önce
+   * kovala, sonra kalanlara kur ekle — arama sayısı 50 kat azalıyor.
+   */
+  const rateJoin =
+    usdAssetId === null
+      ? sql`NULL::text AS usd_rate`
+      : sql`(
+          SELECT u.price_try FROM price_history u
+          WHERE u.asset_id = ${usdAssetId} AND u.ts <= s.ts
+          ORDER BY u.ts DESC LIMIT 1
+        ) AS usd_rate`;
+
   const result = await db.execute<{
     ts: string | Date;
     price_try: string;
+    usd_rate: string | null;
   }>(sql`
-    SELECT DISTINCT ON (bucket) ts, price_try
+    SELECT s.ts, s.price_try, ${rateJoin}
     FROM (
-      SELECT
-        ts,
-        price_try,
-        floor(extract(epoch FROM ts) / ${bucketSeconds}) AS bucket
-      FROM price_history
-      WHERE asset_id = ${assetId} AND ${lowerBound} AND ${upperBound}
+      SELECT DISTINCT ON (bucket) ts, price_try
+      FROM (
+        SELECT
+          ts,
+          price_try,
+          floor(extract(epoch FROM ts) / ${bucketSeconds}) AS bucket
+        FROM price_history
+        WHERE asset_id = ${assetId} AND ${lowerBound} AND ${upperBound}
+      ) k
+      -- DISTINCT ON (bucket) + ORDER BY bucket, ts DESC = her kovanın EN
+      -- YENİ satırı. Sıralamanın ilk alanı DISTINCT ON ile aynı olmak
+      -- ZORUNDA; olmazsa PostgreSQL hata veriyor.
+      ORDER BY bucket, ts DESC
     ) s
-    -- DISTINCT ON (bucket) + ORDER BY bucket, ts DESC = her kovanın EN YENİ
-    -- satırı. Sıralamanın ilk alanı DISTINCT ON ile aynı olmak ZORUNDA;
-    -- olmazsa PostgreSQL hata veriyor.
-    --
-    -- Sonuç kova sırasına göre artan geliyor, yani grafiğin soldan sağa
-    -- çizim sırası. Ayrıca sıralamaya gerek yok.
-    ORDER BY bucket, ts DESC
+    -- Kova sırası = zaman sırası: grafiğin soldan sağa çizim sırası.
+    ORDER BY s.ts ASC
   `);
 
   return result.map((row) => ({
     // toUtcDate null dönmez çünkü ts NOT NULL — ama tip öyle demiyor.
     ts: toUtcDate(row.ts) as Date,
     priceTry: row.price_try,
+    usdRate: row.usd_rate,
   }));
 }
 

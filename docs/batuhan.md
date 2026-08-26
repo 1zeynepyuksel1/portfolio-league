@@ -13,6 +13,35 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 13. Çıkmaz sokaklar, para birimi merceği ve Zeynep'in yeni cron'ları — 25 Ağu 2026
+
+Bu turun ortak teması: **hata mesajı doğru, çıkış yolu yok.** Üç ayrı yerde
+aynı sınıf hata çıktı ve üçü de ancak uygulamayı gerçekten kullanınca görüldü.
+
+#### Oturum ve çıkmaz sokaklar
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/api/client.ts` (401 işleme) | Erişim token'ı 15 dakikada ölüyordu ve devreye giren hiçbir şey yoktu — uygulama neden KİLİTLENİYORDU? `isRetry` bayrağı hangi sonsuz döngüyü kesiyor? `refreshInFlight` kilidi olmasaydı 4 paralel istek 401 alınca ne olurdu? `/auth/` neden muaf? |
+| `mobile/App.tsx` (`setSessionExpiredHandler`) | `client.ts` React'i tanımıyor — depoyu temizlemek neden YETMİYOR? Geri çağrı sökülürken neden `null`'a çekiliyor? |
+| `mobile/src/screens/AssetDetailScreen.tsx` (sabit başlık) | "‹ Geri" ScrollView'un içindeyken neden kayboluyordu? Kaçış yolu neden her zaman görünür olmalı? |
+| `mobile/src/screens/FriendsScreen.tsx` · `LeaderboardScreen.tsx` · `App.tsx` | Ekran YAZILMIŞ ve import EDİLMİŞ ama hiç çizilmiyordu — sonucu backend'de değil nerede görünüyordu? Rozet neden "bildirim" değil ama yine de gerekli? Sayaç neden AYRI try/catch içinde? |
+
+#### Cüzdan ve para birimi merceği
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/screens/PortfolioScreen.tsx` (net tutar) | Net tutar neden yüzdenin SOLUNA konamadı? "Sütun eklemek yatay bütçeyi büyütmez" ne demek — 390 pikselde hesabı yap. `profitCents` neden ekranda hesaplanmıyor? |
+| `market/repository.ts` (`usdRate` join) | Kur join'i neden seyreltmeden SONRA? Alt sorguya koysaydık kaç satır taranırdı? `usdRate` neden `null` olabiliyor ve çağıran neden `1` varsaymıyor? |
+| `market/router.ts` (`?currency=` grafik + 24s) | ⚠️ Bütün eğriyi BUGÜNKÜ kura bölmek neden yanlış — eğrinin şekli ne olurdu? (Ölçüldü: BTC 3 ay, TL +%12,17 · dolar +%6,61.) 24 saat özeti neden güncel kurla çevrilebiliyor ama grafik çevrilemiyor? |
+| `mobile/src/components/PriceChart.tsx` (`price` alanı) | Alan adı neden `priceTry` olmaktan çıktı? Birimi sayının ADINA gömmek neden tehlikeli? Çevrim neden ekranda değil sunucuda? |
+
+#### Zeynep'in yeni yazdıkları — hiç okumadın
+| Dosya | Ne sorulacak |
+|---|---|
+| `leagues/twr-engine.ts` | Faz 2'nin bitiş kriteriydi. `packages/contracts/src/twr.ts`'teki `calculateTwr` ile ilişkisi ne? Alt dönemler nasıl bölünüyor? |
+| `leagues/cron.ts` | Haftalık lig nasıl kapanıp yenisi açılıyor? Kapanma anında sıralama neye göre donuyor? |
+| `portfolio/cron.ts` | `portfolio_snapshots` TWR'nin girdisi — günde bir yazmak neden yeterli? |
+| ✅ `market/price-cron.ts` (TWR senkronu) | ⚠️ Bu dosyayı OKUDUN ama sonra DEĞİŞTİ. Her turda `syncAllLeagueEntriesAndRanks` çağrılıyor — 15 saniyelik tur bütçesine etkisi ölçülmedi. |
+
 ### 1. Döviz ve varlık listesi genişlemesi — 21 Ağu 2026
 | Dosya | Ne sorulacak |
 |---|---|

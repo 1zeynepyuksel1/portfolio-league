@@ -57,9 +57,26 @@ type LeaderboardEntry = {
   endValueCents: string;
 };
 
-export function LeaderboardScreen() {
+export function LeaderboardScreen({
+  onOpenFriends,
+}: {
+  /** Arkadaşlar katmanını açar. Verilmezse düğme çizilmez. */
+  onOpenFriends?: () => void;
+}) {
   // Aktif Sekme (Genel Lig vs Arkadaşlarım)
   const [activeTab, setActiveTab] = useState<'global' | 'friends'>('global');
+
+  /**
+   * Bekleyen GELEN istek sayısı — rozetin kaynağı.
+   *
+   * ⚠️ NEDEN GEREKLİ: bildirim altyapısı yok (push yok, e-posta yok).
+   * Arkadaşlık isteği gönderilince karşı tarafa hiçbir şey ulaşmıyordu;
+   * istek ekranı açılmadıkça kimse varlığından haberdar olmuyordu.
+   *
+   * Rozet tam bir bildirim değil ama sessizliği kırıyor: kullanıcı Lig
+   * ekranına her girdiğinde bekleyen bir şey olduğunu görüyor.
+   */
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Veri Durumları
   const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
@@ -85,6 +102,20 @@ export function LeaderboardScreen() {
 
       const listRes = await apiFetch<{ leaderboard: LeaderboardEntry[] }>(endpoint);
       setEntries(listRes.leaderboard || []);
+
+      /**
+       * 3. Bekleyen gelen istek sayısı — rozet için.
+       *
+       * ⚠️ AYRI try/catch: bu sayı YAN BİLGİ. İstek listesi alınamazsa
+       * sıralama yine gösterilmeli. Ana akışın içinde bıraksaydık
+       * arkadaşlık ucundaki bir hata bütün lig ekranını düşürürdü.
+       */
+      try {
+        const reqRes = await apiFetch<{ incoming?: unknown[] }>('/friends/requests');
+        setPendingCount(reqRes.incoming?.length ?? 0);
+      } catch {
+        setPendingCount(0);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lig verileri alınamadı.');
     } finally {
@@ -202,7 +233,19 @@ export function LeaderboardScreen() {
             kişi düğmeyi göremezdi.
           */}
           {activeTab === 'friends' && (
-            <AddFriend onSent={() => void loadData()} />
+            <>
+              <AddFriend onSent={() => void loadData()} />
+              {onOpenFriends !== undefined && (
+                <TouchableOpacity style={styles.friendsLink} onPress={onOpenFriends}>
+                  <Text style={styles.friendsLinkText}>Arkadaşlar ve istekler</Text>
+                  {pendingCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{pendingCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       ) : (
@@ -303,7 +346,21 @@ export function LeaderboardScreen() {
           }}
           ListFooterComponent={
             activeTab === 'friends' ? (
-              <AddFriend onSent={() => void loadData()} />
+              // ⚠️ İki kardeş eleman parça ile sarılıyor: ListFooterComponent
+              // TEK bir eleman bekliyor, sarmalayıcı olmadan sözdizimi hatası.
+              <>
+                <AddFriend onSent={() => void loadData()} />
+                {onOpenFriends !== undefined && (
+                  <TouchableOpacity style={styles.friendsLink} onPress={onOpenFriends}>
+                    <Text style={styles.friendsLinkText}>Arkadaşlar ve istekler</Text>
+                    {pendingCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{pendingCount}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </>
             ) : null
           }
         />
@@ -313,6 +370,39 @@ export function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  friendsLink: {
+    marginTop: 12,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceRaised,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  friendsLinkText: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    color: colors.inkBright,
+  },
+  // Rozet: bildirim altyapısı olmadığı için sessizliği kıran tek işaret.
+  badge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    backgroundColor: colors.gain,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: colors.onInverse,
+  },
+
   container: {
     flex: 1,
     backgroundColor: colors.surface,

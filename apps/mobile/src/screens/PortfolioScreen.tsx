@@ -537,7 +537,12 @@ export function PortfolioScreen({
               <Text style={styles.rowName} numberOfLines={1}>
                 {item.name}
               </Text>
-              <Text style={styles.rowQuantity}>
+              {/*
+                ⚠️ numberOfLines={1}: miktar uzun ondalıklı olabiliyor
+                (0,00606200) ve sarınca satır yüksekliğini bozuyordu.
+                Sığmazsa kesilsin — asıl bilgi ad, miktar ikincil.
+              */}
+              <Text style={styles.rowQuantity} numberOfLines={1}>
                 {formatQuantity(item.quantity)}
               </Text>
             </View>
@@ -550,8 +555,53 @@ export function PortfolioScreen({
             uydurmaktan iyidir. Sunucu 24s değişimi eklediğinde burası
             değişecek — başlık da.
           */}
+          {/*
+            NET TUTAR — yüzdenin SOLUNDA.
+
+            ⚠️ NEDEN İKİSİ BİRDEN: yüzde tek başına ölçeği gizliyor.
+            "+%0,85" hem 20 liralık hem 20.000 liralık bir kâr olabilir;
+            kullanıcı hangisi olduğunu anlamak için değer sütunuyla zihinden
+            çarpmak zorunda kalıyordu.
+
+            ⚠️ Para birimi ₺/$ düğmesine UYUYOR: dolar görünümündeyken
+            `profitUsdCents` gösteriliyor, TL tutarına $ işareti konmuyor.
+            `money()` bu kuralı zaten tek yerde tutuyor.
+
+            ⚠️ `profitCents` sunucudan geliyor — burada hesaplanmıyor.
+            Kuruş aritmetiği sunucunun işi; ekranda çarpma yapsaydık
+            float'a düşerdi.
+          */}
+          {/*
+            YÜZDE + NET TUTAR — tek sütun, alt alta.
+
+            ⚠️ ÖNCE AYRI SÜTUN DENENDİ, EKRANA SIĞMADI. Dört sütun
+            (ad · net · yüzde · değer) 390 piksellik telefonda ad sütununa
+            ~59 piksel bırakıyordu; "Bitcoin" bile "Bitc..." diye kesiliyor,
+            miktar iki satıra taşıyordu. Sütun eklemek yatay bütçeyi
+            büyütmüyor, sadece paylaştırıyor.
+
+            Alt alta koymak ikisini de tam gösteriyor ve ad sütununu geri
+            veriyor. Dikeyde zaten boşluk vardı.
+
+            ⚠️ NEDEN İKİSİ BİRDEN: yüzde tek başına ölçeği gizliyor.
+            "+%1,16" hem 20 liralık hem 20.000 liralık kâr olabilir.
+
+            ⚠️ Para birimi ₺/$ düğmesine uyuyor — money() o kuralı tek
+            yerde tutuyor. profitCents SUNUCUDAN geliyor, burada
+            hesaplanmıyor: çarpma yapsaydık float'a düşerdi.
+          */}
           <View style={styles.rowChange}>
             <ChangeText percent={item.profitPercent} />
+            <Text
+              style={[
+                styles.rowNetText,
+                BigInt(item.profitCents) >= 0n ? styles.netUp : styles.netDown,
+              ]}
+              numberOfLines={1}
+            >
+              {BigInt(item.profitCents) >= 0n ? '+' : ''}
+              {money(item.profitCents, item.profitUsdCents)}
+            </Text>
           </View>
 
           <View style={styles.rowValue}>
@@ -764,7 +814,12 @@ const styles = StyleSheet.create({
     color: colors.inkFaint,
     marginTop: 2,
   },
-  rowChange: { width: rowMetrics.changeWidth, alignItems: 'flex-end' },
+  rowNetText: { fontFamily: fonts.mono, fontSize: 11, marginTop: 2 },
+  netUp: { color: colors.gain },
+  netDown: { color: colors.loss },
+
+  // Genişletildi: artık yüzde VE net tutar burada, alt alta.
+  rowChange: { width: rowMetrics.changeWidth + 34, alignItems: 'flex-end' },
   rowValue: { width: rowMetrics.valueWidth, alignItems: 'flex-end' },
   rowValueText: { fontFamily: fonts.monoSemibold, fontSize: 14, color: colors.ink },
   rowAsOf: {
