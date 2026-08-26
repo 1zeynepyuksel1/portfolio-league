@@ -13,6 +13,74 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 18. Açılış sekmesi ve App.tsx'in bozuk yorumları — 26 Ağu 2026
+
+| Dosya | Ne |
+|---|---|
+| `mobile/App.tsx` | `START_TAB = 'wallet'` + `startSession()` · **72 satır bozuk yorum onarıldı** |
+
+**1 · Uygulama artık cüzdanla açılıyor.** Önce lig açılıyordu; sıralama
+ilgi çekici ama kullanıcının ilk sorusu "param ne durumda". Lig ancak
+kendi portföyünü gördükten sonra anlam taşıyor.
+
+İki ayrı yol vardı ve ikisi de kırıktı:
+
+| Durum | Önce | Sonra |
+|---|---|---|
+| Uygulama açılışı | `useState<Tab>('league')` | `START_TAB` |
+| Çıkış → giriş | **eski sekmede kalıyordu** | `startSession()` sıfırlıyor |
+
+⚠️ İkincisi görünmez bir hataydı: `AppShell` çıkışta SÖKÜLMÜYOR, sadece
+kimlik ekranlarını çiziyor — yani `activeTab` çıkıştan önceki değerinde
+kalıyor. Profil sekmesindeyken çıkıp başka hesapla girersen doğrudan
+**o hesabın profiline** düşüyordun. Kural tek sabitte (`START_TAB`)
+toplandı; aynı hatanın "renk iki yere yazılmış" hâlini §15'te düzelttik.
+
+---
+
+**2 · `App.tsx`'in Türkçe yorumlarının 72 satırı okunamaz hâldeydi.**
+
+```
+// Giri┼ş yapm─▒┼ş kullan─▒c─▒ bilgisi        ← bozuk
+// Arkadaşlar katmanı. `false` = kapalı.   ← doğru
+```
+
+Çift kodlama: UTF-8 baytları yanlış kod sayfasıyla okunup tekrar UTF-8
+yazılmış (`ı` = `C4 B1` → `─▒`).
+
+**Nereden geldiği git'le bulundu:**
+
+| Commit | Tarih | Bozuk satır |
+|---|---|---|
+| `feb2226` | 24 Ağu | **0** |
+| `7553183` | 24 Ağu | **82** ← merge |
+
+Yani bozulma origin/main tarafından, **Zeynep'in editöründen** geldi.
+Ona söylenmeli: editörünün kodlaması UTF-8 olmalı, yoksa her merge'de
+tekrarlar.
+
+⚠️ **Otomatik ters çevirme İŞE YARAMADI.** cp437, cp850, cp1254 ve
+latin-1'in dördü de hata verdi — bozulma karışık: bazı baytlar cp437,
+bazıları cp1254 üzerinden geçmiş. Tek kod sayfasıyla geri alınamıyor.
+
+Çözüm: dosyadaki ASCII dışı dizileri sayıp eşleme tablosu kurmak.
+
+| Bozuk | Doğru | | Bozuk | Doğru |
+|---|---|---|---|---|
+| `─▒` | ı | | `├╝` | ü |
+| `─░` | İ | | `├ğ` | ç |
+| `─ş` | ğ | | `├Â` | ö |
+| `┼ş` | ş | | `├£` | Ü |
+| `┼Ş` | Ş | | `├ó` | â |
+| `ÔÇö` | — | | `ÔÜá´©Å` | ⚠️ |
+
+386 dizi düzeltildi, kalan bozuk karakter: **0**. Kod değişmedi (hepsi
+yorum ve bir metin sabiti), 211 test geçmeye devam ediyor.
+
+⚠️ **Neden önemli:** bu dosya senin okuma listendeki dosyalardan biri.
+Yorumların amacı "neden öyle yazıldığını anlatmak" — okunamayan yorum
+hiçbir işe yaramıyor. Depoda başka bozuk dosya yok, tarandı.
+
 ### 17. ABD hisseleri — 26 Ağu 2026
 
 **3 yeni dosya · 9 değişen · +20 test (191 → 211)**
