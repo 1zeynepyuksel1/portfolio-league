@@ -30,7 +30,7 @@ import { colors, fonts, rowMetrics, spacing } from '../theme';
 type Asset = {
   symbol: string;
   name: string;
-  kind: 'crypto' | 'fx' | 'metal' | 'bist';
+  kind: 'crypto' | 'fx' | 'metal' | 'bist' | 'stock';
   /** ⚠️ STRING. Number'a çevirme — backend'deki bigint zinciri kırılır. */
   priceTry: string | null;
   priceUsd: string | null;
@@ -61,6 +61,18 @@ const KINDS = [
   { key: 'crypto', label: 'Kripto' },
   { key: 'fx', label: 'Döviz' },
   { key: 'metal', label: 'Metal' },
+  /**
+   * ⚠️ ÇİP EKLENMEZSE VARLIK KAYBOLMUYOR, SAKLANIYOR — daha kötüsü.
+   *
+   * Filtre `kind !== seçili` diye eliyor, yani hisseler yalnızca "Tümü"
+   * altında görünürdü. 30 hisse 50 varlığın içinde 20 kriptonun/dövizin
+   * arasına dağılır, kullanıcı aradığını bulamazdı. Liste "çalışıyor"
+   * göründüğü için de kimse eksik olduğunu fark etmezdi.
+   *
+   * `bist` bilerek YOK: şemada duruyor ama hiç varlığı olmadığı için
+   * çipi boş liste açardı.
+   */
+  { key: 'stock', label: 'Hisse' },
 ] as const;
 
 type KindKey = (typeof KINDS)[number]['key'];

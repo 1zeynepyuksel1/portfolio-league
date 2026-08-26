@@ -347,8 +347,33 @@ async function backfillCrypto(
   };
 }
 
+/**
+ * `--kind=stock` ile tek bir varlık sınıfını doldurmak.
+ *
+ * ⚠️ NEDEN GEREKLİ. Betik dört aşamayı da çalıştırınca 8 döviz EVDS'den,
+ * 10 kripto Binance'ten sayfalama ile yeniden çekiliyor — dakikalar
+ * sürüyor ve satırlar zaten yazılı olduğu için (`onConflictDoNothing`)
+ * hiçbir işe yaramıyor.
+ *
+ * İki somut kullanımı var:
+ *   1. Yeni bir varlık sınıfı eklendiğinde (bugün: hisseler)
+ *   2. BÖLÜNME sonrası tek sınıfı baştan doldurmak — Yahoo geçmişi
+ *      bugünkü hisse adedine göre düzelttiği için yeni bir split
+ *      kayıtlı geçmişi geçersiz kılıyor (yahoo.ts'te yazılı).
+ *
+ * Bayrak verilmezse davranış eskisi gibi: hepsi.
+ */
+const ONLY_KIND =
+  process.argv.find((a) => a.startsWith('--kind='))?.slice('--kind='.length) ??
+  null;
+
+function wants(kind: string): boolean {
+  return ONLY_KIND === null || ONLY_KIND === kind;
+}
+
 async function main(): Promise<void> {
   console.log('Fiyat geri doldurma');
+  if (ONLY_KIND !== null) console.log(`Yalnizca: ${ONLY_KIND}`);
   console.log('='.repeat(50));
 
   const endDate = todayIso();
@@ -360,9 +385,16 @@ async function main(): Promise<void> {
   const cryptoAssets = assets.filter((a) => a.kind === 'crypto');
   const metalAssets = assets.filter((a) => a.kind === 'metal');
   const stockAssets = assets.filter((a) => a.kind === 'stock');
-  const skipped = assets.filter(
-    (a) => a.kind !== 'fx' && a.kind !== 'crypto' && a.kind !== 'metal',
-  );
+  /**
+   * Kaynağı olmayan varlıklar.
+   *
+   * ⚠️ `stock` BU LİSTEYE GİRMEMELİ — 4. aşamada dolduruluyor. Hisseler
+   * eklendiğinde filtre güncellenmeseydi betik 30 hisseyi "kaynağı yok"
+   * diye raporlardı; hem de doldurduktan HEMEN SONRA. Yanlış rapor,
+   * yanlış davranıştan daha uzun yaşar — kimse şüphelenmez.
+   */
+  const KNOWN_KINDS = new Set(['fx', 'crypto', 'metal', 'stock']);
+  const skipped = assets.filter((a) => !KNOWN_KINDS.has(a.kind));
 
   // --- 1. AŞAMA: döviz ---
   //
@@ -374,6 +406,18 @@ async function main(): Promise<void> {
   let usdRates: Map<string, Price> | null = null;
 
   for (const asset of fxAssets) {
+    /**
+     * ⚠️ USD DAİMA İŞLENİR, `--kind` ne olursa olsun.
+     *
+     * Kur haritası kripto, maden ve hisse çevriminin tamamının girdisi.
+     * `--kind=stock` derken USD'yi atlasaydık harita boş kalır, 30
+     * hissenin hepsi "kursuz gün" sayılıp sessizce atlanırdı — betik
+     * "0 gün yazıldı" der, sebebi hiçbir yerde görünmezdi.
+     *
+     * Yalnızca YAZMA atlanıyor (aşağıda), çekme değil.
+     */
+    if (!wants('fx') && asset.symbol !== 'USD') continue;
+
     // try/catch DÖNGÜNÜN İÇİNDE — bir varlık patlarsa diğerleri yazılsın.
     // price-cron.ts'teki kararın aynısı.
     try {
@@ -385,9 +429,16 @@ async function main(): Promise<void> {
       }
 
       const filled = buildRateMap(items, START_DATE, endDate);
-      const written = await backfillFx(asset, filled);
 
       if (asset.symbol === 'USD') usdRates = filled;
+
+      // Sadece kur haritasi icin cekildiyse yazma.
+      if (!wants('fx')) {
+        console.log(`  ${asset.symbol}: kur haritasi icin okundu (yazilmadi)`);
+        continue;
+      }
+
+      const written = await backfillFx(asset, filled);
 
       console.log(
         `  ${asset.symbol}: ${items.length} yayımlanmış -> ${written} güne dolduruldu ` +
@@ -411,6 +462,7 @@ async function main(): Promise<void> {
   // --- 2. AŞAMA: kripto ---
   console.log(`\n[2/4] ${cryptoAssets.length} kripto (Binance)...`);
 
+  if (wants('crypto')) {
   for (const asset of cryptoAssets) {
     try {
       const r = await backfillCrypto(asset, usdRates, endDate);
@@ -433,7 +485,9 @@ async function main(): Promise<void> {
   }
 
   // --- 3. AŞAMA: maden ---
-  if (metalAssets.length > 0) {
+  }
+
+  if (wants('metal') && metalAssets.length > 0) {
     console.log(`
 [3/4] ${metalAssets.length} maden (LBMA)...`);
 
@@ -460,7 +514,7 @@ async function main(): Promise<void> {
   }
 
   // --- 4. AŞAMA: ABD hisseleri ---
-  if (stockAssets.length > 0) {
+  if (wants('stock') && stockAssets.length > 0) {
     console.log(`
 [4/4] ${stockAssets.length} ABD hissesi (Yahoo)...`);
 
