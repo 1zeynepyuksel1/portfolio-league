@@ -42,6 +42,54 @@ aynı sınıf hata çıktı ve üçü de ancak uygulamayı gerçekten kullanınc
 | `portfolio/cron.ts` | `portfolio_snapshots` TWR'nin girdisi — günde bir yazmak neden yeterli? |
 | ✅ `market/price-cron.ts` (TWR senkronu) | ⚠️ Bu dosyayı OKUDUN ama sonra DEĞİŞTİ. Her turda `syncAllLeagueEntriesAndRanks` çağrılıyor — 15 saniyelik tur bütçesine etkisi ölçülmedi. |
 
+### 14. Profil, arkadaşlık ve dokuz sessiz hata — 25-26 Ağu 2026
+
+Bu turun tamamı tek bir dersin etrafında: **hiçbiri patlamıyordu.** Dokuz
+hata çıktı, hepsi makul görünen yanlış sayı ya da görüntü üretiyordu.
+Üçünü test, üçünü TypeScript, üçünü Batuhan ekrana bakarak buldu.
+
+#### Profil — yeni modül
+| Dosya | Ne sorulacak |
+|---|---|
+| `profile/service.ts` | Görünürlük kuralı neden TEK yerde? Arkadaşlık `is_public`'i neden EZİYOR? Kapalı profilde neden 404 değil de boş alanlar dönüyor? Arkadaş sayısı neden yalnızca kendi profilinde HESAPLANIYOR? |
+| `profile/repository.ts` | Neden `select *` yok, alanlar tek tek sayılıyor? Neden yalnızca `accepted` arkadaşlık sayılıyor — sadece satırın varlığına baksaydık ne olurdu? `pendingBetween` neden yön döndürüyor, boolean değil? |
+| `profile/router.ts` | Gizlilik neden Zod ile doğrulanıyor — `Boolean("false")` ne döner? Herkese açık profil neden yine de giriş istiyor? |
+| `mobile/src/screens/ProfileScreen.tsx` | Kendi profilin ve başkasınınki neden TEK ekran? Gizlilik anahtarı neden ayrı state? Neden mutlak tutar hiçbir yerde yok? |
+| `mobile/src/components/TabBar.tsx` | Beşinci sekme eklenince "Ya alsaydın" neden "Alsaydın" oldu? |
+| `apps/api/src/app.ts` | ⚠️ İKİ router aynı adrese bağlıydı. Express bunu nasıl çözüyor ve neden tehlikeli? |
+
+#### Lig kâr hesabı — iki hata
+| Dosya | Ne sorulacak |
+|---|---|
+| `leagues/twr-engine.ts` | ⚠️ `buy`/`fee` neden DIŞ AKIŞ DEĞİL? Akış sayılınca TWR neden %99.900 çıkıyordu ve bu neden INSERT'i patlatıyordu? `signup_bonus` neden dış akış AMA alt dönem bölmüyor? Beyaz liste neden kara listeden güvenli? |
+| `leagues/repository.ts` (sıralama) | ⚠️ `ORDER BY rank, twr` neden DAİRESEL? Sync bu listeyi alıp yeniden rank yazınca ne oluyordu? |
+| `leagues/service.ts` | `username` repository'de seçiliyordu ama yanıta çıkmıyordu — alanları tek tek sayan eşlemelerin bedeli ne? |
+
+#### Arkadaşlık
+| Dosya | Ne sorulacak |
+|---|---|
+| `friends/friends.schema.ts` | ⚠️ Neden `toLocaleLowerCase('tr')` KALDIRILDI — "GMAIL.COM" ne oluyordu? Küçültme hangi katmana taşındı ve neden? ⚠️ `.min(1)` neden transform'dan SONRA olmalı — sadece "@" yazılınca ne oluyordu? |
+| `friends/repository.ts` | Kullanıcı adı araması neden `lower() = lower()`? Bunun indeks maliyeti ne? |
+| `friends/service.ts` | Tek alan iki anlam: ayrım nasıl yapılıyor? E-posta neden serviste küçültülüyor? |
+
+#### Cüzdan ve dağılım çubuğu
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/screens/PortfolioScreen.tsx` (çubuk) | ⚠️ Dilimler neden `sorted` değil `barPositions`'tan kuruluyor? Kesilmiş listeden kurulunca NAKİT yüzdesine ne oluyordu? Çubuk ile satır rozetleri neden farklı renk gösteriyordu? |
+| `mobile/src/components/AllocationBar.tsx` | ⚠️ Palet üç kez değişti. Kırmızı/yeşil neden önce çıkarıldı, sonra geri kondu? Kabul edilen risk ne? |
+| `mobile/src/screens/AssetDetailScreen.tsx` (sabit çubuk) | Al/Sat neden `ScrollView` dışına alındı? "Ekranın iki ucu sabit" deseni başka nerede var? |
+
+#### Ya alsaydın
+| Dosya | Ne sorulacak |
+|---|---|
+| `what-if/repository.ts` | ⚠️ Aynı dosyada İKİ `endOfDay` var, biri `Date` biri metin — hangisi neden? Ham `sql` şablonuna `Date` bağlanınca ne oluyor? `::timestamptz` neden değil? |
+
+#### Oturum ve para birimi (25 Ağu)
+| Dosya | Ne sorulacak |
+|---|---|
+| `mobile/src/api/client.ts` | 401 işleme: `isRetry` hangi döngüyü kesiyor? `refreshInFlight` olmasaydı 4 paralel istek ne yapardı? |
+| `market/router.ts` (`?currency=`) | Bütün eğriyi bugünkü kura bölmek neden yanlış — eğrinin ŞEKLİ ne olurdu? |
+
 ### 1. Döviz ve varlık listesi genişlemesi — 21 Ağu 2026
 | Dosya | Ne sorulacak |
 |---|---|
