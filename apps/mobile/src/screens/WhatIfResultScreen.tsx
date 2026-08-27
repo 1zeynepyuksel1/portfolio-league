@@ -291,35 +291,7 @@ export function WhatIfResultScreen({
         </>
       )}
 
-      {/* --- aynı gün başkasını alsaydım (yatay kart şeridi) --- */}
-      {multiples !== null && (
-        <View style={styles.compareHorizontal}>
-          <SectionLabel>AYNI GÜN BAŞKASINI ALSAYDIM</SectionLabel>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.compareScrollContent}
-            nestedScrollEnabled
-          >
-            {multiples.assets.slice(0, 8).map((item) => {
-              const aboveInflation = item.multiple >= multiples.inflationMultiple;
-              return (
-                <View key={item.symbol} style={styles.compareCard}>
-                  <Text style={styles.compareCardName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={[styles.compareCardValue, { color: aboveInflation ? colors.gain : colors.inkDisabled }]}>
-                    {formatMultiple(item.multiple)}
-                  </Text>
-                  <Text style={styles.compareCardLabel}>
-                    {aboveInflation ? 'Enflasyon Üstü' : 'Enflasyon Altı'}
-                  </Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
+
 
       {/* --- grafik --- */}
       <AreaChart
