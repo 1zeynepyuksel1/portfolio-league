@@ -1174,8 +1174,15 @@ Araştırman gerekenler: transaction izolasyon seviyeleri, `SELECT FOR UPDATE` n
       ⚠️ Geri doldurma o migration'dan SONRA çalıştırılacak: `[4/4]` aşaması
       30 × 2.425 = ~72.750 satır yazacak (~10 MB).
 - [ ] Karar notu alanı — emir verirken "neden" yazılabilsin, sonra geri okunsun
-      Faz 3'ün "karar profili" özelliğinin temeli (01-plan.md). Şema değişikliği
-      gerektiriyor → Zeynep.
+      ⚠️ **"Şema değişikliği gerektiriyor → Zeynep" NOTU YANLIŞTI** (27 Ağu 2026'da
+      kontrol edildi). `orders.note` kolonu veritabanında, `schema.ts`'te, Zod
+      şemasında ve emir motorunda ZATEN VAR; `POST /orders` notu kabul ediyor.
+      Migration gerekmiyor, tamamı senin şeridinde. Eksik üç parça:
+        1. `getRecentOrders` `note`'u seçmiyor → `GET /orders` dönmüyor (1 satır)
+        2. Al/Sat ekranında not alanı yok
+        3. Cüzdan'daki "SON İŞLEMLER" notu göstermiyor
+      Veritabanında 33 emir var, 0'ı notlu — çünkü not girecek yer yok.
+      Ayrıntı: `docs/03-kalan-isler.md` C1.
 
 ---
 
