@@ -1,4 +1,5 @@
 import { findCurrentOpenLeague } from '../leagues/repository.js';
+import { syncUserLeagueEntry } from '../leagues/twr-engine.js';
 import { getPortfolio } from '../portfolio/service.js';
 import {
   areFriends,
@@ -159,13 +160,13 @@ export async function getPublicProfile(
     };
   }
 
-  /**
-   * ⚠️ İKİ SORGU PARALEL DEĞİL, SIRALI DEĞİL — birbirinden bağımsız.
-   *
-   * Portföy dağılımı ve lig sıralaması farklı kaynaklardan geliyor ve
-   * biri olmadan diğeri anlamlı. Lig girişi yoksa (kullanıcı bu hafta
-   * hiç işlem yapmadıysa) dağılım yine gösterilmeli.
-   */
+  // Profil yüklendiğinde kullanıcının lig TWR kaydını canlı senkronize et (Lazy TWR update)
+  try {
+    await syncUserLeagueEntry(owner.id);
+  } catch (err) {
+    console.error(`[profile-service] TWR senkronizasyon hatası (User: ${owner.id}):`, err);
+  }
+
   const [portfolio, league] = await Promise.all([
     getPortfolio(owner.id),
     findCurrentOpenLeague(),

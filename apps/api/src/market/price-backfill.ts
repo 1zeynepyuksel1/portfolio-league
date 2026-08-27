@@ -39,6 +39,10 @@ import { LbmaAdapter } from './lbma.js';
 import { YahooAdapter } from './yahoo.js';
 import { fetchFxHistory } from './evds.js';
 import { insertPrices, listActiveAssets, type AssetRow } from './repository.js';
+import { asc, eq } from 'drizzle-orm';
+import { db } from '../db/client.js';
+import { priceHistory } from '../db/schema.js';
+import { toPrice } from '../lib/money.js';
 
 /**
  * Geri doldurmanın başlangıcı — HER ÜÇ KAYNAK İÇİN DE.
@@ -418,13 +422,29 @@ async function main(): Promise<void> {
      */
     if (!wants('fx') && asset.symbol !== 'USD') continue;
 
-    // try/catch DÖNGÜNÜN İÇİNDE — bir varlık patlarsa diğerleri yazılsın.
-    // price-cron.ts'teki kararın aynısı.
     try {
-      const items = await fetchFxHistory(asset.symbol, startYear, endYear);
+      let items: Array<{ date: string; rate: Price }>;
+      if (asset.symbol === 'USD' && !process.env.EVDS_API_KEY) {
+        console.log(`  [BACKFILL FALLBACK] EVDS_API_KEY bulunamadı, USD kurları veritabanından okunuyor...`);
+        const dbRows = await db
+          .select({
+            ts: priceHistory.ts,
+            priceTry: priceHistory.priceTry,
+          })
+          .from(priceHistory)
+          .where(eq(priceHistory.assetId, asset.id))
+          .orderBy(asc(priceHistory.ts));
+
+        items = dbRows.map(r => ({
+          date: r.ts.toISOString().slice(0, 10),
+          rate: toPrice(r.priceTry),
+        }));
+      } else {
+        items = await fetchFxHistory(asset.symbol, startYear, endYear);
+      }
 
       if (items.length === 0) {
-        console.warn(`  ${asset.symbol}: EVDS veri döndürmedi, atlandı`);
+        console.warn(`  ${asset.symbol}: veri bulunamadı, atlandı`);
         continue;
       }
 

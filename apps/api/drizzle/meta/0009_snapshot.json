@@ -899,8 +899,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "display_name": {
-          "name": "display_name",
+        "first_name": {
+          "name": "first_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_name": {
+          "name": "last_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -909,7 +915,7 @@
           "name": "username",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "is_email_verified": {
           "name": "is_email_verified",
@@ -947,6 +953,13 @@
           "name": "users_email_unique",
           "columns": [
             "email"
+          ],
+          "nullsNotDistinct": false
+        },
+        "users_username_unique": {
+          "name": "users_username_unique",
+          "columns": [
+            "username"
           ],
           "nullsNotDistinct": false
         }
