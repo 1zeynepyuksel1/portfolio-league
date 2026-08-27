@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -114,12 +115,22 @@ export function LeaderboardScreen({
   const [leagueInfo, setLeagueInfo] = useState<LeagueInfo | null>(null);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  /**
+   * Aşağı çekip yenileme göstergesi — `loading`'den AYRI.
+   *
+   * `loading` tüm ekranı boşaltıp spinner gösteriyor; ilk açılışta doğru
+   * ama yenilemede liste bir an kaybolur ve kullanıcı yerini şaşırır.
+   * Yenilemede içerik ekranda kalmalı.
+   */
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Verileri Çekme Fonksiyonu
-  async function loadData() {
+  async function loadData(isRefresh = false) {
     setError(null);
-    setLoading(true);
+    // Yenilemede ekranı boşaltma — yukarıdaki gerekçe.
+    if (!isRefresh) setLoading(true);
 
     try {
       // 1. Lig Bilgisi (Adı ve Kalan Süre)
@@ -263,7 +274,17 @@ export function LeaderboardScreen({
         </View>
       ) : (
         <FlatList
-        showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                void loadData(true).finally(() => setRefreshing(false));
+              }}
+              tintColor={colors.inkMuted}
+            />
+          }
           data={restEntries}
           keyExtractor={(item) => item.userId}
           contentContainerStyle={styles.listContent}

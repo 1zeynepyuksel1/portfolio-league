@@ -23,7 +23,11 @@
  * sürer ve TCMB'yi gereksiz yorar. EVDS aynı veriyi yıl başına tek istekle
  * veriyor.
  *
- * ⚠️ `granularity` KOLONU HENÜZ YOK.
+ * ⚠️ `granularity` KOLONU ARTIK VAR (27 Ağu 2026'da doğrulandı).
+ * Bu not uzun süre "henüz yok" diyordu; `open_usd`, `high_usd`, `low_usd`
+ * ile birlikte eklenmiş ama yorum güncellenmemişti. Kullanan yok, ama
+ * `retention.ts` için hazır bekliyor.
+ * ESKİ NOT:
  * Plan bu satırları `granularity='daily'` olarak işaretlemeyi öngörüyordu
  * (docs/01-plan.md §5.1) ama migration gelmedi. Şimdilik günlük satırlar
  * UTC gece yarısına (00:00:00) yazılıyor; cron'un yazdığı anlık satırlar

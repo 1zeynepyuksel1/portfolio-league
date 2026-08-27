@@ -13,6 +13,110 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 22. UX turu — altı madde — 27 Ağu 2026
+
+| # | İş | Dosya |
+|---|---|---|
+| 1 | Tanıtım turu **bağlandı** | `App.tsx` + `OnboardingScreen.tsx` |
+| 2 | Sekme rozeti | `TabBar.tsx` + `App.tsx` |
+| 3 | Piyasada "kapalı" işareti | `MarketScreen.tsx` |
+| 4 | Ölü ekran silindi (898 satır) | `AuthScreen.tsx` |
+| 5 | Aşağı çekip yenile | `LeaderboardScreen` · `ProfileScreen` |
+| 7 | `ERROR_MESSAGES` ölü kodu dirildi | `client.ts` + `TradeScreen.tsx` |
+
+*(6 — haptik — `expo-haptics` bağımlılığı gerektirdiği için ayrı karar.)*
+
+---
+
+**1 · Tanıtım turu 315 satır hazır duruyordu, hiç bağlanmamıştı.** Yeni
+kullanıcı kayıt olup doğrudan boş bir cüzdana düşüyordu: ne lig, ne
+günlük bonus, ne de ne yapması gerektiği söyleniyordu.
+
+⚠️ **YALNIZCA KAYITTAN SONRA gösteriliyor, girişten sonra değil** — ve bu
+seçim "görüldü mü" bilgisini saklama ihtiyacını tamamen ortadan
+kaldırıyor. Sunucuda bayrak tutsak migration gerekirdi (Zeynep); cihazda
+tutsak kullanıcı telefon değiştirince turu tekrar görürdü. Kayıt zaten
+hesap başına bir kez olan bir olay.
+
+⚠️ Turun son adımı gizlilik tercihi soruyor → `PATCH /users/me/visibility`.
+**İstek başarısız olsa bile kullanıcı içeri alınıyor:** ağ o an koparsa
+kullanıcıyı tanıtım ekranında kilitlemek, kaydedilememiş bir tercihten
+çok daha kötü.
+
+---
+
+**2 · Sekme rozeti.** Bekleyen arkadaşlık isteği sayısı `FriendsScreen`
+içinde zaten hesaplanıyordu — ama orası Lig sekmesinin altında bir
+katman: görmek için ZATEN oraya bakıyor olman gerekiyordu. *Bildirimin
+işi, bakmayan kişiye haber vermek.*
+
+⚠️ **45 saniyede bir çekiliyor, 5 değil.** Fiyat ekranları 5 saniyede
+tazeliyor; arkadaşlık isteği saniyede değişen bir şey değil. 5 saniye
+olsaydı günde ~17.000 gereksiz istek olurdu.
+
+⚠️ **Giriş yapılmamışken hiç çalışmıyor.** Çalışsaydı her tur 401 döner,
+`client.ts` yenilemeyi dener, o da başarısız olur ve oturum-bitti
+işleyicisi tetiklenirdi — giriş ekranındaki kullanıcı sürekli "oturumun
+bitti" uyarısı alırdı.
+
+⚠️ Rozet rengi `accent`, `gain`/`loss` **değil**: bu uygulamada yeşil ve
+kırmızı YÖN demek. Yeşil rozet "kazandın", kırmızı "kaybettin" gibi
+okunurdu; taşıdığı bilgi ise "bekleyen bir şey var".
+
+---
+
+**3 · Piyasada "kapalı" işareti.** Satır alt yazısı `AAPL · 9 sn önce`
+diyor. ABD borsası kapalıyken bu `AAPL · 16 sa önce` oluyordu — yani
+**arıza gibi**. Oysa hiçbir şey bozuk değil.
+
+Emir motorunda bu ayrım zaten vardı (`MARKET_CLOSED` ≠ `STALE_PRICE`);
+ekran da aynı ayrımı yapmalıydı.
+
+---
+
+**5 · Aşağı çekip yenile — 2/15 ekrandaydı.**
+
+⚠️ `refreshing` AYRI state, `loading` değil. `loading` tüm ekranı
+boşaltıp spinner gösteriyor; ilk açılışta doğru ama yenilemede liste bir
+an kaybolur ve kullanıcı yerini şaşırır. Yenilemede içerik ekranda
+kalmalı.
+
+---
+
+**7 · `ERROR_MESSAGES` ölü koduydu — dirildi.**
+
+Sunucu her hatada `{ error: { code, message } }` gönderiyor ama
+`client.ts` yalnızca `message`'ı alıp **`code`'u atıyordu**. `TradeScreen`
+de mesaj METNİNİN içinde kod arıyordu:
+
+```ts
+raw.includes('INSUFFICIENT_FUNDS')   // "Bakiye yetersiz" bunu içermiyor
+```
+
+Yani tablo **hiç eşleşmiyordu** ve kullanıcı her zaman ham sunucu
+mesajını görüyordu. Şans eseri çalışıyordu — sunucu mesajları zaten
+Türkçe.
+
+Çözüm: `client.ts` artık `ApiError` fırlatıyor, kodu taşıyor.
+
+⚠️ `ApiError` `Error`'dan **türüyor**, yerine geçmiyor. Mevcut çağıranların
+hepsi `err instanceof Error` ve `err.message` kullanıyor; ikisi de
+çalışmaya devam ediyor.
+
+⚠️ `MARKET_CLOSED` tabloya **bilerek eklenmedi**: mesajı dinamik
+("Açılış: Perşembe 16:30"). Sabit metinle değiştirseydik açılış saatini
+kaybederdik.
+
+---
+
+**Yan bulgu — iki bayat not düzeltildi.** `price_history.granularity`
+kolonu **zaten var** (`open_usd`/`high_usd`/`low_usd` ile eklenmiş) ama
+`price-backfill.ts` hâlâ "HENÜZ YOK" diyordu. Bu, `retention.ts`'in
+Zeynep'e bağımlılığı olmadığı anlamına geliyor.
+
+⚠️ **GÖRSEL OLARAK DOĞRULANMADI.** Typecheck ve 211 test geçiyor ama
+hiçbiri gerçek cihazda görülmedi.
+
 ### 21. Ya Alsaydın ekranı — cevap önce — 27 Ağu 2026
 
 | Dosya | Ne |

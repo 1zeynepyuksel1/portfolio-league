@@ -38,6 +38,15 @@ type Asset = {
   /** Son 24 saatteki yüzde değişim. `null` = bilinmiyor, sıfır değil. */
   changePercent24h: string | null;
   asOf: string | null;
+  /**
+   * İşlem görebilir mi. Sunucudan geliyor; hisse dışındaki her varlıkta
+   * `true`.
+   *
+   * ⚠️ `?` İLE İSTEĞE BAĞLI ve aşağıda `!== false` ile okunuyor: alan
+   * dönmeyen bir sunucuya bağlanıldığında liste "her şey kapalı" gibi
+   * görünmesin.
+   */
+  tradable?: boolean;
   firstAvailable: string | null;
 };
 
@@ -314,8 +323,25 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
               <Text style={styles.rowName} numberOfLines={1}>
                 {item.name}
               </Text>
+              {/*
+                ⚠️ KAPALI PİYASADA SAAT YERİNE "kapalı" YAZIYOR.
+
+                Alt yazı normalde "AAPL · 9 sn önce" diyor. ABD borsası
+                kapalıyken son fiyat saatler, hafta sonu ise günler öncesine
+                ait olur ve satır "AAPL · 16 sa önce" diye görünürdü —
+                yani ARIZA gibi. Oysa hiçbir şey bozuk değil, piyasa kapalı.
+
+                Aynı ayrım emir motorunda da var: `MARKET_CLOSED` ile
+                `STALE_PRICE` ayrı hata kodları (orders/repository.ts).
+                Ekranın da aynı ayrımı yapması gerekiyordu.
+              */}
               <Text style={styles.rowMeta} numberOfLines={1}>
-                {item.symbol} · {formatRelativeTime(item.asOf)}
+                {item.symbol} ·{' '}
+                {item.tradable === false ? (
+                  <Text style={styles.rowClosed}>piyasa kapalı</Text>
+                ) : (
+                  formatRelativeTime(item.asOf)
+                )}
               </Text>
             </View>
 
@@ -439,6 +465,10 @@ const styles = StyleSheet.create({
   },
   rowNames: { flex: 1 },
   rowName: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
+  // Kapalı işareti soluk sarı: uyarı değil DURUM bilgisi. Kırmızı
+  // yapsaydık "hata" gibi, yeşil yapsaydık "iyi" gibi okunurdu.
+  rowClosed: { color: colors.warn },
+
   rowMeta: {
     fontFamily: fonts.mono,
     fontSize: 11,

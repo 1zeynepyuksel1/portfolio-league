@@ -23,7 +23,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { apiFetch } from '../api/client';
+import { ApiError, apiFetch } from '../api/client';
 import {
   decimalToCents,
   formatCents,
@@ -247,16 +247,27 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
     } catch (err) {
       // apiFetch hata mesajını sunucudan alıyor; kodu tanıyorsak
       // kendi Türkçe metnimizi tercih ediyoruz.
+      /**
+       * ⚠️ ARTIK METİNDE DEĞİL, KODDA ARANIYOR.
+       *
+       * Eski hâli `raw.includes('INSUFFICIENT_FUNDS')` diyordu — yani
+       * sunucunun MESAJININ içinde kodu arıyordu. Sunucu kodu mesaja
+       * koymadığı için tablo hiç eşleşmiyordu ve kullanıcı her zaman ham
+       * sunucu mesajını görüyordu. Şans eseri çalışıyordu; mesajlar zaten
+       * Türkçe.
+       *
+       * `client.ts` artık `ApiError` fırlatıyor ve kod içinde geliyor.
+       *
+       * ⚠️ TABLODA OLMAYAN KOD İÇİN SUNUCU MESAJI KULLANILIYOR — ve bu
+       * bilinçli. `MARKET_CLOSED` tabloda YOK çünkü mesajı dinamik:
+       * "Piyasa kapalı. Açılış: Perşembe 16:30". Sabit bir metinle
+       * değiştirseydik açılış saatini kaybederdik.
+       */
       const raw = err instanceof Error ? err.message : '';
-      const known = Object.keys(ERROR_MESSAGES).find((code) =>
-        raw.includes(code),
-      );
+      const code = err instanceof ApiError ? err.code : undefined;
+      const known = code !== undefined ? ERROR_MESSAGES[code] : undefined;
 
-      setError(
-        known !== undefined
-          ? (ERROR_MESSAGES[known] as string)
-          : raw || 'Emir gönderilemedi.',
-      );
+      setError(known ?? raw ?? 'Emir gönderilemedi.');
       // ⚠️ Anahtar SIFIRLANMIYOR: kullanıcı tekrar denerse aynı emir
       // olduğunu sunucuya söyleyebilmeliyiz.
     } finally {

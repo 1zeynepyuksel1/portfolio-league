@@ -20,6 +20,7 @@ import { TradeScreen } from './src/screens/TradeScreen';
 import { AssetDetailScreen } from './src/screens/AssetDetailScreen';
 import { WhatIfScreen } from './src/screens/WhatIfScreen';
 import {
+  apiFetch,
   clearSession,
   restoreSession,
   setSessionExpiredHandler,
@@ -28,6 +29,7 @@ import { PortfolioScreen } from './src/screens/PortfolioScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { colors } from './src/theme';
 import { TabBar, type TabKey } from './src/components/TabBar';
@@ -170,6 +172,37 @@ function AppShell() {
   // Saklanan oturum kontrol edilirken açılış ekranı gösterilir. Bu bayrak
   // olmasaydı uygulama bir an giriş ekranını gösterip sonra ana ekrana
   // atlardı — kullanıcı "çıkış yapmışım" sanır.
+  /**
+   * Tanıtım turu gösterilecek kullanıcı. `null` = gösterilmiyor.
+   *
+   * ⚠️ EKRAN YAZILMIŞTI AMA HİÇ BAĞLANMAMIŞTI. `OnboardingScreen.tsx`
+   * 315 satır, dört kart (100.000 ₺, canlı piyasa, TWR ligi, gizlilik) ve
+   * sonunda `isPublic` seçimi — hiçbir yerden import edilmiyordu. Yeni
+   * kullanıcı kayıt olup doğrudan boş bir cüzdana düşüyordu: ne lig, ne
+   * günlük bonus, ne de ne yapması gerektiği söyleniyordu.
+   *
+   * ⚠️ YALNIZCA KAYITTAN SONRA, GİRİŞTEN SONRA DEĞİL — ve bu seçim
+   * "görüldü mü" bilgisini saklama ihtiyacını tamamen ortadan kaldırıyor.
+   * Sunucuda bayrak tutsaydık migration gerekirdi (Zeynep); cihazda
+   * tutsaydık kullanıcı telefon değiştirince turu tekrar görürdü. Kayıt
+   * zaten hesap başına bir kez olan bir olay.
+   */
+  const [onboardingFor, setOnboardingFor] = useState<User | null>(null);
+
+  /**
+   * Bekleyen (gelen) arkadaşlık isteği sayısı — Profil sekmesindeki rozet.
+   *
+   * ⚠️ NEDEN KABUKTA, EKRANDA DEĞİL. Sayı `FriendsScreen` içinde zaten
+   * hesaplanıyordu ama orası Lig sekmesinin altında bir katman: görmek
+   * için ZATEN oraya bakıyor olman gerekiyordu. Bildirimin işi, bakmayan
+   * kişiye haber vermek.
+   *
+   * ⚠️ PROFİL SEKMESİNE KONDU, LİG'E DEĞİL. Bekleyen istek kartı Profil
+   * ekranında duruyor; rozet dokunulacak yeri göstermeli. Lig'e koysaydık
+   * kullanıcı lige gider, orada bir şey bulamazdı.
+   */
+  const [pendingRequests, setPendingRequests] = useState(0);
+
   const [restoring, setRestoring] = useState(true);
 
   /**
@@ -231,6 +264,46 @@ function AppShell() {
     return () => setSessionExpiredHandler(null);
   }, []);
 
+  /**
+   * Bekleyen istek sayısını periyodik çek.
+   *
+   * ⚠️ 45 SANİYE — fiyat ekranlarındaki 5 saniye DEĞİL. Arkadaşlık isteği
+   * saniyede değişen bir şey değil; 5 saniyede sorsaydık günde ~17.000
+   * gereksiz istek olurdu ve rozetin değeri hiç değişmezdi.
+   *
+   * ⚠️ GİRİŞ YAPILMAMIŞKEN HİÇ ÇALIŞMIYOR. `currentUser` yokken istek
+   * atsaydık her tur 401 döner, `client.ts` yenilemeyi dener, o da
+   * başarısız olur ve oturum-bitti işleyicisi tetiklenirdi — yani giriş
+   * ekranındaki kullanıcı sürekli "oturumun bitti" uyarısı alırdı.
+   */
+  useEffect(() => {
+    if (!currentUser) {
+      setPendingRequests(0);
+      return;
+    }
+
+    let alive = true;
+
+    async function load() {
+      try {
+        const data = await apiFetch<{ incoming?: unknown[] }>('/friends/requests');
+        if (alive) setPendingRequests(data.incoming?.length ?? 0);
+      } catch {
+        // Rozet ikincil bilgi — okunamazsa sessizce eski değerde kalsın.
+        // Hata göstermek, kullanıcının yapabileceği bir şey olmadığı için
+        // yalnızca gürültü olurdu.
+      }
+    }
+
+    void load();
+    const timer = setInterval(() => void load(), 45_000);
+
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [currentUser]);
+
   // Çıkış yap fonksiyonu — token'ı diskten de siliyor
   /**
    * Yeni oturum başlatır: kullanıcıyı kurar VE sekmeyi başa alır.
@@ -247,6 +320,31 @@ function AppShell() {
   function startSession(user: User) {
     setCurrentUser(user);
     setActiveTab(START_TAB);
+  }
+
+  /**
+   * Tanıtım turu bitti: gizlilik tercihini kaydet ve uygulamaya gir.
+   *
+   * ⚠️ PATCH BAŞARISIZ OLSA BİLE KULLANICI İÇERİ ALINIYOR. Turun son
+   * adımı bir tercih soruyor; ağ o an koparsa kullanıcıyı tanıtım
+   * ekranında kilitlemek, kaydedilememiş bir tercihten çok daha kötü.
+   * Varsayılan zaten `is_public = true` (şemada) ve kullanıcı aynı ayarı
+   * Profil sekmesinden her an değiştirebiliyor.
+   */
+  async function finishOnboarding(isPublic: boolean) {
+    const user = onboardingFor;
+
+    try {
+      await apiFetch('/users/me/visibility', {
+        method: 'PATCH',
+        body: JSON.stringify({ isPublic }),
+      });
+    } catch {
+      // Sessiz geç — gerekçe yukarıda.
+    }
+
+    setOnboardingFor(null);
+    if (user) startSession(user);
   }
 
   async function handleLogout() {
@@ -278,6 +376,19 @@ function AppShell() {
         <View style={styles.splash}>
           <ActivityIndicator size="large" color={colors.ink} />
         </View>
+      ) : onboardingFor !== null ? (
+        /*
+          0.5 TANITIM TURU — kayıttan hemen sonra, uygulamadan hemen önce.
+
+          ⚠️ `!currentUser` DALINDAN ÖNCE GELİYOR. Kayıt başarılı olunca
+          `startSession` çağrılmıyor, yani `currentUser` hâlâ `null`.
+          Bu dal aşağıda olsaydı kimlik akışı devreye girer ve kullanıcı
+          kayıt olduktan sonra kendini giriş ekranında bulurdu.
+        */
+        <OnboardingScreen
+          userName={onboardingFor.displayName}
+          onFinishOnboarding={(isPublic) => void finishOnboarding(isPublic)}
+        />
       ) : !currentUser ? (
         // 1. GİRİŞ YAPILMAMIŞSA: Welcome -> Login / Kayıt akışı
         //
@@ -292,7 +403,7 @@ function AppShell() {
           />
         ) : authView === 'register' ? (
           <RegisterScreen
-            onRegisterSuccess={(user) => startSession(user)}
+            onRegisterSuccess={(user) => setOnboardingFor(user)}
             onGoToLogin={() => setAuthView('login')}
           />
         ) : authView === 'forgot-password' ? (
@@ -367,7 +478,11 @@ function AppShell() {
             elle tutulurken başparmak ekranın üst kenarına ulaşamıyor.
             Sekmeler en sık dokunulan hedef ve en zor yerdeydi.
           */}
-          <TabBar active={activeTab} onChange={setActiveTab} />
+          <TabBar
+            active={activeTab}
+            onChange={setActiveTab}
+            badges={{ profile: pendingRequests }}
+          />
 
           {/*
             AL/SAT KATMANI — sekmelerin ÜSTÜNDE.

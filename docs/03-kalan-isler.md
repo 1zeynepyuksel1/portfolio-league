@@ -61,7 +61,7 @@ göremiyor** — yani haftalık döngünün hafızası yok.
 | B2 | `getPortfolio` profilde iki kez çalışıyor | Zeynep | `syncUserLeagueEntry` içinde bir, `Promise.all`'da bir. En pahalı çağrı |
 | B3 | `leagues/cron.test.ts` DB koruması yok | Zeynep | Docker kapalıyken tüm takım kırmızı oluyor. `concurrency.test.ts`'teki `dbReady` deseni, 5 satır |
 | B4 | `what-if/service.ts` float borcu | Batuhan | 6 yerde `parseFloat`. Gösterim için zararsız, proje kuralına aykırı |
-| B5 | `price_history.granularity` kolonu | Zeynep | Migration. B1'in girdisi |
+| ~~B5~~ | ~~`granularity` kolonu~~ | — | ⚠️ **ZATEN VAR** (27 Ağu doğrulandı). `open_usd`/`high_usd`/`low_usd` ile eklenmiş, yorum güncellenmemişti. B1'in Zeynep bağımlılığı YOK |
 | B6 | 1.213 satır ölü ekran | Batuhan | `AuthScreen` (898) + `OnboardingScreen` (315) hiç import edilmiyor |
 | B7 | `docs/zeynep.md` hiç güncellenmemiş | Zeynep | 18/18 madde açık görünüyor, hepsi bitmiş |
 

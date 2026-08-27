@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -82,6 +83,9 @@ export function ProfileScreen({
    */
   const [isPublic, setIsPublic] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  /** Aşağı çekip yenileme göstergesi. */
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -192,6 +196,23 @@ export function ProfileScreen({
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        /*
+          ⚠️ Profil ekranı kendini periyodik tazelemiyor (fiyat ekranları
+          gibi 5 saniyede bir sorgu atmıyor) — çünkü buradaki veri o kadar
+          sık değişmiyor. Ama HİÇ tazelenmiyordu da: bekleyen arkadaşlık
+          isteği kabul edildikten sonra sayının düşmesi için sekme
+          değiştirip geri gelmek gerekiyordu.
+        */
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              void load().finally(() => setRefreshing(false));
+            }}
+            tintColor={colors.inkMuted}
+          />
+        }
       >
         {/* --- kimlik --- */}
         <View style={styles.identity}>

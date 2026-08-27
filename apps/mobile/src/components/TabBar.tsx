@@ -112,9 +112,19 @@ const ICONS: Record<TabKey, (props: { color: string }) => ReactElement> = {
 export function TabBar({
   active,
   onChange,
+  badges,
 }: {
   active: TabKey;
   onChange: (key: TabKey) => void;
+  /**
+   * Sekme üstünde gösterilecek sayılar. Verilmeyen ya da 0 olan sekmede
+   * rozet çizilmiyor.
+   *
+   * ⚠️ SEKMEYE DEĞİL, DIŞARIDAN GELİYOR. TabBar'ın kendisi veri çekseydi
+   * bir görünüm bileşeni ağ isteği yapıyor olurdu; hangi ekranda olursa
+   * olsun tazelenmesi gereken bir sayı, kabuk katmanının işi (App.tsx).
+   */
+  badges?: Partial<Record<TabKey, number>> | undefined;
 }) {
   return (
     <View style={styles.bar}>
@@ -125,6 +135,7 @@ export function TabBar({
         // bu uygulamada yön demek, aktif sekmeyi yeşil yapsaydık "yükseliş"
         // gibi okunurdu.
         const color = on ? colors.ink : colors.inkFaint;
+        const badge = badges?.[tab.key] ?? 0;
 
         return (
           <TouchableOpacity
@@ -135,7 +146,24 @@ export function TabBar({
             accessibilityState={{ selected: on }}
             accessibilityLabel={tab.label}
           >
-            <Icon color={color} />
+            <View>
+              <Icon color={color} />
+
+              {/*
+                ⚠️ ROZET SİMGENİN ÜSTÜNDE, ETİKETİN DEĞİL — ve konumu
+                `position: absolute`. Akışa koysaydık sekmenin genişliği
+                rozet çıkınca değişir, beş sekme birden kayardı: kullanıcı
+                tam dokunacakken düğmeler yer değiştirirdi.
+              */}
+              {badge > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {badge > 9 ? '9+' : badge}
+                  </Text>
+                </View>
+              )}
+            </View>
+
             <Text style={[styles.label, { color }, on && styles.labelOn]}>
               {tab.label}
             </Text>
@@ -147,6 +175,36 @@ export function TabBar({
 }
 
 const styles = StyleSheet.create({
+  /**
+   * Bildirim rozeti.
+   *
+   * ⚠️ RENK `accent`, `gain`/`loss` DEĞİL. Bu uygulamada yeşil ve kırmızı
+   * YÖN demek (kazanç/kayıp). Rozeti yeşil yapsaydık "kazandın" gibi,
+   * kırmızı yapsaydık "kaybettin" gibi okunurdu; oysa taşıdığı bilgi
+   * "bekleyen bir şey var".
+   */
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -9,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Koyu çubuk üstünde rozetin kenarı simgeye yapışmasın.
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+  },
+  badgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 9,
+    color: colors.onInverse,
+    lineHeight: 12,
+  },
+
   bar: {
     flexDirection: 'row',
     borderTopWidth: 1,

@@ -172,6 +172,25 @@ export async function restoreSession(): Promise<User | null> {
 /**
  * Backend'e istek atan merkezi yardımcı fonksiyon
  */
+/**
+ * Sunucudan gelen hatayı KODUYLA birlikte taşıyan hata tipi.
+ *
+ * ⚠️ `Error`'DAN TÜRÜYOR, onun yerine geçmiyor. Mevcut çağıranların hepsi
+ * `err instanceof Error` ve `err.message` kullanıyor; ikisi de çalışmaya
+ * devam ediyor. Yani bu ekleme hiçbir ekranı bozmadan yeni bilgi taşıyor.
+ *
+ * `code` isteğe bağlı: ağ hatası ya da JSON olmayan bir cevapta kod yok.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string | undefined,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -241,7 +260,28 @@ export async function apiFetch<T>(
       errorMsg = data.message;
     }
 
-    throw new Error(errorMsg);
+    /**
+     * ⚠️ KOD DA TAŞINIYOR — VE BU BİR ÖLÜ KODU DİRİLTİYOR.
+     *
+     * Sunucu her hatada `{ error: { code, message } }` gönderiyor ama
+     * burası yalnızca `message`'ı alıp `code`'u ATIYORDU. Sonuç:
+     * `TradeScreen`'deki `ERROR_MESSAGES` tablosu mesaj METNİNİN İÇİNDE
+     * kod arıyordu (`raw.includes('INSUFFICIENT_FUNDS')`) — "Bakiye
+     * yetersiz" metni o kodu içermediği için tablo HİÇ EŞLEŞMİYORDU.
+     *
+     * Yani ekran kullanıcıya sunucunun ham mesajını gösteriyordu ve bu
+     * ŞANS ESERİ çalışıyordu: sunucu mesajları zaten Türkçe. İngilizce
+     * bir mesaj eklense ya da bir kodun karşılığı değiştirilmek istense
+     * tablo sessizce işlevsiz kalırdı.
+     *
+     * Artık kod da geliyor; ekran metne bakmak yerine koda bakabiliyor.
+     */
+    const code =
+      data.error && typeof data.error.code === 'string'
+        ? data.error.code
+        : undefined;
+
+    throw new ApiError(errorMsg, code);
   }
 
   return data as T;
