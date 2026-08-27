@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, fonts } from '../theme';
 
@@ -55,6 +55,17 @@ export function Calendar({
 }) {
   const [expanded, setExpanded] = useState(false);
 
+  // Yıl seçici listesi oluştur (min yılından max yılına kadar)
+  const yearsList = useMemo(() => {
+    const startY = min ? Number(min.slice(0, 4)) : 2017;
+    const endY = max ? Number(max.slice(0, 4)) : new Date().getUTCFullYear();
+    const list = [];
+    for (let y = startY; y <= endY; y++) {
+      list.push(y);
+    }
+    return list;
+  }, [min, max]);
+
   const selected = useMemo(() => {
     const [y = '2020', m = '01', d = '01'] = value.split('-');
     return { year: Number(y), month: Number(m) - 1, day: Number(d) };
@@ -68,6 +79,11 @@ export function Calendar({
     year: selected.year,
     month: selected.month,
   });
+
+  // Dışarıdan (örn. podyum veya hazır günlerden) tarih değiştiğinde takvimi oraya odakla
+  useEffect(() => {
+    setCursor({ year: selected.year, month: selected.month });
+  }, [selected.year, selected.month]);
 
   /**
    * Ay ya da yıl kaydır.
@@ -226,6 +242,26 @@ export function Calendar({
         </View>
       </View>
 
+      {/* Yıl hızlı seçim alanı */}
+      {expanded && (
+        <View style={styles.yearSelectorRow}>
+          {yearsList.map((y) => {
+            const isSelectedYear = y === cursor.year;
+            return (
+              <TouchableOpacity
+                key={y}
+                style={[styles.yearChip, isSelectedYear && styles.yearChipSelected]}
+                onPress={() => setCursor({ year: y, month: cursor.month })}
+              >
+                <Text style={[styles.yearChipText, isSelectedYear && styles.yearChipTextSelected]}>
+                  {y}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
       {/* --- ızgara --- */}
       <View style={styles.grid}>
         <View style={styles.weekRow}>
@@ -316,6 +352,39 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
   },
   // Kapalı gün: silinmiyor, soluklaşıyor. "Burada ama sana kapalı."
-  dayBlocked: { color: colors.inkDisabled, opacity: 0.45 },
-  dayTextSelected: { fontFamily: fonts.monoBold, color: colors.onInverse },
+  dayBlocked: { color: colors.inkDisabled },
+  dayTextSelected: { color: colors.onInverse },
+  yearSelectorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceRaised,
+    marginBottom: 8,
+    borderRadius: 8,
+  },
+  yearChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  yearChipSelected: {
+    backgroundColor: colors.inverse,
+    borderColor: colors.inverse,
+  },
+  yearChipText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    color: colors.inkMuted,
+  },
+  yearChipTextSelected: {
+    color: colors.onInverse,
+  },
 });

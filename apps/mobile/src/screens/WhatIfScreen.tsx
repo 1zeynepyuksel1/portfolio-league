@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -107,6 +108,8 @@ export function WhatIfScreen() {
   const [date, setDate] = useState('2020-03-12');
   const [amount, setAmount] = useState('10000');
   const [kind, setKind] = useState<string>('all');
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const amountInputRef = useRef<TextInput>(null);
 
   const [multiples, setMultiples] = useState<MultiplesResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -203,11 +206,59 @@ export function WhatIfScreen() {
 
       {/* --- soru cümlesi --- */}
       <Text style={styles.question}>
-        <Text style={styles.underlined}>{groupThousands(amount)} ₺</Text>
+        <Text
+          style={styles.underlined}
+          onPress={() => amountInputRef.current?.focus()}
+        >
+          {groupThousands(amount)} ₺
+        </Text>
         <Text>'yi </Text>
-        <Text style={styles.underlined}>{humanDate(date)}</Text>
+        <Text
+          style={styles.underlined}
+          onPress={() => setCalendarOpen(!calendarOpen)}
+        >
+          {humanDate(date)}
+        </Text>
         <Text>'de{'\n'}hangi varlığa koysaydım?</Text>
       </Text>
+
+      {/* --- bakiye manuel giriş alanı --- */}
+      <View style={styles.inputBlock}>
+        <SectionLabel>TUTAR GİRİN (₺)</SectionLabel>
+        <TextInput
+          ref={amountInputRef}
+          style={styles.textInput}
+          keyboardType="numeric"
+          value={amount === '0' ? '' : amount}
+          onChangeText={(val) => {
+            const clean = val.replace(/[^0-9]/g, '');
+            setAmount(clean || '0');
+          }}
+          placeholder="Örn: 10000"
+          placeholderTextColor={colors.inkDisabled}
+        />
+      </View>
+
+      {/* --- tutar hızlı seçim butonları --- */}
+      <View style={styles.amountRow}>
+        {AMOUNTS.map((val) => {
+          const on = val === amount;
+
+          return (
+            <TouchableOpacity
+              key={val}
+              style={[styles.amountButton, on && styles.amountButtonOn]}
+              onPress={() => setAmount(val)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+            >
+              <Text style={[styles.amountText, on && styles.amountTextOn]}>
+                {groupThousands(val)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       {/* --- özel günler --- */}
       <View style={styles.block}>
@@ -237,6 +288,7 @@ export function WhatIfScreen() {
                   }
                   setNotice(null);
                   setDate(event.date);
+                  setCalendarOpen(false); // Özel güne tıklandığında takvimi kapatalım ki ekran sadeleşsin
                 }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
@@ -261,46 +313,28 @@ export function WhatIfScreen() {
         </View>
       </View>
 
-      {/* --- takvim --- */}
-      <View style={styles.block}>
-        <Calendar
-          value={date}
-          onChange={(iso) => {
-            setNotice(null);
-            setDate(iso);
-          }}
-          min={minDate}
-          max={today}
-          onRejected={(iso, reason) =>
-            setNotice(
-              reason === 'early'
-                ? `${symbol} için ${humanDate(iso)} tarihinde veri yok — en eskisi ${minDate === undefined ? '?' : humanDate(minDate)}.`
-                : 'Gelecekteki bir tarih seçilemez.',
-            )
-          }
-        />
-      </View>
-
-      {/* --- tutar --- */}
-      <View style={styles.amountRow}>
-        {AMOUNTS.map((value) => {
-          const on = value === amount;
-
-          return (
-            <TouchableOpacity
-              key={value}
-              style={[styles.amountButton, on && styles.amountButtonOn]}
-              onPress={() => setAmount(value)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-            >
-              <Text style={[styles.amountText, on && styles.amountTextOn]}>
-                {groupThousands(value)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {/* --- takvim (tıklayınca açılır/kapanır) --- */}
+      {calendarOpen && (
+        <View style={styles.block}>
+          <Calendar
+            value={date}
+            onChange={(iso) => {
+              setNotice(null);
+              setDate(iso);
+              setCalendarOpen(false); // Tarih seçilince kapat
+            }}
+            min={minDate}
+            max={today}
+            onRejected={(iso, reason) =>
+              setNotice(
+                reason === 'early'
+                  ? `${symbol} için ${humanDate(iso)} tarihinde veri yok — en eskisi ${minDate === undefined ? '?' : humanDate(minDate)}.`
+                  : 'Gelecekteki bir tarih seçilemez.',
+              )
+            }
+          />
+        </View>
+      )}
 
       {/* --- tür filtresi + sıralama başlığı --- */}
       <View style={styles.filterRow}>
@@ -480,6 +514,18 @@ const styles = StyleSheet.create({
   eventMultipleOn: { fontFamily: fonts.monoBold, color: colors.onInverse },
 
   amountRow: { flexDirection: 'row', gap: 7, marginTop: 10 },
+  inputBlock: { marginTop: 20, gap: 10 },
+  textInput: {
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    fontFamily: fonts.monoSemibold,
+    fontSize: 14,
+    color: colors.inkBright,
+  },
   amountButton: {
     flex: 1,
     alignItems: 'center',
