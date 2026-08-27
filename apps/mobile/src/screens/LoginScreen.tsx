@@ -24,6 +24,7 @@ import {
   View,
 } from 'react-native';
 import Svg, { Path, Polyline } from 'react-native-svg';
+import { checkEmail } from '../lib/validation';
 import { apiFetch, saveSession } from '../api/client';
 import { ChartBackground } from '../components/ChartBackground';
 import {
@@ -59,7 +60,6 @@ type Props = {
  * amaç yazım hatasını yakalamak (`@` unutulmuş, nokta yok), gerçekliği
  * kanıtlamak değil — onu ancak doğrulama e-postası yapar.
  */
-const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -127,8 +127,9 @@ export function LoginScreen({ onLoginSuccess, onGoToRegister, onGoToForgotPasswo
     // ve kullanıcı hatayı anında görsün.
     const trimmed = email.trim();
 
-    if (!EMAIL_PATTERN.test(trimmed)) {
-      setError('Geçerli bir e-posta adresi girin.');
+    const mailError = checkEmail(trimmed);
+    if (mailError !== null) {
+      setError(mailError);
       return;
     }
 

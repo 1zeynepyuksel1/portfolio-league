@@ -19,7 +19,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { apiFetch, saveSession } from '../api/client';
+import { checkEmail } from '../lib/validation';
+import { ApiError, apiFetch, saveSession } from '../api/client';
 import { ChartBackground } from '../components/ChartBackground';
 import {
   ErrorRow,
@@ -43,7 +44,7 @@ type Props = {
   onGoToLogin: () => void;
 };
 
-const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 
 /**
  * ⚠️ SUNUCUNUN KURALIYLA AYNI OLMALI.
@@ -99,8 +100,12 @@ export function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props) {
       return;
     }
 
-    if (!EMAIL_PATTERN.test(mail)) {
-      setError('Geçerli bir e-posta adresi girin.');
+    // Kural `lib/validation.ts`'te tek yerde — üç kimlik ekranı da onu
+    // kullanıyor. Eskiden her ekranın kendi deseni vardı ve biri
+    // düzeltilince ötekiler eski kalıyordu.
+    const mailError = checkEmail(mail);
+    if (mailError !== null) {
+      setError(mailError);
       return;
     }
 
@@ -132,7 +137,30 @@ export function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props) {
       await saveSession(res.accessToken, res.refreshToken);
       onRegisterSuccess(res.user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Kayıt oluşturulamadı.');
+      /**
+       * ⚠️ ÖNCE ALAN HATASI, SONRA GENEL MESAJ.
+       *
+       * Sunucu Zod hatasında `fieldErrors` gönderiyor: hangi alan, neden.
+       * Ekran bunu atıp yalnızca "Gönderilen kayıt bilgileri geçersiz."
+       * gösteriyordu — kullanıcı altı kutudan hangisini düzelteceğini
+       * bilemiyordu.
+       *
+       * Yukarıdaki istemci kontrolleri çoğu durumu zaten yakalıyor; burası
+       * ikisinin ayrıştığı durumlar için ağ. İki doğrulamanın zamanla
+       * ayrılması kaçınılmaz, o yüzden sunucunun sözü de görünür olmalı.
+       */
+      const fields =
+        err instanceof ApiError && err.fieldErrors !== undefined
+          ? Object.values(err.fieldErrors).flat().filter(Boolean)
+          : [];
+
+      setError(
+        fields.length > 0
+          ? fields.join(' ')
+          : err instanceof Error
+            ? err.message
+            : 'Kayıt oluşturulamadı.',
+      );
     } finally {
       setLoading(false);
     }

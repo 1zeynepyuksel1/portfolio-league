@@ -13,6 +13,70 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 23. `tanıtım@gmail.com` — iki doğrulamanın ayrışması — 27 Ağu 2026
+
+| Dosya | Ne |
+|---|---|
+| `mobile/lib/validation.ts` 🆕 | Ortak e-posta kontrolü |
+| `mobile/lib/validation.test.ts` 🆕 | **19 test — projenin ilk mobil testi** |
+| `LoginScreen` · `RegisterScreen` · `ForgotPasswordScreen` | Kopyalanan desen kaldırıldı |
+| `api/client.ts` | `ApiError` artık `fieldErrors` taşıyor |
+
+**Belirti:** kayıt ekranı *"Gönderilen kayıt bilgileri geçersiz."* diyor,
+altı kutudan hangisinin sorunlu olduğu belli değil.
+
+**Sebep — iki doğrulama birbiriyle uyuşmuyordu:**
+
+```
+ekran   : /^[^@\s]+@[^@\s]+\.[^@\s]+$/   "@ ve boşluk olmayan her şey" -> ı GEÇER
+sunucu  : z.string().email()                ASCII bekliyor              -> ı REDDEDİLİR
+```
+
+Ekran "tamam" deyip gönderiyor, sunucu 400 dönüyor, kullanıcı sebebi
+göremiyor. **Türkçe klavyede `tanıtım` yazmak son derece doğal** ve `ı`
+ile `i` yan yana neredeyse aynı görünüyor — kullanıcının kendi başına
+bulması imkânsıza yakın.
+
+⚠️ **KURAL ÜÇ DOSYAYA KOPYALANMIŞTI.** `LoginScreen`, `RegisterScreen` ve
+`ForgotPasswordScreen` aynı deseni ayrı ayrı tanımlıyordu. Bugün podyum
+renginde (§15) ve açılış sekmesinde (§18) yaşadığımızın aynısı: kural
+kopyalanınca biri düzelir, ötekiler eski kalır.
+
+⚠️ **EKRAN İLE SUNUCU AYNI KATILIKTA OLMALI:**
+
+```
+ekran daha GEVŞEK -> kullanıcı reddedilecek isteği gönderir, sebebini göremez
+ekran daha KATI   -> sunucunun kabul edeceği geçerli adresi reddeder
+                     (daha sinsi: hiçbir yerde hata görünmez)
+```
+
+⚠️ **KONTROL SIRASI ÖNEMLİ.** Türkçe karakter kontrolü BİÇİM
+kontrolünden önce: `tanıtım@gmail.com` biçim olarak zaten geçerli
+görünüyor (@ var, nokta var). Biçimi önce sorsaydık kontrol geçerdi ve
+düzeltmeye çalıştığımız durum aynen sürerdi. Testi de var.
+
+⚠️ **`checkEmail` `boolean` DEĞİL, MESAJ DÖNÜYOR.** `true/false`
+dönseydi her çağıran kendi mesajını yazardı ve "geçersiz" ile "Türkçe
+karakter var" ayrımı yine üç yere dağılırdı. Sebebi bilen taraf mesajı da
+versin.
+
+---
+
+**İkinci bulgu: sunucu zaten hangi alanın hatalı olduğunu söylüyordu.**
+
+```json
+{"error":{"code":"VALIDATION_ERROR",
+  "message":"Gönderilen kayıt bilgileri geçersiz.",
+  "details":{"fieldErrors":{"email":["Geçerli bir e-posta adresi giriniz."]}}}}
+```
+
+`client.ts` `details`'i atıyordu, ekran yalnızca genel mesajı
+gösteriyordu. Bugün §22'de düzelttiğim `ERROR_MESSAGES` ile **aynı sınıf
+hata:** bilgi geliyor, istemci çöpe atıyor. `ApiError` artık
+`fieldErrors`'ı da taşıyor ve kayıt ekranı alan hatalarını gösteriyor.
+
+**Test: 211 → 230.** İlk mobil test dosyası bu.
+
 ### 22. UX turu — altı madde — 27 Ağu 2026
 
 | # | İş | Dosya |

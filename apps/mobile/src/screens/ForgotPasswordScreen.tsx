@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { checkEmail } from '../lib/validation';
 import { apiFetch } from '../api/client';
 import { ChartBackground } from '../components/ChartBackground';
 import {
@@ -23,7 +24,6 @@ type Props = {
   onGoToLogin: () => void;
 };
 
-const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 
 export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
@@ -44,8 +44,9 @@ export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
   async function handleSubmit() {
     const mail = email.trim();
 
-    if (!EMAIL_PATTERN.test(mail)) {
-      setError('Geçerli bir e-posta adresi girin.');
+    const mailError = checkEmail(mail);
+    if (mailError !== null) {
+      setError(mailError);
       return;
     }
 

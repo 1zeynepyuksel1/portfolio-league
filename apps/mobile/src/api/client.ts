@@ -185,6 +185,16 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly code?: string | undefined,
+    /**
+     * Alan bazlı doğrulama hataları — `{ email: ['...'], username: [...] }`.
+     *
+     * ⚠️ SUNUCU BUNU HEP GÖNDERİYORDU, EKRAN ATIYORDU. Zod hatasında
+     * `details.fieldErrors` HANGİ alanın neden geçersiz olduğunu tam
+     * olarak söylüyor; ekranlar yalnızca üstteki genel mesajı ("Gönderilen
+     * kayıt bilgileri geçersiz.") gösterdiği için kullanıcı hangi kutuyu
+     * düzelteceğini bilemiyordu.
+     */
+    readonly fieldErrors?: Record<string, string[]> | undefined,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -281,7 +291,14 @@ export async function apiFetch<T>(
         ? data.error.code
         : undefined;
 
-    throw new ApiError(errorMsg, code);
+    const fieldErrors =
+      data.error &&
+      data.error.details &&
+      typeof data.error.details.fieldErrors === 'object'
+        ? (data.error.details.fieldErrors as Record<string, string[]>)
+        : undefined;
+
+    throw new ApiError(errorMsg, code, fieldErrors);
   }
 
   return data as T;
