@@ -80,6 +80,7 @@ const KINDS = [
   { key: 'crypto', label: 'Kripto' },
   { key: 'fx', label: 'Döviz' },
   { key: 'metal', label: 'Metal' },
+  { key: 'stock', label: 'Hisse' },
 ] as const;
 
 const MONTH_NAMES = [
@@ -105,7 +106,7 @@ export function formatMultiple(value: number): string {
 export function WhatIfScreen() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [symbol, setSymbol] = useState('BTC');
-  const [date, setDate] = useState('2020-03-12');
+  const [date, setDate] = useState<string | null>(null);
   const [amount, setAmount] = useState('10000');
   const [kind, setKind] = useState<string>('all');
   const amountInputRef = useRef<TextInput>(null);
@@ -130,7 +131,12 @@ export function WhatIfScreen() {
    * Kat, tutardan bağımsız: 1.000 ₺ de 50.000 ₺ de aynı oranda artar.
    * Tutara bağlasaydık her düğmeye dokunuşta 20 varlıklık sorgu tekrarlanırdı.
    */
-  const loadMultiples = useCallback(async (forDate: string) => {
+  const loadMultiples = useCallback(async (forDate: string | null) => {
+    if (!forDate) {
+      setLoading(false);
+      setMultiples(null);
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -164,7 +170,7 @@ export function WhatIfScreen() {
    * Sessizce bırakırsak sorgu hata döner ve kullanıcı nedenini anlamaz.
    */
   useEffect(() => {
-    if (minDate !== undefined && date < minDate) {
+    if (date && minDate !== undefined && date < minDate) {
       setDate(minDate);
       setNotice(
         `${symbol} verisi ${humanDate(minDate)} tarihinde başlıyor, tarih oraya çekildi.`,
@@ -186,7 +192,7 @@ export function WhatIfScreen() {
   const selectedName =
     selectedMultiple?.name ?? asset?.name ?? symbol;
 
-  if (showResult) {
+  if (showResult && date) {
     return (
       <WhatIfResultScreen
         symbol={symbol}
@@ -200,10 +206,19 @@ export function WhatIfScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <SectionLabel>YA ALSAYDIN</SectionLabel>
+      {/* --- başlık --- */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Ya Alsaydın</Text>
 
-      {/* --- tarih seçici (dropdown menü tarzında) --- */}
+        <View style={styles.liveRow}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>şimdi</Text>
+        </View>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+
+      {/* --- tarih seçici (dropdown menü tarzında, direkt görünür) --- */}
       <View style={styles.block}>
         <Calendar
           value={date}
@@ -223,42 +238,43 @@ export function WhatIfScreen() {
         />
       </View>
 
-      {/* --- bakiye manuel giriş alanı --- */}
-      <View style={styles.inputBlock}>
-        <SectionLabel>TUTAR GİRİN (₺)</SectionLabel>
-        <TextInput
-          ref={amountInputRef}
-          style={styles.textInput}
-          keyboardType="numeric"
-          value={amount === '0' ? '' : amount}
-          onChangeText={(val) => {
-            const clean = val.replace(/[^0-9]/g, '');
-            setAmount(clean || '0');
-          }}
-          placeholder="Örn: 10000"
-          placeholderTextColor={colors.inkDisabled}
-        />
-      </View>
+      {/* --- tutar giriş ve hazır butonlar kartı (direkt görünür) --- */}
+      <View style={styles.amountInputCard}>
+        <View style={styles.inputBlockNoMargin}>
+          <SectionLabel>TUTAR GİRİN (₺)</SectionLabel>
+          <TextInput
+            ref={amountInputRef}
+            style={styles.textInput}
+            keyboardType="numeric"
+            value={amount === '0' ? '' : amount}
+            onChangeText={(val) => {
+              const clean = val.replace(/[^0-9]/g, '');
+              setAmount(clean || '0');
+            }}
+            placeholder="Örn: 10000"
+            placeholderTextColor={colors.inkDisabled}
+          />
+        </View>
 
-      {/* --- tutar hızlı seçim butonları --- */}
-      <View style={styles.amountRow}>
-        {AMOUNTS.map((val) => {
-          const on = val === amount;
+        <View style={styles.amountRowGrid}>
+          {AMOUNTS.map((val) => {
+            const on = val === amount;
 
-          return (
-            <TouchableOpacity
-              key={val}
-              style={[styles.amountButton, on && styles.amountButtonOn]}
-              onPress={() => setAmount(val)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-            >
-              <Text style={[styles.amountText, on && styles.amountTextOn]}>
-                {groupThousands(val)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+            return (
+              <TouchableOpacity
+                key={val}
+                style={[styles.amountButton, on && styles.amountButtonOn]}
+                onPress={() => setAmount(val)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.amountText, on && styles.amountTextOn]}>
+                  {groupThousands(val)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* --- özel günler --- */}
@@ -333,7 +349,11 @@ export function WhatIfScreen() {
       {error !== null && <Text style={styles.error}>{error}</Text>}
 
       {/* --- varlık listesi + enflasyon eşiği --- */}
-      {loading ? (
+      {date === null ? (
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>💡 Hesaplama yapmak için yukarıdan bir tarih seçin.</Text>
+        </View>
+      ) : loading ? (
         <View style={styles.loadingBox}>
           <ActivityIndicator color={colors.inkMuted} />
         </View>
@@ -438,9 +458,32 @@ export function WhatIfScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.screen,
+    paddingTop: 18,
+    paddingBottom: 10,
+    backgroundColor: colors.surface,
+  },
+  title: {
+    fontFamily: fonts.semibold,
+    fontSize: 26,
+    color: colors.ink,
+    letterSpacing: -0.6,
+  },
+  liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.gain,
+  },
+  liveText: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkMuted },
   content: {
     paddingHorizontal: spacing.screen,
-    paddingTop: 20,
+    paddingTop: 10, // Üstteki header ile uyumlu olması için 20'den 10'a düşürdük
     // Sabit düğmenin altında kalan son satır görünsün diye ek boşluk.
     paddingBottom: 24,
   },
@@ -490,8 +533,22 @@ const styles = StyleSheet.create({
   eventMultiple: { fontFamily: fonts.monoSemibold, fontSize: 11, color: colors.inkFaint },
   eventMultipleOn: { fontFamily: fonts.monoBold, color: colors.onInverse },
 
-  amountRow: { flexDirection: 'row', gap: 7, marginTop: 10 },
-  inputBlock: { marginTop: 20, gap: 10 },
+
+  amountInputCard: {
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 10,
+  },
+  inputBlockNoMargin: {
+    gap: 8,
+  },
+  amountRowGrid: {
+    flexDirection: 'row',
+    gap: 6,
+  },
   textInput: {
     height: 48,
     borderRadius: 8,
@@ -534,6 +591,24 @@ const styles = StyleSheet.create({
   error: { fontFamily: fonts.regular, fontSize: 12, color: colors.error, marginTop: 12 },
 
   loadingBox: { paddingVertical: 40, alignItems: 'center' },
+  infoBox: {
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 12,
+    padding: 20,
+    marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  infoText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.inkMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 
   list: { marginTop: 12 },
   row: {

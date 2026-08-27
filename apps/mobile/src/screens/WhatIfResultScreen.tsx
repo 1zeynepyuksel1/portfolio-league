@@ -123,6 +123,7 @@ export function WhatIfResultScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showQuantity, setShowQuantity] = useState(false);
+  const [showInflationDetails, setShowInflationDetails] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -206,7 +207,7 @@ export function WhatIfResultScreen({
         </View>
 
         <TouchableOpacity
-          style={styles.iconButton}
+          style={styles.textShareButton}
           onPress={() =>
             void Share.share({
               message:
@@ -219,7 +220,7 @@ export function WhatIfResultScreen({
           accessibilityRole="button"
           accessibilityLabel="Paylaş"
         >
-          <Text style={styles.iconText}>⤴</Text>
+          <Text style={styles.textShareText}>Paylaş</Text>
         </TouchableOpacity>
       </View>
 
@@ -242,38 +243,83 @@ export function WhatIfResultScreen({
         </Text>
       </View>
 
+      {/* Enflasyon detaylarını göster/gizle butonu */}
+      <TouchableOpacity
+        style={styles.toggleButton}
+        onPress={() => setShowInflationDetails(!showInflationDetails)}
+        accessibilityRole="button"
+      >
+        <Text style={styles.toggleButtonText}>
+          {showInflationDetails ? 'Enflasyon Detaylarını Gizle ▴' : 'Enflasyona Göre Gerçek Getiri ▾'}
+        </Text>
+      </TouchableOpacity>
+
       {/* --- üç sayı: kâğıt ÷ enflasyon = alım gücü --- */}
-      <View style={styles.mathBox}>
-        <View style={styles.mathCell}>
-          <Text style={styles.mathValue}>{formatMultiple(nominalMultiple)}</Text>
-          <Text style={styles.mathLabel}>KÂĞIT ÜZERİNDE</Text>
-        </View>
+      {showInflationDetails && (
+        <>
+          <View style={styles.mathBox}>
+            <View style={styles.mathCell}>
+              <Text style={styles.mathValue}>{formatMultiple(nominalMultiple)}</Text>
+              <Text style={styles.mathLabel}>KÂĞIT ÜZERİNDE</Text>
+            </View>
 
-        <Text style={styles.mathOperator}>÷</Text>
+            <Text style={styles.mathOperator}>÷</Text>
 
-        <View style={styles.mathCell}>
-          <Text style={[styles.mathValue, { color: colors.loss }]}>
-            {formatMultiple(inflationMultiple)}
+            <View style={styles.mathCell}>
+              <Text style={[styles.mathValue, { color: colors.loss }]}>
+                {formatMultiple(inflationMultiple)}
+              </Text>
+              <Text style={styles.mathLabel}>ENFLASYON</Text>
+            </View>
+
+            <Text style={styles.mathOperator}>=</Text>
+
+            <View style={styles.mathCell}>
+              <Text style={[styles.mathValue, { color: colors.gain }]}>
+                {formatMultiple(realMultiple)}
+              </Text>
+              <Text style={styles.mathLabel}>ALIM GÜCÜNDE</Text>
+            </View>
+          </View>
+
+          <Text style={styles.mathNote}>
+            Reel getiri {result.realReturnPercentFormatted} — kâğıt üzerindeki{' '}
+            {formatMultiple(nominalMultiple)} katın enflasyondan sonra elinde
+            kalan kısmı. Enflasyon {result.tufeStartMonth} → {result.tufeEndMonth}{' '}
+            TÜFE endeksinden.
           </Text>
-          <Text style={styles.mathLabel}>ENFLASYON</Text>
+        </>
+      )}
+
+      {/* --- aynı gün başkasını alsaydım (yatay kart şeridi) --- */}
+      {multiples !== null && (
+        <View style={styles.compareHorizontal}>
+          <SectionLabel>AYNI GÜN BAŞKASINI ALSAYDIM</SectionLabel>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.compareScrollContent}
+            nestedScrollEnabled
+          >
+            {multiples.assets.slice(0, 8).map((item) => {
+              const aboveInflation = item.multiple >= multiples.inflationMultiple;
+              return (
+                <View key={item.symbol} style={styles.compareCard}>
+                  <Text style={styles.compareCardName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={[styles.compareCardValue, { color: aboveInflation ? colors.gain : colors.inkDisabled }]}>
+                    {formatMultiple(item.multiple)}
+                  </Text>
+                  <Text style={styles.compareCardLabel}>
+                    {aboveInflation ? 'Enflasyon Üstü' : 'Enflasyon Altı'}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
         </View>
-
-        <Text style={styles.mathOperator}>=</Text>
-
-        <View style={styles.mathCell}>
-          <Text style={[styles.mathValue, { color: colors.gain }]}>
-            {formatMultiple(realMultiple)}
-          </Text>
-          <Text style={styles.mathLabel}>ALIM GÜCÜNDE</Text>
-        </View>
-      </View>
-
-      <Text style={styles.mathNote}>
-        Reel getiri {result.realReturnPercentFormatted} — kâğıt üzerindeki{' '}
-        {formatMultiple(nominalMultiple)} katın enflasyondan sonra elinde
-        kalan kısmı. Enflasyon {result.tufeStartMonth} → {result.tufeEndMonth}{' '}
-        TÜFE endeksinden.
-      </Text>
+      )}
 
       {/* --- grafik --- */}
       <AreaChart
@@ -293,79 +339,6 @@ export function WhatIfResultScreen({
           <Text style={styles.legendText}>Enflasyon (alım gücü eşiği)</Text>
         </View>
       </View>
-
-      {/* --- aynı gün başkasını alsaydım --- */}
-      {multiples !== null && (
-        <View style={styles.compare}>
-          <View style={styles.compareHead}>
-            <SectionLabel>AYNI GÜN BAŞKASINI ALSAYDIM</SectionLabel>
-            <Text style={styles.compareUnit}>nominal kat</Text>
-          </View>
-
-          {(() => {
-            // Çubukların ölçeği en büyük değere göre. Sabit bir üst sınır
-            // koysaydık 600 katlık bir varlık çubuğu taşırırdı.
-            const top = Math.max(
-              multiples.inflationMultiple,
-              ...multiples.assets.map((a) => a.multiple),
-            );
-
-            return (
-              <>
-                {multiples.assets.slice(0, 6).map((item) => (
-                  <View key={item.symbol} style={styles.bar}>
-                    <Text style={styles.barName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-
-                    <View style={styles.barTrack}>
-                      <View
-                        style={[
-                          styles.barFill,
-                          {
-                            width: `${Math.max((item.multiple / top) * 100, 1)}%`,
-                            backgroundColor:
-                              item.multiple < multiples.inflationMultiple
-                                ? colors.inkDisabled
-                                : colors.gain,
-                          },
-                        ]}
-                      />
-                    </View>
-
-                    <Text style={styles.barValue}>
-                      {formatMultiple(item.multiple)}
-                    </Text>
-                  </View>
-                ))}
-
-                {/* Enflasyon aynı ölçekte, kırmızı — kıyas çizgisi bu. */}
-                <View style={[styles.bar, styles.barInflation]}>
-                  <Text style={[styles.barName, { color: colors.inkMuted }]}>
-                    Enflasyon
-                  </Text>
-
-                  <View style={styles.barTrack}>
-                    <View
-                      style={[
-                        styles.barFill,
-                        {
-                          width: `${Math.max((multiples.inflationMultiple / top) * 100, 1)}%`,
-                          backgroundColor: colors.loss,
-                        },
-                      ]}
-                    />
-                  </View>
-
-                  <Text style={[styles.barValue, { color: colors.loss }]}>
-                    {formatMultiple(multiples.inflationMultiple)}
-                  </Text>
-                </View>
-              </>
-            );
-          })()}
-        </View>
-      )}
 
       {/* --- hesabın tamamı --- */}
       <TouchableOpacity
@@ -555,11 +528,22 @@ function AreaChart({
 
   // Kat cinsinden seri. Piksel geometrisi float — para değil.
   const multiples = points.map((p) => Number(p.price) / base);
-  const top = Math.max(...multiples, inflationMultiple) * 1.05;
+
+  // ⚠️ LOGARİTMİK ÖLÇEK (LOG SCALE) HESAPLAMA
+  const minM = Math.max(0.01, Math.min(1.0, ...multiples, inflationMultiple) * 0.9);
+  const maxM = Math.max(1.0, ...multiples, inflationMultiple) * 1.05;
+  const logMin = Math.log(minM);
+  const logMax = Math.log(maxM);
+  const logRange = logMax - logMin;
 
   const x = (i: number) => (i / (multiples.length - 1)) * width;
-  // ⚠️ y TERS ÇEVRİLİYOR: SVG'de y aşağı büyür, fiyat yukarı büyümeli.
-  const y = (m: number) => CHART_HEIGHT - (m / top) * CHART_HEIGHT;
+  // ⚠️ y TERS ÇEVRİLİYOR ve Log ölçek uygulanıyor:
+  const y = (m: number) => {
+    const val = Math.max(minM, m);
+    const logVal = Math.log(val);
+    const pct = logRange > 0 ? (logVal - logMin) / logRange : 0;
+    return CHART_HEIGHT * (1 - pct);
+  };
 
   const line = multiples
     .map((m, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(m).toFixed(1)}`)
@@ -598,11 +582,7 @@ function AreaChart({
               {formatMultiple(activeMultiple)}
             </Text>
           </>
-        ) : (
-          <Text style={styles.scrubHint}>
-            Grafiğe dokun — o günkü değeri gör
-          </Text>
-        )}
+        ) : null}
       </View>
 
       <View
@@ -770,6 +750,62 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.ink,
   },
+  toggleButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginTop: 10,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  toggleButtonText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.inkBright,
+  },
+  compareHorizontal: {
+    marginTop: 20,
+    gap: 10,
+  },
+  compareScrollContent: {
+    paddingRight: 16,
+    gap: 10,
+    paddingVertical: 4,
+  },
+  compareCard: {
+    width: 120,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  compareCardInflation: {
+    borderColor: colors.loss,
+    backgroundColor: 'rgba(229, 72, 77, 0.04)',
+  },
+  compareCardName: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    color: colors.inkBright,
+    textAlign: 'center',
+  },
+  compareCardValue: {
+    fontFamily: fonts.monoBold,
+    fontSize: 16,
+    marginVertical: 2,
+  },
+  compareCardLabel: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    color: colors.inkFaint,
+    textAlign: 'center',
+  },
   scrubMultiple: {
     fontFamily: fonts.monoSemibold,
     fontSize: 13,
@@ -783,38 +819,7 @@ const styles = StyleSheet.create({
   legendDashed: { backgroundColor: colors.inkMuted, opacity: 0.6 },
   legendText: { fontFamily: fonts.regular, fontSize: 11, color: colors.inkFaint },
 
-  compare: { marginTop: 26 },
-  compareHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  compareUnit: { fontFamily: fonts.regular, fontSize: 10, color: colors.inkFaint },
 
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
-  barInflation: {
-    marginTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 12,
-  },
-  barName: { width: 88, fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
-  barTrack: {
-    flex: 1,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.surfaceRaised,
-    overflow: 'hidden',
-  },
-  barFill: { height: '100%', borderRadius: 5 },
-  barValue: {
-    width: 54,
-    textAlign: 'right',
-    fontFamily: fonts.monoBold,
-    fontSize: 12,
-    color: colors.gain,
-  },
 
   detailRow: {
     flexDirection: 'row',
@@ -858,6 +863,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   secondaryText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.inkBright },
+  textShareButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textShareText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: colors.inkBright,
+  },
   primary: {
     flex: 1,
     height: 52,

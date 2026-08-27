@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, fonts } from '../theme';
 
@@ -20,7 +20,7 @@ export function Calendar({
   max,
   onRejected,
 }: {
-  value: string;
+  value: string | null;
   onChange: (iso: string) => void;
   min?: string | undefined;
   max?: string | undefined;
@@ -28,9 +28,21 @@ export function Calendar({
 }) {
   const [activeDropdown, setActiveDropdown] = useState<'day' | 'month' | 'year' | null>(null);
 
-  const selected = useMemo(() => {
-    const [y = '2020', m = '01', d = '01'] = value.split('-');
-    return { year: Number(y), month: Number(m) - 1, day: Number(d) };
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (value) {
+      const [y, m, d] = value.split('-');
+      setSelectedYear(Number(y));
+      setSelectedMonth(Number(m) - 1);
+      setSelectedDay(Number(d));
+    } else {
+      setSelectedYear(null);
+      setSelectedMonth(null);
+      setSelectedDay(null);
+    }
   }, [value]);
 
   const yearsList = useMemo(() => {
@@ -43,7 +55,13 @@ export function Calendar({
     return list;
   }, [min, max]);
 
-  function updateDate(newYear: number, newMonth: number, newDay: number) {
+  function updateDate(newYear: number | null, newMonth: number | null, newDay: number | null) {
+    if (newYear === null || newMonth === null || newDay === null) {
+      if (newYear !== null) setSelectedYear(newYear);
+      if (newMonth !== null) setSelectedMonth(newMonth);
+      if (newDay !== null) setSelectedDay(newDay);
+      return;
+    }
     const maxDays = new Date(Date.UTC(newYear, newMonth + 1, 0)).getUTCDate();
     const clampedDay = Math.min(newDay, maxDays);
     const mm = String(newMonth + 1).padStart(2, '0');
@@ -59,10 +77,15 @@ export function Calendar({
       return;
     }
 
+    setSelectedYear(newYear);
+    setSelectedMonth(newMonth);
+    setSelectedDay(clampedDay);
     onChange(iso);
   }
 
-  const daysCount = new Date(Date.UTC(selected.year, selected.month + 1, 0)).getUTCDate();
+  const currentYear = selectedYear ?? new Date().getUTCFullYear();
+  const currentMonth = selectedMonth ?? 0;
+  const daysCount = new Date(Date.UTC(currentYear, currentMonth + 1, 0)).getUTCDate();
 
   return (
     <View style={styles.container}>
@@ -74,7 +97,9 @@ export function Calendar({
           onPress={() => setActiveDropdown(activeDropdown === 'day' ? null : 'day')}
         >
           <Text style={styles.dropdownButtonLabel}>GÜN</Text>
-          <Text style={styles.dropdownButtonValue}>{selected.day}</Text>
+          <Text style={styles.dropdownButtonValue}>
+            {selectedDay !== null ? selectedDay : 'Seç'}
+          </Text>
           <Text style={styles.dropdownButtonCaret}>⌄</Text>
         </TouchableOpacity>
 
@@ -84,7 +109,9 @@ export function Calendar({
           onPress={() => setActiveDropdown(activeDropdown === 'month' ? null : 'month')}
         >
           <Text style={styles.dropdownButtonLabel}>AY</Text>
-          <Text style={styles.dropdownButtonValue}>{MONTHS[selected.month]}</Text>
+          <Text style={styles.dropdownButtonValue}>
+            {selectedMonth !== null ? MONTHS[selectedMonth] : 'Seç'}
+          </Text>
           <Text style={styles.dropdownButtonCaret}>⌄</Text>
         </TouchableOpacity>
 
@@ -94,7 +121,9 @@ export function Calendar({
           onPress={() => setActiveDropdown(activeDropdown === 'year' ? null : 'year')}
         >
           <Text style={styles.dropdownButtonLabel}>YIL</Text>
-          <Text style={styles.dropdownButtonValue}>{selected.year}</Text>
+          <Text style={styles.dropdownButtonValue}>
+            {selectedYear !== null ? selectedYear : 'Seç'}
+          </Text>
           <Text style={styles.dropdownButtonCaret}>⌄</Text>
         </TouchableOpacity>
       </View>
@@ -109,8 +138,8 @@ export function Calendar({
               nestedScrollEnabled
             >
               {Array.from({ length: daysCount }, (_, i) => i + 1).map((d) => {
-                const isSel = d === selected.day;
-                const iso = isoOf(selected.year, selected.month, d);
+                const isSel = d === selectedDay;
+                const iso = isoOf(currentYear, currentMonth, d);
                 const disabled = !!((min && iso < min) || (max && iso > max));
                 return (
                   <TouchableOpacity
@@ -122,7 +151,7 @@ export function Calendar({
                     ]}
                     disabled={disabled}
                     onPress={() => {
-                      updateDate(selected.year, selected.month, d);
+                      updateDate(selectedYear, selectedMonth, d);
                       setActiveDropdown(null);
                     }}
                   >
@@ -148,11 +177,11 @@ export function Calendar({
               nestedScrollEnabled
             >
               {MONTHS.map((mName, mIdx) => {
-                const isSel = mIdx === selected.month;
-                const tempIso = isoOf(selected.year, mIdx, 1);
-                const maxDaysOfM = new Date(Date.UTC(selected.year, mIdx + 1, 0)).getUTCDate();
+                const isSel = mIdx === selectedMonth;
+                const tempIso = isoOf(currentYear, mIdx, 1);
+                const maxDaysOfM = new Date(Date.UTC(currentYear, mIdx + 1, 0)).getUTCDate();
                 const disabled = !!(
-                  (min && isoOf(selected.year, mIdx, maxDaysOfM) < min) ||
+                  (min && isoOf(currentYear, mIdx, maxDaysOfM) < min) ||
                   (max && tempIso > max)
                 );
 
@@ -166,7 +195,7 @@ export function Calendar({
                     ]}
                     disabled={disabled}
                     onPress={() => {
-                      updateDate(selected.year, mIdx, selected.day);
+                      updateDate(selectedYear, mIdx, selectedDay);
                       setActiveDropdown(null);
                     }}
                   >
@@ -192,13 +221,13 @@ export function Calendar({
               nestedScrollEnabled
             >
               {yearsList.map((y) => {
-                const isSel = y === selected.year;
+                const isSel = y === selectedYear;
                 return (
                   <TouchableOpacity
                     key={y}
                     style={[styles.optionCell, isSel && styles.optionCellSelected]}
                     onPress={() => {
-                      updateDate(y, selected.month, selected.day);
+                      updateDate(y, selectedMonth, selectedDay);
                       setActiveDropdown(null);
                     }}
                   >
