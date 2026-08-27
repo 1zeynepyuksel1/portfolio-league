@@ -13,6 +13,67 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 21. Ya Alsaydın ekranı — cevap önce — 27 Ağu 2026
+
+| Dosya | Ne |
+|---|---|
+| `mobile/screens/WhatIfScreen.tsx` | Düzen baştan kuruldu · +448 / −250 |
+
+**Sorun tek tek özelliklerde değildi, SIRADAYDI.** Ekran altı blok üst üsteydi:
+
+```
+başlık · TAKVİM · TUTAR+4 buton · ÖZEL GÜNLER · filtre · 50 satırlık LİSTE
+```
+
+Yani bir sayı görmek için dört kontrol bloğu kaydırılıyordu — ve dosyanın
+kendi yorumu *"Cevap listede, sonuçta değil"* diyordu ama liste ekranın
+dışında kalıyordu.
+
+⚠️ **Ve en önemlisi: `date` başlangıçta `null`'dı.** Ekran BOŞ açılıyordu.
+Bir soruyu cevaplamak için var olan ekran, cevapsız açılıyordu.
+
+**Yeni düzen:**
+
+```
+soru   ->  "10.000 ₺ · 12 Mart 2020  ⌄"   tek satır, dokun→panel
+cevap  ->  en çok kazandıran üç varlık, PARA olarak
+liste  ->  tam liste + enflasyon eşiği
+```
+
+⚠️ **HİÇBİR KONTROL SİLİNMEDİ** — takvim, tutar, hazır tutarlar, özel
+günler aynen duruyor, sadece varsayılan olarak katlı. *Kaldırmak* ile
+*katlamak* arasındaki fark önemli: kullanıcının yapabildikleri aynı kaldı,
+yalnızca sırası değişti.
+
+⚠️ **Kat değil PARA gösteriliyor.** Liste "13,4×" diyor, vitrin
+"≈ 134.000 ₺". Kat oranı doğru ama soyut; kullanıcının aklındaki soru
+"param ne olurdu".
+
+⚠️ **Float istisnası — sınırı bilerek çizildi.** `≈` işaretli önizleme
+`Number(amount) × multiple` ile hesaplanıyor. Proje kuralı "para bigint".
+İzin verilmesinin sebebi: bu sayıyla hesap yapılmıyor, emir verilmiyor,
+hiçbir yere yazılmıyor — yalnızca ekrana basılıyor ve kullanıcı dokununca
+sunucudan KESİN değeri görüyor. `multiple` zaten sunucudan `number`
+geliyor (what-if'in bilinen float borcu), yani zincir burada kırılmıyor.
+
+⚠️ **Sıralama renkle değil BOYUTLA anlatılıyor** — vitrinde birinci kart
+daha büyük punto kullanıyor. Renk zaten enflasyon eşiğini anlatmakla
+meşgul; ikinci bir anlam yüklemek ikisini de bulanıklaştırırdı.
+
+**8 ölü stil silindi.** İkisi (`question`, `underlined`) zaten önceden
+ölüydü — kaldırılan "cümle" tasarımından kalma. Sonuç: 55 stil, 0 ölü.
+
+⚠️ **DOSYA BAŞLIĞI DA GÜNCELLENDİ.** Yorum hâlâ *"ekran bir form değil,
+bir CÜMLE"* diyordu ama ekran çoktan forma dönüşmüştü. Kod ile gerekçesi
+ayrılmış hâldeydi — okuyan kişi kodda göremediği bir tasarımı arar.
+
+⚠️ **ÇAKIŞMA UYARISI:** Zeynep bu dosyayı 3 saat önce yeniden yazmıştı.
+Düzen değişti ama onun getirdikleri korundu: `Calendar.tsx`'e hiç
+dokunulmadı, "Hisse" filtre çipi ve tutar giriş alanı yerinde.
+
+⚠️ **GÖRSEL OLARAK DOĞRULANMADI.** Typecheck ve testler geçiyor ama ekran
+gerçek cihazda görülmedi. Telefonda bakılmalı.
+
 ### 20. `stock` migration'ı ve keşfedilen şema sapması — 26 Ağu 2026
 
 | Dosya | Ne |

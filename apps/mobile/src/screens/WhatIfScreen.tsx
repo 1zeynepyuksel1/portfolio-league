@@ -15,20 +15,28 @@ import { WhatIfResultScreen } from './WhatIfResultScreen';
 import { colors, fonts, spacing } from '../theme';
 
 /**
- * WhatIfScreen — `docs/export/7a (1).png` sol ekran.
+ * WhatIfScreen — "o gün alsaydım ne olurdu".
  *
- * Tasarımın iki büyük fikri var:
+ * ⚠️ DÜZENİN TEK KURALI: CEVAP ÖNCE, KONTROLLER SONRA.
  *
- * 1. **Ekran bir form değil, bir CÜMLE.**
- *    "10.000 ₺"yi "12 Mart 2020"de hangi varlığa koysaydım?
- *    Altı çizili iki parça dokunulabilir. Etiketli kutular aynı bilgiyi
- *    toplardı ama kullanıcı ne SORDUĞUNU değil neyi doldurduğunu görürdü.
+ * Ekran daha önce altı blok üst üsteydi — takvim, tutar kartı, hazır
+ * tutarlar, özel günler, tür filtresi, sonra liste. Yani kullanıcı TEK
+ * BİR SAYI görmek için dört kontrol bloğunu kaydırmak zorundaydı, ve
+ * `date` başlangıçta `null` olduğu için ilk açılışta hiçbir cevap yoktu.
  *
- * 2. **Cevap listede, sonuçta değil.**
- *    Her varlığın yanında "kaç kat arttığı" yazıyor. Kullanıcı hesapla
- *    demeden önce cevabı görüyor; "hesapla" artık ayrıntıya geçiş.
+ * Bir soruyu cevaplamak için var olan bir ekranın cevapsız açılması,
+ * düzeltilmesi gereken şeydi. Şimdi:
  *
- * ⚠️ VE LİSTENİN ORTASINDAN BİR ÇİZGİ GEÇİYOR: ENFLASYON EŞİĞİ.
+ *   1. Soru TEK SATIR   ->  "10.000 ₺ · 12 Mart 2020  ⌄"
+ *   2. Cevap HEMEN ALTI ->  en çok kazandıran üç varlık, para olarak
+ *   3. Kontroller       ->  o satıra dokununca açılan panelde
+ *
+ * ⚠️ HİÇBİR KONTROL SİLİNMEDİ. Takvim, tutar alanı, hazır tutarlar ve
+ * özel günler aynen duruyor — sadece varsayılan olarak katlı. Kaldırmak
+ * ile katlamak arasındaki fark önemli: kullanıcının yapabildiği şeyler
+ * aynı kaldı, yalnızca sırası değişti.
+ *
+ * ⚠️ LİSTENİN ORTASINDAN BİR ÇİZGİ GEÇİYOR: ENFLASYON EŞİĞİ.
  * Üstündekiler alım gücü kazandırmış, altındakiler nominal olarak
  * kazandırmış görünüp gerçekte KAYBETTİRMİŞTİR. Bu çizgi olmadan
  * "13 kat arttı" gurur verici bir sayı; çizgiyle birlikte 9,1 katlık
@@ -106,7 +114,29 @@ export function formatMultiple(value: number): string {
 export function WhatIfScreen() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [symbol, setSymbol] = useState('BTC');
-  const [date, setDate] = useState<string | null>(null);
+  /**
+   * ⚠️ VARSAYILAN TARİH VAR — `null` DEĞİL. Bilinçli bir geri alma.
+   *
+   * Önce `null`'dı ve ekran BOŞ açılıyordu: "Hesaplama yapmak için
+   * yukarıdan bir tarih seçin." Yani kullanıcı hiçbir cevap görmeden
+   * önce iki karar vermek zorundaydı (tarih + tutar).
+   *
+   * Bu ekranın işi bir SORUYU CEVAPLAMAK. Cevapsız açılan bir ekran o
+   * işi yapmıyor. Pandemi dibi seçildi çünkü hem tanıdık bir tarih hem
+   * de sonuçları çarpıcı — kullanıcı ekranın ne işe yaradığını ilk
+   * saniyede anlıyor, sonra kendi tarihini seçiyor.
+   */
+  const [date, setDate] = useState<string | null>(EVENTS[0].date);
+
+  /**
+   * Kontrol paneli açık mı.
+   *
+   * ⚠️ VARSAYILAN KAPALI — ve düzenin tamamı buna dayanıyor. Takvim,
+   * tutar alanı ve özel günler ekranın dört bloğunu kaplıyordu; cevap
+   * listesi ekranın DIŞINA taşıyordu. Panel kapalıyken hepsi tek bir
+   * özet satırına iniyor ve cevap ilk ekranda görünüyor.
+   */
+  const [panelOpen, setPanelOpen] = useState(false);
   const [amount, setAmount] = useState('10000');
   const [kind, setKind] = useState<string>('all');
   const amountInputRef = useRef<TextInput>(null);
@@ -204,6 +234,35 @@ export function WhatIfScreen() {
     );
   }
 
+  /**
+   * Vitrin: en çok kazandıran üç varlık.
+   *
+   * ⚠️ FİLTREYE TABİ — `visible` kullanılıyor, ham liste değil. Kullanıcı
+   * "Hisse" filtresini seçtiyse vitrin de hisse göstermeli; yoksa filtre
+   * uygulanmış gibi görünüp üstte hâlâ BTC durur.
+   */
+  const top3 = visible.slice(0, 3);
+
+  /**
+   * "10.000 ₺ koysaydım ne olurdu" — YAKLAŞIK değer.
+   *
+   * ⚠️ FLOAT KULLANILIYOR VE BU BİLİNÇLİ BİR İSTİSNA. Projenin kuralı
+   * "para bigint kuruş, float yasak". Burada izin veriliyor çünkü bu sayi
+   * BİR ÖNİZLEME: başına `≈` konuyor ve kullanıcı varlığa dokunduğunda
+   * sunucudan gelen KESİN değeri görüyor.
+   *
+   * Sınır şurada: bu sayiyla hesap yapılmıyor, emir verilmiyor, hiçbir
+   * yere yazılmıyor. Yalnızca ekrana basılıyor. Bir kuruş sapması olsa
+   * bile kimse para kaybetmiyor.
+   *
+   * `multiple` zaten sunucudan `number` olarak geliyor (what-if servisinin
+   * bilinen float borcu, docs/batuhan.md'de işaretli) — yani zinciri
+   * burada kırmıyoruz, zaten kırık geliyor.
+   */
+  function approxResult(multiple: number): string {
+    return groupThousands(String(Math.round(Number(amount) * multiple)));
+  }
+
   return (
     <View style={styles.screen}>
       {/* --- başlık --- */}
@@ -216,219 +275,304 @@ export function WhatIfScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      {/*
+        --- ÖZET ÇUBUĞU: sorunun tamamı tek satırda ---
 
-      {/* --- tarih seçici (dropdown menü tarzında, direkt görünür) --- */}
-      <View style={styles.block}>
-        <Calendar
-          value={date}
-          onChange={(iso) => {
-            setNotice(null);
-            setDate(iso);
-          }}
-          min={minDate}
-          max={today}
-          onRejected={(iso, reason) =>
-            setNotice(
-              reason === 'early'
-                ? `${symbol} için ${humanDate(iso)} tarihinde veri yok — en eskisi ${minDate === undefined ? '?' : humanDate(minDate)}.`
-                : 'Gelecekteki bir tarih seçilemez.',
-            )
-          }
-        />
-      </View>
+        ⚠️ BU SATIR EKRANIN OMURGASI. Eskiden aynı bilgi dört ayrı blokta
+        dağınıktı (takvim · tutar kartı · hazır tutarlar · özel günler) ve
+        toplamda ekranın yaklaşık üçte ikisini kaplıyordu. Kullanıcı tek
+        bir sayı görmek için hepsini geçmek zorundaydı.
 
-      {/* --- tutar giriş ve hazır butonlar kartı (direkt görünür) --- */}
-      <View style={styles.amountInputCard}>
-        <View style={styles.inputBlockNoMargin}>
-          <SectionLabel>TUTAR GİRİN (₺)</SectionLabel>
-          <TextInput
-            ref={amountInputRef}
-            style={styles.textInput}
-            keyboardType="numeric"
-            value={amount === '0' ? '' : amount}
-            onChangeText={(val) => {
-              const clean = val.replace(/[^0-9]/g, '');
-              setAmount(clean || '0');
-            }}
-            placeholder="Örn: 10000"
-            placeholderTextColor={colors.inkDisabled}
-          />
+        Şimdi soru tek satır, cevap hemen altında. Kontroller kaybolmadı —
+        dokununca aşağıdaki panel açılıyor.
+      */}
+      <TouchableOpacity
+        style={styles.summaryBar}
+        onPress={() => setPanelOpen((open) => !open)}
+        accessibilityRole="button"
+        accessibilityLabel="Tutar ve tarihi değiştir"
+        accessibilityState={{ expanded: panelOpen }}
+      >
+        <View style={styles.summaryTexts}>
+          <Text style={styles.summaryAmount}>{groupThousands(amount)} ₺</Text>
+          <Text style={styles.summarySep}>·</Text>
+          <Text style={styles.summaryDate}>
+            {date === null ? 'tarih seç' : humanDate(date)}
+          </Text>
         </View>
 
-        <View style={styles.amountRowGrid}>
-          {AMOUNTS.map((val) => {
-            const on = val === amount;
-
-            return (
-              <TouchableOpacity
-                key={val}
-                style={[styles.amountButton, on && styles.amountButtonOn]}
-                onPress={() => setAmount(val)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-              >
-                <Text style={[styles.amountText, on && styles.amountTextOn]}>
-                  {groupThousands(val)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* --- özel günler --- */}
-      <View style={styles.block}>
-        <SectionLabel>ÖZEL GÜNLER</SectionLabel>
-
-        <View style={styles.eventGrid}>
-          {[
-            ...EVENTS,
-            // "En eski gün" hazır tarih değil, varlığın kendi başlangıcı.
-            ...(minDate !== undefined
-              ? [{ date: minDate, label: 'En eski gün' } as const]
-              : []),
-          ].map((event) => {
-            const blocked = minDate !== undefined && event.date < minDate;
-            const on = date === event.date;
-
-            return (
-              <TouchableOpacity
-                key={event.label}
-                style={[styles.eventChip, on && styles.eventChipOn]}
-                onPress={() => {
-                  if (blocked) {
-                    setNotice(
-                      `${symbol} verisi ${humanDate(minDate)} tarihinde başlıyor — ${event.label} daha eski.`,
-                    );
-                    return;
-                  }
-                  setNotice(null);
-                  setDate(event.date);
-                }}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-              >
-                <Text style={[styles.eventLabel, on && styles.eventLabelOn]}>
-                  {event.label}
-                </Text>
-
-                {/*
-                  ⚠️ KAT DEĞERİ SEÇİLİ GÜN İÇİN GEÇERLİ, düğmenin kendi
-                  günü için değil. Her düğme için ayrı sorgu atmak dört
-                  kat maliyet demekti; sadece seçili olanda gösteriyoruz.
-                */}
-                {on && selectedMultiple !== null && (
-                  <Text style={[styles.eventMultiple, on && styles.eventMultipleOn]}>
-                    {formatMultiple(selectedMultiple.multiple)}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* --- tür filtresi + sıralama başlığı --- */}
-      <View style={styles.filterRow}>
-        <View style={styles.chipRow}>
-          {KINDS.map((item) => (
-            <Chip
-              key={item.key}
-              label={item.label}
-              selected={kind === item.key}
-              onPress={() => setKind(item.key)}
-            />
-          ))}
-        </View>
-
-        <Text style={styles.sortLabel}>KAT ⌄</Text>
-      </View>
+        <Text style={styles.summaryCaret}>{panelOpen ? '⌃' : '⌄'}</Text>
+      </TouchableOpacity>
 
       {notice !== null && <Text style={styles.notice}>{notice}</Text>}
       {error !== null && <Text style={styles.error}>{error}</Text>}
 
-      {/* --- varlık listesi + enflasyon eşiği --- */}
-      {date === null ? (
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>💡 Hesaplama yapmak için yukarıdan bir tarih seçin.</Text>
-        </View>
-      ) : loading ? (
-        <View style={styles.loadingBox}>
-          <ActivityIndicator color={colors.inkMuted} />
-        </View>
-      ) : (
-        <View style={styles.list}>
-          {visible.map((item, index) => {
-            const previous = visible[index - 1];
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
 
-            /**
-             * Enflasyon çizgisi TAM BURAYA mı düşüyor?
-             *
-             * Liste büyükten küçüğe sıralı. Çizgi, katı enflasyonun
-             * üstünde olan son varlıkla altında olan ilk varlığın ARASINA
-             * giriyor. Sabit bir konuma koysaydık sıralama değiştiğinde
-             * yanlış yerde kalırdı.
-             */
-            const crossesHere =
-              inflation !== null &&
-              item.multiple < inflation &&
-              (previous === undefined || previous.multiple >= inflation);
+        {/* --- KONTROL PANELİ: yalnızca özet çubuğuna dokununca --- */}
+        {panelOpen && (
+          <View style={styles.panel}>
+            <SectionLabel>TUTAR (₺)</SectionLabel>
+            <TextInput
+              ref={amountInputRef}
+              style={styles.textInput}
+              keyboardType="numeric"
+              value={amount === '0' ? '' : amount}
+              onChangeText={(val) => {
+                const clean = val.replace(/[^0-9]/g, '');
+                setAmount(clean || '0');
+              }}
+              placeholder="Örn: 10000"
+              placeholderTextColor={colors.inkDisabled}
+            />
 
-            const on = item.symbol === symbol;
+            <View style={styles.amountRowGrid}>
+              {AMOUNTS.map((val) => {
+                const on = val === amount;
 
-            return (
-              <View key={item.symbol}>
-                {crossesHere && (
-                  <View style={styles.threshold}>
-                    <Text style={styles.thresholdLabel}>ENFLASYON EŞİĞİ</Text>
-                    <View style={styles.thresholdLine} />
-                    <Text style={styles.thresholdValue}>
-                      {formatMultiple(inflation)}
-                    </Text>
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={[styles.row, on && styles.rowOn]}
-                  onPress={() => setSymbol(item.symbol)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                >
-                  <AssetBadge symbol={item.symbol} />
-
-                  <View style={styles.rowNames}>
-                    <Text style={styles.rowName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.rowMeta}>
-                      {item.symbol} · {item.kind}
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={[
-                      styles.rowMultiple,
-                      {
-                        // Enflasyonun altında kalan kat YEŞİL DEĞİL.
-                        // Nominal artış var ama alım gücü kaybı var.
-                        color:
-                          inflation !== null && item.multiple < inflation
-                            ? colors.inkMuted
-                            : colors.gain,
-                      },
-                    ]}
+                return (
+                  <TouchableOpacity
+                    key={val}
+                    style={[styles.amountButton, on && styles.amountButtonOn]}
+                    onPress={() => setAmount(val)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
                   >
-                    {formatMultiple(item.multiple)}
-                  </Text>
+                    <Text style={[styles.amountText, on && styles.amountTextOn]}>
+                      {groupThousands(val)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-                  <Text style={styles.chevron}>›</Text>
-                </TouchableOpacity>
+            {/*
+              --- ÖZEL GÜNLER, TAKVİMİN ÜSTÜNDE ---
+
+              ⚠️ SIRA DEĞİŞTİ. Eskiden takvim önce, özel günler sonraydı ve
+              aralarında tutar kartı vardı — yani tarihi ayarlamanın iki yolu
+              birbirinden koparılmıştı. Çoğu kullanıcı zaten hazır bir güne
+              dokunuyor; takvim ancak o listede olmayan bir tarih için
+              gerekiyor. Sık kullanılan önce.
+            */}
+            <SectionLabel>ÖZEL GÜNLER</SectionLabel>
+
+            <View style={styles.eventGrid}>
+              {[
+                ...EVENTS,
+                ...(minDate !== undefined
+                  ? [{ date: minDate, label: 'En eski gün' } as const]
+                  : []),
+              ].map((event) => {
+                const blocked = minDate !== undefined && event.date < minDate;
+                const on = date === event.date;
+
+                return (
+                  <TouchableOpacity
+                    key={event.label}
+                    style={[styles.eventChip, on && styles.eventChipOn]}
+                    onPress={() => {
+                      if (blocked) {
+                        setNotice(
+                          `${symbol} için o tarihte veri yok — en eskisi ${minDate === undefined ? '?' : humanDate(minDate)}.`,
+                        );
+                        return;
+                      }
+                      setNotice(null);
+                      setDate(event.date);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on, disabled: blocked }}
+                  >
+                    <Text style={[styles.eventLabel, on && styles.eventLabelOn]}>
+                      {event.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <SectionLabel>BAŞKA BİR GÜN</SectionLabel>
+
+            <Calendar
+              value={date}
+              onChange={(iso) => {
+                setNotice(null);
+                setDate(iso);
+              }}
+              min={minDate}
+              max={today}
+              onRejected={(iso, reason) =>
+                setNotice(
+                  reason === 'early'
+                    ? `${symbol} için ${humanDate(iso)} tarihinde veri yok — en eskisi ${minDate === undefined ? '?' : humanDate(minDate)}.`
+                    : 'Gelecekteki bir tarih seçilemez.',
+                )
+              }
+            />
+          </View>
+        )}
+
+        {date === null ? (
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>
+              Bir tarih seç, o günden bugüne ne olduğunu göstereyim.
+            </Text>
+          </View>
+        ) : loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color={colors.inkMuted} />
+          </View>
+        ) : (
+          <>
+            {/*
+              --- VİTRİN: en çok kazandıran üç ---
+
+              ⚠️ SAYI DEĞİL, PARA GÖSTERİYOR. Liste "13,4×" diyor; burası
+              "≈ 134.000 ₺" diyor. Kat oranı doğru bilgi ama soyut —
+              kullanıcının aklındaki soru "param ne olurdu". Çarpanı paraya
+              çevirmek cevabı somutlaştırıyor.
+            */}
+            {top3.length > 0 && (
+              <View style={styles.hero}>
+                {top3.map((item, index) => {
+                  const beatsInflation =
+                    inflation === null || item.multiple >= inflation;
+
+                  return (
+                    <TouchableOpacity
+                      key={item.symbol}
+                      style={[
+                        styles.heroCard,
+                        item.symbol === symbol && styles.heroCardOn,
+                      ]}
+                      onPress={() => setSymbol(item.symbol)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: item.symbol === symbol }}
+                    >
+                      <View style={styles.heroTop}>
+                        <AssetBadge symbol={item.symbol} />
+                        <Text style={styles.heroName} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                      </View>
+
+                      <Text
+                        style={[
+                          styles.heroMultiple,
+                          index === 0 && styles.heroMultipleFirst,
+                          // Enflasyonun altındaki kat yeşil DEĞİL — nominal
+                          // artış var ama alım gücü kaybı var.
+                          { color: beatsInflation ? colors.gain : colors.inkMuted },
+                        ]}
+                      >
+                        {formatMultiple(item.multiple)}
+                      </Text>
+
+                      <Text style={styles.heroAmount} numberOfLines={1}>
+                        ≈ {approxResult(item.multiple)} ₺
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            );
-          })}
-        </View>
-      )}
+            )}
+
+            {/* --- tür filtresi --- */}
+            <View style={styles.filterRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipRow}
+              >
+                {KINDS.map((item) => (
+                  <Chip
+                    key={item.key}
+                    label={item.label}
+                    selected={kind === item.key}
+                    onPress={() => setKind(item.key)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* --- tam liste + enflasyon eşiği --- */}
+            <View style={styles.list}>
+              {visible.map((item, index) => {
+                const previous = visible[index - 1];
+
+                /**
+                 * Enflasyon çizgisi TAM BURAYA mı düşüyor?
+                 *
+                 * Liste büyükten küçüğe sıralı. Çizgi, katı enflasyonun
+                 * üstünde olan son varlıkla altında olan ilk varlığın ARASINA
+                 * giriyor. Sabit bir konuma koysaydık sıralama değiştiğinde
+                 * yanlış yerde kalırdı.
+                 */
+                const crossesHere =
+                  inflation !== null &&
+                  item.multiple < inflation &&
+                  (previous === undefined || previous.multiple >= inflation);
+
+                const on = item.symbol === symbol;
+
+                return (
+                  <View key={item.symbol}>
+                    {crossesHere && (
+                      <View style={styles.threshold}>
+                        <Text style={styles.thresholdLabel}>ENFLASYON EŞİĞİ</Text>
+                        <View style={styles.thresholdLine} />
+                        <Text style={styles.thresholdValue}>
+                          {formatMultiple(inflation)}
+                        </Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity
+                      style={[styles.row, on && styles.rowOn]}
+                      onPress={() => setSymbol(item.symbol)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                    >
+                      <AssetBadge symbol={item.symbol} />
+
+                      <View style={styles.rowNames}>
+                        <Text style={styles.rowName} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        {/*
+                          ⚠️ ALT SATIR ARTIK "BTC · crypto" DEĞİL, PARA.
+                          Sembol zaten logoda ve adın yanında; türü de üstteki
+                          filtre söylüyor. O satır bilgi tekrar ediyordu.
+                          Yerine cevabın kendisi kondu.
+                        */}
+                        <Text style={styles.rowMeta}>
+                          ≈ {approxResult(item.multiple)} ₺
+                        </Text>
+                      </View>
+
+                      <Text
+                        style={[
+                          styles.rowMultiple,
+                          {
+                            color:
+                              inflation !== null && item.multiple < inflation
+                                ? colors.inkMuted
+                                : colors.gain,
+                          },
+                        ]}
+                      >
+                        {formatMultiple(item.multiple)}
+                      </Text>
+
+                      <Text style={styles.chevron}>›</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
 
       </ScrollView>
 
@@ -438,15 +582,12 @@ export function WhatIfScreen() {
         ⚠️ ÖNCE LİSTENİN ALTINDAYDI ve bildirilen sorun buydu: kullanıcı
         BNB'yi seçtikten sonra onu görmek için yirmi varlık boyunca aşağı
         kaydırmak zorundaydı. Seçim yukarıda, eylem aşağıdaydı.
-
-        Şimdi ekranın altına sabit. Hangi varlık seçili olursa olsun
-        düğme hep aynı yerde ve adı seçilenle birlikte değişiyor.
       */}
       <View style={styles.ctaBar}>
         <TouchableOpacity
           style={styles.cta}
           onPress={() => setShowResult(true)}
-          disabled={loading}
+          disabled={loading || date === null}
           accessibilityRole="button"
         >
           <Text style={styles.ctaText}>{selectedName}'i gör →</Text>
@@ -457,6 +598,96 @@ export function WhatIfScreen() {
 }
 
 const styles = StyleSheet.create({
+  /*
+    ================= YENİ DÜZENİN STİLLERİ =================
+    Özet çubuğu · katlanır panel · vitrin kartları.
+    Eski stiller aşağıda olduğu gibi duruyor; hiçbiri silinmedi çünkü
+    panel açıldığında aynı kontroller aynı görünümle kullanılıyor.
+  */
+
+  /**
+   * Özet çubuğu — tutar ve tarih tek satırda.
+   *
+   * ⚠️ KART GİBİ DEĞİL, ÇUBUK GİBİ duruyor: kenarlığı var, dolgusu az.
+   * Kart yapsaydık ekrandaki üçüncü büyük kutu olurdu ve "kontrol" değil
+   * "içerik" gibi okunurdu. Burası bir kontrol; göze çarpmalı ama
+   * cevabın önüne geçmemeli.
+   */
+  summaryBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: spacing.screen,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  summaryTexts: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  // Tutar VURGULU, tarih sakin: ikisi eşit ağırlıkta olsaydı göz nereye
+  // bakacağını bilemezdi. Değiştirilen asıl şey tutar.
+  summaryAmount: { fontFamily: fonts.monoBold, fontSize: 16, color: colors.ink },
+  summarySep: { fontFamily: fonts.regular, fontSize: 14, color: colors.inkDisabled },
+  summaryDate: { fontFamily: fonts.regular, fontSize: 14, color: colors.inkMuted },
+  summaryCaret: { fontSize: 15, color: colors.inkFaint, paddingLeft: 8 },
+
+  /**
+   * Katlanır kontrol paneli.
+   *
+   * Kendi zemini var ki açıldığında "bu bir katman" hissi versin —
+   * zeminsiz olsaydı liste ile panel birbirine karışırdı.
+   */
+  panel: {
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 12,
+    gap: 10,
+    marginBottom: 6,
+  },
+
+  /**
+   * Vitrin — en çok kazandıran üç varlık, yan yana.
+   *
+   * ⚠️ ÜÇ SÜTUN, LİSTE DEĞİL. Alt alta koysaydık listenin ilk üç satırının
+   * tekrarı gibi görünürdü. Yan yana durduklarında "bunlar seçilmiş"
+   * mesajı veriyor ve dikeyde yalnızca bir satır yer kaplıyorlar.
+   */
+  hero: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  heroCard: {
+    flex: 1,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    gap: 8,
+    alignItems: 'center',
+  },
+  heroCardOn: { borderColor: colors.accent },
+  heroTop: { alignItems: 'center', gap: 6 },
+  heroName: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    color: colors.inkMuted,
+    textAlign: 'center',
+  },
+  heroMultiple: { fontFamily: fonts.monoBold, fontSize: 20 },
+  // Birinci sıra biraz daha büyük — sıralamayı renk yerine BOYUTLA
+  // anlatıyoruz, çünkü renk zaten enflasyon eşiğini anlatmakla meşgul.
+  heroMultipleFirst: { fontSize: 24 },
+  heroAmount: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
+    textAlign: 'center',
+  },
+
+  /* ================= ESKİ STİLLER ================= */
   screen: { flex: 1, backgroundColor: colors.surface },
   header: {
     flexDirection: 'row',
@@ -496,21 +727,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
 
-  question: {
-    fontFamily: fonts.semibold,
-    fontSize: 21,
-    lineHeight: 31,
-    color: colors.inkFaint,
-    marginTop: 9,
-    letterSpacing: -0.2,
-  },
-  underlined: {
-    fontFamily: fonts.bold,
-    color: colors.ink,
-    textDecorationLine: 'underline',
-  },
 
-  block: { marginTop: 20, gap: 10 },
 
   eventGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   eventChip: {
@@ -530,21 +747,8 @@ const styles = StyleSheet.create({
   eventChipOn: { backgroundColor: colors.inverse, borderColor: colors.inverse },
   eventLabel: { fontFamily: fonts.semibold, fontSize: 12, color: colors.inkBright },
   eventLabelOn: { fontFamily: fonts.bold, color: colors.onInverse },
-  eventMultiple: { fontFamily: fonts.monoSemibold, fontSize: 11, color: colors.inkFaint },
-  eventMultipleOn: { fontFamily: fonts.monoBold, color: colors.onInverse },
 
 
-  amountInputCard: {
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 10,
-  },
-  inputBlockNoMargin: {
-    gap: 8,
-  },
   amountRowGrid: {
     flexDirection: 'row',
     gap: 6,
@@ -580,12 +784,6 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   chipRow: { flexDirection: 'row', gap: 6, flex: 1 },
-  sortLabel: {
-    fontFamily: fonts.bold,
-    fontSize: 10,
-    letterSpacing: 1,
-    color: colors.inkFaint,
-  },
 
   notice: { fontFamily: fonts.regular, fontSize: 12, color: colors.warn, marginTop: 12 },
   error: { fontFamily: fonts.regular, fontSize: 12, color: colors.error, marginTop: 12 },
