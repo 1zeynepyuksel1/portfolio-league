@@ -108,7 +108,6 @@ export function WhatIfScreen() {
   const [date, setDate] = useState('2020-03-12');
   const [amount, setAmount] = useState('10000');
   const [kind, setKind] = useState<string>('all');
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const amountInputRef = useRef<TextInput>(null);
 
   const [multiples, setMultiples] = useState<MultiplesResponse | null>(null);
@@ -204,23 +203,25 @@ export function WhatIfScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <SectionLabel>YA ALSAYDIN</SectionLabel>
 
-      {/* --- soru cümlesi --- */}
-      <Text style={styles.question}>
-        <Text
-          style={styles.underlined}
-          onPress={() => amountInputRef.current?.focus()}
-        >
-          {groupThousands(amount)} ₺
-        </Text>
-        <Text>'yi </Text>
-        <Text
-          style={styles.underlined}
-          onPress={() => setCalendarOpen(!calendarOpen)}
-        >
-          {humanDate(date)}
-        </Text>
-        <Text>'de{'\n'}hangi varlığa koysaydım?</Text>
-      </Text>
+      {/* --- tarih seçici (dropdown menü tarzında) --- */}
+      <View style={styles.block}>
+        <Calendar
+          value={date}
+          onChange={(iso) => {
+            setNotice(null);
+            setDate(iso);
+          }}
+          min={minDate}
+          max={today}
+          onRejected={(iso, reason) =>
+            setNotice(
+              reason === 'early'
+                ? `${symbol} için ${humanDate(iso)} tarihinde veri yok — en eskisi ${minDate === undefined ? '?' : humanDate(minDate)}.`
+                : 'Gelecekteki bir tarih seçilemez.',
+            )
+          }
+        />
+      </View>
 
       {/* --- bakiye manuel giriş alanı --- */}
       <View style={styles.inputBlock}>
@@ -288,7 +289,6 @@ export function WhatIfScreen() {
                   }
                   setNotice(null);
                   setDate(event.date);
-                  setCalendarOpen(false); // Özel güne tıklandığında takvimi kapatalım ki ekran sadeleşsin
                 }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
@@ -312,29 +312,6 @@ export function WhatIfScreen() {
           })}
         </View>
       </View>
-
-      {/* --- takvim (tıklayınca açılır/kapanır) --- */}
-      {calendarOpen && (
-        <View style={styles.block}>
-          <Calendar
-            value={date}
-            onChange={(iso) => {
-              setNotice(null);
-              setDate(iso);
-              setCalendarOpen(false); // Tarih seçilince kapat
-            }}
-            min={minDate}
-            max={today}
-            onRejected={(iso, reason) =>
-              setNotice(
-                reason === 'early'
-                  ? `${symbol} için ${humanDate(iso)} tarihinde veri yok — en eskisi ${minDate === undefined ? '?' : humanDate(minDate)}.`
-                  : 'Gelecekteki bir tarih seçilemez.',
-              )
-            }
-          />
-        </View>
-      )}
 
       {/* --- tür filtresi + sıralama başlığı --- */}
       <View style={styles.filterRow}>
