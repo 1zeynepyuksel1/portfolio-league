@@ -4,11 +4,87 @@ import { AMOUNT_SCALE, PRICE_SCALE, formatScaled } from '../lib/money.js';
 import { PortfolioNotFoundError, getPortfolio } from './service.js';
 import { calculateTwrForUser } from '../leagues/twr-engine.js';
 import { centsTryToUsd, parseCurrency, tryToUsd } from '../lib/fx.js';
-import { latestUsdTryRate } from '../market/repository.js';
+import { latestUsdTryRate, findAssetIdBySymbol } from '../market/repository.js';
 import { toPrice } from '../lib/money.js';
 import type { Penny, Price } from '../lib/money.js';
+import { isRange, startOf } from '../market/ranges.js';
+import { getPortfolioHistory } from './repository.js';
 
 export const portfolioRouter = Router();
+
+/**
+ * GET /portfolio/history — portföy değer geçmişi eğrisi.
+ */
+portfolioRouter.get('/history', requireAccessToken, async (request, response) => {
+  const userId = response.locals.userId as string;
+  const range = request.query.range as string || '1w';
+  const currency = parseCurrency(request.query.currency);
+
+  if (!isRange(range)) {
+    return response.status(400).json({
+      error: { code: 'INVALID_RANGE', message: 'Geçersiz aralık.' },
+    });
+  }
+
+  if (currency === null) {
+    return response.status(400).json({
+      error: { code: 'INVALID_CURRENCY', message: 'Geçersiz para birimi.' },
+    });
+  }
+
+  try {
+    const usd = currency === 'usd' ? await findAssetIdBySymbol('USD') : null;
+    if (currency === 'usd' && usd === null) {
+      return response.status(503).json({
+        error: {
+          code: 'FX_UNAVAILABLE',
+          message: 'Dolar kuru bulunamadı, TL görünümünü kullanın.',
+        },
+      });
+    }
+
+    const since = startOf(range as any, new Date());
+    const history = await getPortfolioHistory(userId, since, usd?.id ?? null);
+
+    const currentPortfolio = await getPortfolio(userId);
+    const fxRate = currency === 'usd' ? await latestUsdTryRate() : null;
+
+    const mapped = history.flatMap((p) => {
+      if (currency === 'try') {
+        return [{ ts: p.ts.toISOString(), value: p.totalValueCents.toString() }];
+      }
+
+      if (p.usdRate === null) return [];
+
+      const usdPrice = centsTryToUsd(p.totalValueCents as Penny, toPrice(p.usdRate));
+      return [{ ts: p.ts.toISOString(), value: usdPrice.toString() }];
+    });
+
+    if (currency === 'try') {
+      mapped.push({
+        ts: new Date().toISOString(),
+        value: currentPortfolio.totalValueCents.toString(),
+      });
+    } else if (fxRate !== null) {
+      const currentUsdPrice = centsTryToUsd(currentPortfolio.totalValueCents as Penny, toPrice(fxRate.rate));
+      mapped.push({
+        ts: new Date().toISOString(),
+        value: currentUsdPrice.toString(),
+      });
+    }
+
+    return response.json({
+      range,
+      currency,
+      points: mapped,
+    });
+  } catch (error) {
+    console.error('[GET /portfolio/history] başarısız:', error);
+    return response.status(500).json({
+      error: { code: 'INTERNAL_ERROR', message: 'Geçmiş bilgisi okunamadı.' },
+    });
+  }
+});
 
 /**
  * GET /portfolio — kullanıcının nakit, pozisyon ve toplam değeri.

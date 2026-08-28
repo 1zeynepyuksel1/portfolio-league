@@ -142,6 +142,7 @@ export async function getRecentOrders(
     side: 'buy' | 'sell';
     quantity: string;
     priceTry: string;
+    feeCents: bigint;
     netCents: bigint;
     executedAt: Date;
   }>
@@ -154,6 +155,7 @@ export async function getRecentOrders(
       side: orders.side,
       quantity: orders.quantity,
       priceTry: orders.priceTry,
+      feeCents: orders.feeCents,
       netCents: orders.netCents,
       executedAt: orders.executedAt,
     })
@@ -165,4 +167,50 @@ export async function getRecentOrders(
     // sorguda değişir — liste kullanıcının gözünde titrer.
     .orderBy(desc(orders.executedAt), desc(orders.id))
     .limit(limit);
+}
+
+export async function getPortfolioHistory(
+  userId: string,
+  since: Date | null,
+  usdAssetId: string | null = null,
+): Promise<
+  Array<{
+    ts: Date;
+    totalValueCents: bigint;
+    usdRate: string | null;
+  }>
+> {
+  const lowerBound =
+    since === null
+      ? sql`TRUE`
+      : sql`ts >= ${since.toISOString()}::timestamp`;
+
+  const rateJoin =
+    usdAssetId === null
+      ? sql`NULL::text AS usd_rate`
+      : sql`(
+          SELECT u.price_try FROM price_history u
+          WHERE u.asset_id = ${usdAssetId} AND u.ts <= s.ts
+          ORDER BY u.ts DESC LIMIT 1
+        ) AS usd_rate`;
+
+  const result = await db.execute<{
+    ts: string | Date;
+    total_value_cents: string;
+    usd_rate: string | null;
+  }>(sql`
+    SELECT s.ts, s.total_value_cents, ${rateJoin}
+    FROM (
+      SELECT ts, total_value_cents
+      FROM portfolio_snapshots
+      WHERE user_id = ${userId} AND ${lowerBound}
+    ) s
+    ORDER BY s.ts ASC
+  `);
+
+  return result.map((row) => ({
+    ts: new Date(row.ts),
+    totalValueCents: BigInt(row.total_value_cents),
+    usdRate: row.usd_rate,
+  }));
 }

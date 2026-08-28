@@ -86,6 +86,36 @@ export function FriendsScreen({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Arama Önerileri
+  const [searchResults, setSearchResults] = useState<{ id: string; username: string; displayName: string }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const handleSearchTextChange = async (text: string) => {
+    setEmailInput(text);
+    const clean = text.trim();
+    if (!clean) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const data = await apiFetch<{ users: { id: string; username: string; displayName: string }[] }>(
+        `/users/search?q=${encodeURIComponent(clean)}`
+      );
+      setSearchResults(data.users || []);
+    } catch (err) {
+      console.error('Arama hatası:', err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSelectSuggestion = (username: string) => {
+    setEmailInput(username);
+    setSearchResults([]);
+  };
+
   // Verileri Yükle
   async function loadFriendsData() {
     setErrorMsg(null);
@@ -208,7 +238,7 @@ export function FriendsScreen({
             placeholder="@kullaniciadi ya da e-posta"
             placeholderTextColor={colors.inkFaint}
             value={emailInput}
-            onChangeText={setEmailInput}
+            onChangeText={handleSearchTextChange}
             keyboardType="default"
             autoCapitalize="none"
           />
@@ -225,6 +255,32 @@ export function FriendsScreen({
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Arama Önerileri Listesi */}
+        {searchResults.length > 0 && (
+          <View style={styles.suggestionsContainer}>
+            {searchResults.map((user) => {
+              const name = user.displayName;
+              const initials = name.slice(0, 2).toUpperCase();
+              return (
+                <TouchableOpacity
+                  key={user.id}
+                  style={styles.suggestionItem}
+                  onPress={() => handleSelectSuggestion(user.username)}
+                >
+                  <View style={styles.suggestionAvatar}>
+                    <Text style={styles.suggestionAvatarText}>{initials}</Text>
+                  </View>
+                  <View style={styles.suggestionInfo}>
+                    <Text style={styles.suggestionName}>{name}</Text>
+                    <Text style={styles.suggestionUsername}>@{user.username}</Text>
+                  </View>
+                  <Text style={styles.suggestionSelectLabel}>Seç</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {errorMsg && <Text style={styles.errorText}>⚠️ {errorMsg}</Text>}
         {successMsg && <Text style={styles.successText}>✅ {successMsg}</Text>}
@@ -453,6 +509,55 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 10,
     borderRadius: 14,
+  },
+  suggestionsContainer: {
+    backgroundColor: colors.surfaceSunken,
+    borderRadius: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 10,
+  },
+  suggestionAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionAvatarText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: colors.inkBright,
+  },
+  suggestionInfo: {
+    flex: 1,
+  },
+  suggestionName: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.inkBright,
+  },
+  suggestionUsername: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkMuted,
+    marginTop: 1,
+  },
+  suggestionSelectLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    color: colors.gain,
+    paddingHorizontal: 8,
   },
   sectionTitle: {
     color: colors.ink,

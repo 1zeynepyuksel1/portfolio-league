@@ -22,7 +22,6 @@ import { WhatIfScreen } from './src/screens/WhatIfScreen';
 import {
   apiFetch,
   clearSession,
-  restoreSession,
   setSessionExpiredHandler,
 } from './src/api/client';
 import { PortfolioScreen } from './src/screens/PortfolioScreen';
@@ -109,7 +108,7 @@ function AppShell() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Kimlik akışında hangi ekrandayız
-  const [authView, setAuthView] = useState<AuthView>('welcome');
+  const [authView, setAuthView] = useState<AuthView>('login');
 
   // Aktif Sekme (Cüzdanım, Haftalık Lig, Arkadaşlar, Ya Alsaydın)
   const [activeTab, setActiveTab] = useState<Tab>(START_TAB);
@@ -232,13 +231,9 @@ function AppShell() {
     DMMono_500Medium,
   });
 
-  // Açılışta diskteki token'la oturumu geri yükle.
-  // Gerekçe: token sadece bellekte tutulursa sayfa yenilenince kaybolur.
-  // Faz 1 bitiş kriteri: "uygulamayı kapat aç -> duruyor".
+  // Otomatik oturum geri yükleme devre dışı bırakıldı. Her açılışta giriş sayfasına yönlendirilir.
   useEffect(() => {
-    void restoreSession()
-      .then((user) => setCurrentUser(user))
-      .finally(() => setRestoring(false));
+    setRestoring(false);
   }, []);
 
   /**
