@@ -77,4 +77,12 @@ describe('Time-Weighted Return (TWR) Hesabı', () => {
     expect(calculateTwr([])).toBe(0);
     expect(formatTwrPercent(0)).toBe('%0,00');
   });
+
+  it('Çok küçük değerlerin sıfıra yuvarlanmasında eksi/artı işareti koymamalı (Nötr Sıfır)', () => {
+    expect(formatTwrPercent(-0.00003)).toBe('%0,00');
+    expect(formatTwrPercent(0.00003)).toBe('%0,00');
+    expect(formatTwrPercent(-0.000049)).toBe('%0,00');
+    expect(formatTwrPercent(-0.000051)).toBe('-%0,01');
+    expect(formatTwrPercent(0.000051)).toBe('+%0,01');
+  });
 });

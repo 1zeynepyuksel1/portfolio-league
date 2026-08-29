@@ -23,6 +23,8 @@ export type ProfileUser = {
   firstName: string;
   lastName: string;
   isPublic: boolean;
+  avatarSeed: string | null;
+  avatarStyle: string | null;
 };
 
 /** Kullanıcı adından profil sahibi. Bulunamazsa `null`. */
@@ -36,6 +38,8 @@ export async function findProfileByUsername(
       firstName: users.firstName,
       lastName: users.lastName,
       isPublic: users.isPublic,
+      avatarSeed: users.avatarSeed,
+      avatarStyle: users.avatarStyle,
     })
     .from(users)
     // ⚠️ Kullanıcı adı benzersiz ve NOT NULL (0008 migration'ı) — o yüzden

@@ -491,8 +491,8 @@ export function FriendsScreen({
 const styles = StyleSheet.create({
   backRow: {
     paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 10,
+    paddingTop: 26,
+    paddingBottom: 16,
   },
   backText: {
     color: colors.gain,

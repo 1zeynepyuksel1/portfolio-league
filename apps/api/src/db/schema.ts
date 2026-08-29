@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   check,
+  date,
   index,
   integer,
   numeric,
@@ -13,6 +14,7 @@ import {
   timestamp,
   unique,
   uuid,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 
 // Users Table
@@ -26,6 +28,8 @@ export const users = pgTable('users', {
   isEmailVerified: boolean('is_email_verified').default(false).notNull(),
   verificationCode: text('verification_code'),
   isPublic: boolean('is_public').default(true).notNull(),
+  avatarSeed: text('avatar_seed'),
+  avatarStyle: text('avatar_style'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -56,22 +60,6 @@ export const refreshTokens = pgTable('refresh_tokens', {
 
 /**
  * Varlık türü.
- *
- * ⚠️ `stock` = ABD HİSSESİ. `bist` ile karıştırma: ikisi de hisse ama
- * farklı borsa, farklı para birimi, farklı seans takvimi ve farklı veri
- * kaynağı. `bist` Faz 3 için ayrılmış, henüz kullanılmıyor.
- *
- * ⚠️⚠️ MIGRATION BEKLİYOR — 26 Ağu 2026.
- *
- * `stock` bu TypeScript listesine eklendi ama VERİTABANI ENUM'INDA HENÜZ
- * YOK. Migration'ların tek sahibi Zeynep (CLAUDE.md), o yüzden buradan
- * migration üretilmedi. Gereken tek satır:
- *
- *     ALTER TYPE asset_kind ADD VALUE IF NOT EXISTS 'stock';
- *
- * O çalışana kadar: kod derlenir, testler geçer, ama hisse varlıkları
- * TOHUMLANAMAZ — insert `invalid input value for enum` ile düşer.
- * Yani eksiklik sessiz değil, ilk denemede görünür.
  */
 export const assetKindEnum = pgEnum('asset_kind', [
   'crypto',
@@ -268,7 +256,132 @@ export const leagueEntries = pgTable(
 
 // Inflation Index Table (Monthly Consumer Price Index - TÜFE for real return calculations)
 export const inflationIndex = pgTable('inflation_index', {
-  month: text('month').primaryKey(), // Format: "YYYY-MM" (Örn: "2020-03")
-  tufeIndex: numeric('tufe_index', { precision: 12, scale: 4 }).notNull(), // Örn: 450.5000
+  month: text('month').primaryKey(),
+  tufeIndex: numeric('tufe_index', { precision: 12, scale: 4 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Achievements Table (List of all badges in the game)
+export const achievements = pgTable('achievements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').notNull().unique(), // e.g., 'first_place', 'top3_streak_3', 'diamond_hands'
+  title: text('title').notNull(),
+  description: text('description').notNull(),
+  iconName: text('icon_name').notNull(), // Lucide icon name, e.g., 'Award', 'Flame', 'Gem'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// User Achievements Table (Which users earned which badges)
+export const userAchievements = pgTable('user_achievements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  achievementId: uuid('achievement_id').notNull().references(() => achievements.id, { onDelete: 'cascade' }),
+  earnedAt: timestamp('earned_at').defaultNow().notNull(),
+  metadata: jsonb('metadata'),
+}, (table) => [
+  unique('user_achievement_idx').on(table.userId, table.achievementId),
+]);
+
+// Activity Type Enum
+export const activityTypeEnum = pgEnum('activity_type', ['trade', 'achievement', 'text']);
+
+// Activities Table (Social feed posts)
+export const activities = pgTable('activities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: activityTypeEnum('type').notNull(),
+  title: text('title').notNull(),
+  content: text('content'),
+  profitPct: numeric('profit_pct', { precision: 10, scale: 4 }),
+  assetSymbol: text('asset_symbol'),
+  metadata: jsonb('metadata'),
+  likesCount: integer('likes_count').default(0).notNull(),
+  commentsCount: integer('comments_count').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Reward Type Enum
+export const rewardTypeEnum = pgEnum('reward_type', [
+  'cash',
+  'bonus_multiplier',
+  'fee_discount',
+  'early_unlock',
+  'fee_free_period',
+  'avatar_frame',
+  'badge',
+  'none',
+]);
+
+// Wheel Rewards Table
+export const wheelRewards = pgTable('wheel_rewards', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  key: text('key').notNull().unique(),
+  displayName: text('display_name').notNull(),
+  description: text('description').notNull(),
+  rewardType: rewardTypeEnum('reward_type').notNull(),
+  rewardValue: jsonb('reward_value'),
+  weight: numeric('weight', { precision: 5, scale: 2 }).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+});
+
+// Wheel Spins Log Table
+export const wheelSpins = pgTable('wheel_spins', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  rewardId: uuid('reward_id').notNull().references(() => wheelRewards.id, { onDelete: 'cascade' }),
+  wonAt: timestamp('won_at').defaultNow().notNull(),
+});
+
+/** Falcı Abla içerik havuzundaki cümlelerin rolü. */
+export const fortuneCategoryEnum = pgEnum('fortune_category', [
+  'main',
+  'cautious',
+  'playful',
+  'asset_specific',
+  'closing',
+]);
+
+/**
+ * Düzenlenebilir fal cümleleri. `asset_specific` satırları bir varlığın
+ * sembolüne bağlanır; diğer kategorilerde assetKey boş olmalıdır.
+ */
+export const fortuneLines = pgTable(
+  'fortune_lines',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    category: fortuneCategoryEnum('category').notNull(),
+    text: text('text').notNull(),
+    assetKey: text('asset_key').references(() => assets.symbol, {
+      onDelete: 'cascade',
+    }),
+    isActive: boolean('is_active').default(true).notNull(),
+  },
+  (table) => [
+    check(
+      'fortune_line_asset_category_check',
+      sql`(${table.category} = 'asset_specific' AND ${table.assetKey} IS NOT NULL)
+        OR (${table.category} <> 'asset_specific' AND ${table.assetKey} IS NULL)`,
+    ),
+  ],
+);
+
+/** Kullanıcıya bir gün boyunca aynı falı döndürmek için günlük cache. */
+export const dailyFortunes = pgTable(
+  'daily_fortunes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    fortuneDate: date('fortune_date', { mode: 'string' }).notNull(),
+    assetId: uuid('asset_id')
+      .notNull()
+      .references(() => assets.id, { onDelete: 'restrict' }),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    unique('daily_fortune_user_date_idx').on(table.userId, table.fortuneDate),
+    index('daily_fortune_user_date_lookup_idx').on(table.userId, table.fortuneDate),
+  ],
+);

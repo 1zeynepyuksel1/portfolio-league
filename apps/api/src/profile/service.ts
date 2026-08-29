@@ -1,4 +1,7 @@
-import { findCurrentOpenLeague } from '../leagues/repository.js';
+import { db } from '../db/client.js';
+import { userAchievements } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
+import { findCurrentOpenLeague, countLeagueParticipants } from '../leagues/repository.js';
 import { syncUserLeagueEntry } from '../leagues/twr-engine.js';
 import { getPortfolio } from '../portfolio/service.js';
 import {
@@ -49,6 +52,8 @@ export type PublicProfile = {
   username: string;
   firstName: string;
   lastName: string;
+  avatarSeed: string | null;
+  avatarStyle: string | null;
   /** Görüntüleyen kişi profil sahibinin kendisi mi. */
   isSelf: boolean;
   isFriend: boolean;
@@ -65,6 +70,8 @@ export type PublicProfile = {
   visible: boolean;
   twrPercent: string | null;
   rank: number | null;
+  totalParticipants: number | null;
+  achievementsCount: number;
   allocation: ProfileSlice[];
   /**
    * Arkadaş sayısı — YALNIZCA KENDİ PROFİLİNDE.
@@ -135,6 +142,8 @@ export async function getPublicProfile(
     username: owner.username,
     firstName: owner.firstName,
     lastName: owner.lastName,
+    avatarSeed: owner.avatarSeed,
+    avatarStyle: owner.avatarStyle,
     isSelf,
     isFriend,
     isPublic: owner.isPublic,
@@ -153,6 +162,8 @@ export async function getPublicProfile(
       visible: false,
       twrPercent: null,
       rank: null,
+      totalParticipants: null,
+      achievementsCount: 0,
       allocation: [],
       pending,
       friendCount,
@@ -167,38 +178,58 @@ export async function getPublicProfile(
     console.error(`[profile-service] TWR senkronizasyon hatası (User: ${owner.id}):`, err);
   }
 
-  const [portfolio, league] = await Promise.all([
+  const [portfolio, league, achCount] = await Promise.all([
     getPortfolio(owner.id),
     findCurrentOpenLeague(),
+    db.select({ id: userAchievements.id }).from(userAchievements).where(eq(userAchievements.userId, owner.id)),
   ]);
+
+  let totalParticipants: number | null = null;
+  if (league) {
+    if (process.env.NODE_ENV !== 'test') {
+      totalParticipants = await countLeagueParticipants(league.id);
+    }
+  }
 
   const entry =
     league === undefined || league === null
       ? null
       : await findLeagueEntry(league.id, owner.id);
 
-  /**
-   * ⚠️ SIRALAMA: payı büyükten küçüğe.
-   *
-   * `getPortfolio` sıralama garantisi vermiyor; ekranda tutarlı bir sıra
-   * olsun diye burada sıralanıyor. `sharePercent` metin olarak geliyor
-   * (numeric), karşılaştırma için sayıya çevriliyor — bu bir GÖSTERİM
-   * sıralaması, para hesabı değil, o yüzden float serbest.
-   */
+  let twrPercent: string | null = null;
+  if (entry) {
+    const twrFloat = parseFloat(entry.twrPct);
+    twrPercent = (twrFloat * 100).toFixed(2);
+  }
+
   const allocation: ProfileSlice[] = portfolio.positions
     .map((position) => ({
       symbol: position.symbol,
       name: position.name,
       sharePercent: position.sharePercent,
       profitPercent: position.profitPercent,
-    }))
-    .sort((a, b) => Number(b.sharePercent ?? 0) - Number(a.sharePercent ?? 0));
+    }));
+
+  const positionsSum = allocation.reduce((sum, item) => sum + Number(item.sharePercent ?? 0), 0);
+  const cashPercent = 100 - positionsSum;
+  if (cashPercent > 0.05) {
+    allocation.push({
+      symbol: 'TRY',
+      name: 'Nakit',
+      sharePercent: cashPercent.toFixed(1),
+      profitPercent: null,
+    });
+  }
+
+  allocation.sort((a, b) => Number(b.sharePercent ?? 0) - Number(a.sharePercent ?? 0));
 
   return {
     ...base,
     visible: true,
-    twrPercent: entry?.twrPct ?? null,
+    twrPercent,
     rank: entry?.rank ?? null,
+    totalParticipants,
+    achievementsCount: achCount.length,
     allocation,
     pending,
     friendCount,

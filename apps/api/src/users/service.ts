@@ -2,7 +2,8 @@ import { db } from '../db/client.js';
 import { users, leagueEntries } from '../db/schema.js';
 import { and, eq } from 'drizzle-orm';
 import { findFriendshipBetweenUsers } from '../friends/repository.js';
-import { findCurrentOpenLeague } from '../leagues/repository.js';
+import { findCurrentOpenLeague, countLeagueParticipants } from '../leagues/repository.js';
+import { syncUserLeagueEntry } from '../leagues/twr-engine.js';
 
 export async function getUserProfileByUsername(requesterId: string, targetUsername: string) {
   // 1. Kullanıcıyı bul
@@ -50,8 +51,17 @@ export async function getUserProfileByUsername(requesterId: string, targetUserna
   const currentLeague = await findCurrentOpenLeague();
   let rank: number | null = null;
   let twrPercent: string | null = null;
+  let totalParticipants: number | null = null;
 
   if (currentLeague) {
+    if (process.env.NODE_ENV !== 'test') {
+      // Canlı TWR verisini senkronize et
+      await syncUserLeagueEntry(targetUser.id).catch((err) => {
+        console.error(`[users/service] TWR senkronizasyon hatası:`, err);
+      });
+      totalParticipants = await countLeagueParticipants(currentLeague.id);
+    }
+
     const [entry] = await db
       .select({
         rank: leagueEntries.rank,
@@ -81,6 +91,7 @@ export async function getUserProfileByUsername(requesterId: string, targetUserna
     createdAt: targetUser.createdAt,
     rank,
     twrPercent,
+    totalParticipants,
     isSelf,
     areFriends,
   };

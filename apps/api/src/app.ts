@@ -9,7 +9,12 @@ import { marketRouter } from './market/router.js';
 import { ordersRouter } from './orders/router.js';
 import { portfolioRouter } from './portfolio/router.js';
 import { profileRouter } from './profile/router.js';
+
 import { whatIfRouter } from './what-if/router.js';
+import { demoRouter } from './demo/router.js';
+import { achievementsRouter } from './achievements/router.js';
+import { feedRouter } from './feed/router.js';
+import { fortuneRouter } from './fortune/router.js';
 
 export const app = express();
 
@@ -45,6 +50,13 @@ app.use('/assets', marketRouter);
 app.use('/orders', ordersRouter);
 app.use('/portfolio', portfolioRouter);
 app.use('/what-if', whatIfRouter);
+app.use('/achievements', achievementsRouter);
+app.use('/feed', feedRouter);
+app.use('/fortune', fortuneRouter);
+
+if (process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE === 'true') {
+  app.use('/demo', demoRouter);
+}
 
 app.get('/health', (_request, response) => {
   response.json({ status: 'ok' });

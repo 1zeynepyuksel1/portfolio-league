@@ -10,8 +10,7 @@ import { syncAllLeagueEntriesAndRanks, createPortfolioSnapshot } from './twr-eng
 import { db } from '../db/client.js';
 import { users } from '../db/schema.js';
 import { getPortfolio } from '../portfolio/service.js';
-
-
+import { checkLeagueAchievements, checkDiamondHands } from '../achievements/cron-hooks.js';
 /**
  * Süresi dolmuş aktif lig dönemini kapatır, dereceleri mühürler ve yeni lig dönemini açar.
  */
@@ -74,6 +73,14 @@ export async function closeAndRotateLeague(): Promise<{
     } catch (err) {
       console.error(`[league-cron] Yeni lig başlangıç snapshot hatası (User: ${user.id}):`, err);
     }
+  }
+
+  // 7. Rozet (Achievement) Kontrolleri
+  try {
+    await checkLeagueAchievements(currentOpen.id, entries);
+    await checkDiamondHands();
+  } catch (err) {
+    console.error(`[league-cron] Rozet kontrol hatası:`, err);
   }
 
   return {

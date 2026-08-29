@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from '@expo-google-fonts/rubik';
 import {
@@ -12,13 +12,20 @@ import {
   DMMono_400Regular,
   DMMono_500Medium,
 } from '@expo-google-fonts/dm-mono';
+import {
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
 import { FriendsScreen } from './src/screens/FriendsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { MarketScreen } from './src/screens/MarketScreen';
 import { TradeScreen } from './src/screens/TradeScreen';
 import { AssetDetailScreen } from './src/screens/AssetDetailScreen';
-import { WhatIfScreen } from './src/screens/WhatIfScreen';
+import { DiscoveryScreen } from './src/screens/DiscoveryScreen';
+import { SlideView } from './src/components/SlideView';
 import {
   apiFetch,
   clearSession,
@@ -229,6 +236,10 @@ function AppShell() {
     Rubik_700Bold,
     DMMono_400Regular,
     DMMono_500Medium,
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
   });
 
   // Otomatik oturum geri yükleme devre dışı bırakıldı. Her açılışta giriş sayfasına yönlendirilir.
@@ -463,7 +474,7 @@ function AppShell() {
               </View>
             )
           ) : (
-            <WhatIfScreen />
+            <DiscoveryScreen />
           )}
 
           {/*
@@ -486,12 +497,12 @@ function AppShell() {
             başka sekmeye geçip yarım kalmış bir formu kaybetmesin.
           */}
           {friendsOpen && (
-            <View style={StyleSheet.absoluteFill}>
+            <SlideView direction="bottom">
               <FriendsScreen
                 onClose={() => setFriendsOpen(false)}
                 onSelectUser={(username) => setViewingProfile(username)}
               />
-            </View>
+            </SlideView>
           )}
 
           {/*
@@ -508,35 +519,35 @@ function AppShell() {
             neyse ona dönülüyor.
           */}
           {viewingProfile !== null && (
-            <View style={StyleSheet.absoluteFill}>
+            <SlideView direction="right">
               <ProfileScreen
                 username={viewingProfile}
                 onClose={() => setViewingProfile(null)}
               />
-            </View>
+            </SlideView>
           )}
 
           {detailAsset !== null && (
-            <View style={StyleSheet.absoluteFill}>
+            <SlideView direction="right">
               <AssetDetailScreen
                 symbol={detailAsset.symbol}
                 name={detailAsset.name}
                 onClose={() => setDetailAsset(null)}
                 onTrade={() => setTradeAsset(detailAsset)}
               />
-            </View>
+            </SlideView>
           )}
 
           {/* Emir katmanı EN ÜSTTE — detayın da üstünde. */}
           {tradeAsset !== null && (
-            <View style={StyleSheet.absoluteFill}>
+            <SlideView direction="bottom">
               <TradeScreen
                 symbol={tradeAsset.symbol}
                 name={tradeAsset.name}
                 onClose={() => setTradeAsset(null)}
                 onOrderPlaced={() => setPortfolioVersion((v) => v + 1)}
               />
-            </View>
+            </SlideView>
           )}
         </View>
       )}
@@ -554,6 +565,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0B132B',
+    paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
   },
   mainContainer: {
     flex: 1,

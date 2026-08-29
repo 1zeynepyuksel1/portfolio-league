@@ -138,3 +138,70 @@ profileRouter.patch('/me/visibility', async (request, response) => {
     });
   }
 });
+
+const avatarSchema = z.object({
+  avatarSeed: z.string().nullable(),
+  avatarStyle: z.string().nullable(),
+});
+
+/** PATCH /users/me/avatar — kendi avatarını güncelle. */
+profileRouter.patch('/me/avatar', async (request, response) => {
+  const userId = response.locals.userId as string;
+  const parsed = avatarSchema.safeParse(request.body);
+
+  if (!parsed.success) {
+    return response.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'Geçersiz avatar verisi.' },
+    });
+  }
+
+  try {
+    await db.update(users).set({
+      avatarSeed: parsed.data.avatarSeed,
+      avatarStyle: parsed.data.avatarStyle,
+    }).where(eq(users.id, userId));
+    
+    return response.json({ success: true });
+  } catch (error) {
+    console.error('[PATCH /users/me/avatar] başarısız:', error);
+    return response.status(500).json({
+      error: { code: 'INTERNAL_ERROR', message: 'Avatar güncellenemedi.' },
+    });
+  }
+});
+
+const updateSchema = z.object({
+  firstName: z.string().min(2, "En az 2 karakter olmalı").optional(),
+  lastName: z.string().min(2, "En az 2 karakter olmalı").optional(),
+  password: z.string().min(6, "Şifre en az 6 karakter olmalı").optional().or(z.literal(''))
+});
+import * as argon2 from "argon2";
+
+profileRouter.patch('/me', async (request, response) => {
+  const userId = response.locals.userId as string;
+  const parsed = updateSchema.safeParse(request.body);
+
+  if (!parsed.success) {
+    return response.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Geçersiz veri.' },
+    });
+  }
+
+  const updates: any = {};
+  if (parsed.data.firstName) updates.firstName = parsed.data.firstName;
+  if (parsed.data.lastName) updates.lastName = parsed.data.lastName;
+  if (parsed.data.password && parsed.data.password !== '') {
+    updates.passwordHash = await argon2.hash(parsed.data.password);
+  }
+
+  try {
+    if (Object.keys(updates).length > 0) {
+      await db.update(users).set(updates).where(eq(users.id, userId));
+    }
+    return response.json({ success: true });
+  } catch (error) {
+    return response.status(500).json({
+      error: { code: 'INTERNAL_ERROR', message: 'Profil güncellenemedi.' },
+    });
+  }
+});

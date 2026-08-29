@@ -1,111 +1,43 @@
-import type { ReactElement } from 'react';
+import React, { ReactElement } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Circle, Path, Polyline, Rect } from 'react-native-svg';
+import { Wallet, LineChart, Trophy, User, Compass } from 'lucide-react-native';
 import { colors, fonts } from '../theme';
 
-/**
- * TabBar — `docs/export/8a` ve `9a`'nın alt çubuğu.
- *
- * ⚠️ SEKME SAYISI BEŞTEN DÖRDE İNDİ ve bu tasarımın kararı.
- *
- * Eskiden Arkadaşlar ayrı bir sekmeydi. Tasarım onu Lig'in içine bir
- * alt sekme olarak koyuyor (`Genel Lig` / `Arkadaşlarım`), çünkü ikisi
- * de aynı soruyu soruyor: "başkalarına göre neredeyim". Ayrı sekme
- * olduğunda kullanıcı ikisi arasında gidip gelerek karşılaştırmak
- * zorundaydı; artık yan yanalar.
- *
- * ⚠️ İKONLAR EMOJİ DEĞİL, SVG. Emoji her platformda farklı çiziliyor
- * (iOS'ta renkli Apple seti, Android'de Noto, web'de sistem fontu) ve
- * boyutları tutmuyor. Tasarımın ince çizgili ikonlarına benzemeleri
- * imkânsız. SVG her yerde birebir aynı.
- */
+export type TabKey = 'wallet' | 'market' | 'discovery' | 'league' | 'profile';
 
-export type TabKey = 'wallet' | 'market' | 'league' | 'whatif' | 'profile';
-
-/**
- * ⚠️ BEŞİNCİ SEKME EKLENDİ — ve etiketler buna göre KISALDI.
- *
- * 'Ya alsaydın' dört sekmede rahat sığıyordu; beşincide taşıyor.
- * Etiketi kısaltmak, sekmeyi çıkarmaktan iyi: özellik duruyor,
- * yalnızca adı daralıyor. Beşten fazlası alt çubuğu okunmaz yapar.
- */
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'wallet', label: 'Cüzdan' },
   { key: 'market', label: 'Piyasa' },
+  { key: 'discovery', label: 'Keşfet' },
   { key: 'league', label: 'Lig' },
-  { key: 'whatif', label: 'Alsaydın' },
   { key: 'profile', label: 'Profil' },
 ];
 
-/** Cüzdan — kart yuvası. */
 function WalletIcon({ color }: { color: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color}
-      strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <Rect x={3} y={6} width={18} height={13} rx={2.5} />
-      <Path d="M3 10h18" />
-      <Path d="M17 14.5h.01" />
-    </Svg>
-  );
+  return <Wallet size={24} color={color} strokeWidth={2} />;
 }
 
-/** Piyasa — sütun grafiği. */
 function MarketIcon({ color }: { color: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color}
-      strokeWidth={1.7} strokeLinecap="round">
-      <Path d="M5 15v4" />
-      <Path d="M10 9v10" />
-      <Path d="M15 12v7" />
-      <Path d="M20 5v14" />
-    </Svg>
-  );
+  return <LineChart size={24} color={color} strokeWidth={2} />;
 }
 
-/** Lig — kupa. */
+function DiscoveryIcon({ color }: { color: string }) {
+  return <Compass size={24} color={color} strokeWidth={2} />;
+}
+
 function LeagueIcon({ color }: { color: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color}
-      strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M7 4h10v5a5 5 0 0 1-10 0z" />
-      <Path d="M7 6H4.5a2.5 2.5 0 0 0 2.5 4" />
-      <Path d="M17 6h2.5a2.5 2.5 0 0 1-2.5 4" />
-      <Path d="M12 14v3" />
-      <Path d="M8.5 20h7" />
-    </Svg>
-  );
+  return <Trophy size={24} color={color} strokeWidth={2} />;
 }
 
-/** Ya alsaydın — geriye saat. */
-function HistoryIcon({ color }: { color: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color}
-      strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <Path d="M3 12a9 9 0 1 0 3-6.7" />
-      <Polyline points="3,4 3,9 8,9" />
-      <Path d="M12 8v4.5l3 1.8" />
-    </Svg>
-  );
-}
-
-// ⚠️ `JSX.Element` DEĞİL, `ReactElement`. Yeni JSX dönüşümünde global
-// `JSX` ad alanı yok; React'ten içe aktarılan tip kullanılıyor.
-/** Profil — omuz ve baş. */
 function ProfileIcon({ color }: { color: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color}
-      strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      <Circle cx={12} cy={8} r={3.6} />
-      <Path d="M4.5 20c0-3.6 3.4-5.6 7.5-5.6s7.5 2 7.5 5.6" />
-    </Svg>
-  );
+  return <User size={24} color={color} strokeWidth={2} />;
 }
 
 const ICONS: Record<TabKey, (props: { color: string }) => ReactElement> = {
   wallet: WalletIcon,
   market: MarketIcon,
+  discovery: DiscoveryIcon,
   league: LeagueIcon,
-  whatif: HistoryIcon,
   profile: ProfileIcon,
 };
 
@@ -116,14 +48,6 @@ export function TabBar({
 }: {
   active: TabKey;
   onChange: (key: TabKey) => void;
-  /**
-   * Sekme üstünde gösterilecek sayılar. Verilmeyen ya da 0 olan sekmede
-   * rozet çizilmiyor.
-   *
-   * ⚠️ SEKMEYE DEĞİL, DIŞARIDAN GELİYOR. TabBar'ın kendisi veri çekseydi
-   * bir görünüm bileşeni ağ isteği yapıyor olurdu; hangi ekranda olursa
-   * olsun tazelenmesi gereken bir sayı, kabuk katmanının işi (App.tsx).
-   */
   badges?: Partial<Record<TabKey, number>> | undefined;
 }) {
   return (
@@ -131,42 +55,27 @@ export function TabBar({
       {TABS.map((tab) => {
         const on = tab.key === active;
         const Icon = ICONS[tab.key];
-        // Aktif sekme BEYAZ, pasif soluk. Renk kullanmıyoruz: yeşil/kırmızı
-        // bu uygulamada yön demek, aktif sekmeyi yeşil yapsaydık "yükseliş"
-        // gibi okunurdu.
-        const color = on ? colors.ink : colors.inkFaint;
-        const badge = badges?.[tab.key] ?? 0;
+        const color = on ? colors.accent : colors.inkFaint;
+        const badgeCount = badges?.[tab.key];
 
         return (
           <TouchableOpacity
             key={tab.key}
             style={styles.tab}
             onPress={() => onChange(tab.key)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={tab.label}
+            activeOpacity={0.7}
           >
             <View>
               <Icon color={color} />
-
-              {/*
-                ⚠️ ROZET SİMGENİN ÜSTÜNDE, ETİKETİN DEĞİL — ve konumu
-                `position: absolute`. Akışa koysaydık sekmenin genişliği
-                rozet çıkınca değişir, beş sekme birden kayardı: kullanıcı
-                tam dokunacakken düğmeler yer değiştirirdi.
-              */}
-              {badge > 0 && (
+              {!!badgeCount && badgeCount > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>
-                    {badge > 9 ? '9+' : badge}
+                    {badgeCount > 99 ? '99+' : badgeCount}
                   </Text>
                 </View>
               )}
             </View>
-
-            <Text style={[styles.label, { color }, on && styles.labelOn]}>
-              {tab.label}
-            </Text>
+            <Text style={[styles.label, on && styles.labelOn]}>{tab.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -175,46 +84,46 @@ export function TabBar({
 }
 
 const styles = StyleSheet.create({
-  /**
-   * Bildirim rozeti.
-   *
-   * ⚠️ RENK `accent`, `gain`/`loss` DEĞİL. Bu uygulamada yeşil ve kırmızı
-   * YÖN demek (kazanç/kayıp). Rozeti yeşil yapsaydık "kazandın" gibi,
-   * kırmızı yapsaydık "kaybettin" gibi okunurdu; oysa taşıdığı bilgi
-   * "bekleyen bir şey var".
-   */
-  badge: {
-    position: 'absolute',
-    top: -5,
-    right: -9,
-    minWidth: 16,
-    height: 16,
-    paddingHorizontal: 4,
-    borderRadius: 8,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Koyu çubuk üstünde rozetin kenarı simgeye yapışmasın.
-    borderWidth: 1.5,
-    borderColor: colors.surface,
-  },
-  badgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 9,
-    color: colors.onInverse,
-    lineHeight: 12,
-  },
-
   bar: {
     flexDirection: 'row',
+    backgroundColor: colors.surfaceRaised,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingTop: 10,
-    // Alt boşluk: telefonun ana ekran çizgisi çubuğun üstüne binmesin.
-    paddingBottom: 18,
+    paddingBottom: 24, // iOS safe area adjustment
+    paddingTop: 8,
   },
-  tab: { flex: 1, alignItems: 'center', gap: 5 },
-  label: { fontFamily: fonts.medium, fontSize: 10, letterSpacing: 0.1 },
-  labelOn: { fontFamily: fonts.semibold },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: {
+    fontFamily: fonts.medium,
+    fontSize: 10,
+    marginTop: 4,
+    color: colors.inkFaint,
+  },
+  labelOn: {
+    color: colors.accent,
+    fontFamily: fonts.bold,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: colors.loss,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: colors.surfaceRaised,
+  },
+  badgeText: {
+    color: colors.ink,
+    fontSize: 10,
+    fontFamily: fonts.bold,
+  },
 });

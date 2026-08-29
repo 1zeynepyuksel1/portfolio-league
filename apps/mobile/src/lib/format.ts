@@ -164,3 +164,22 @@ export function formatRelativeTime(isoDate: string | null): string {
 
   return `${Math.floor(hours / 24)} gün önce`;
 }
+
+/**
+ * Yüzdelik değerleri +/-, 0,00 vb. durumlara göre biçimlendirir.
+ * Sıfır değerinde ne + ne de - işareti konulmaz.
+ * 
+ * @param percent - Ondalıklı veya sayısal yüzde değeri (ör: 3.5 = %3,5)
+ * @param prefix - Yüzde işareti, varsayılan false (ör: true ise %3,5 değilse 3,5%)
+ */
+export function formatPercent(percent: number | string | null | undefined, prefix = false): string {
+  if (percent === null || percent === undefined) return '—';
+  const num = Number(percent);
+  if (isNaN(num)) return '—';
+  
+  const isZero = Math.abs(num) < 0.005;
+  const sign = isZero ? '' : num > 0 ? '+' : '';
+  const formatted = num.toFixed(2).replace('.', ',');
+  
+  return prefix ? `${sign}%${formatted}` : `${sign}${formatted}%`;
+}

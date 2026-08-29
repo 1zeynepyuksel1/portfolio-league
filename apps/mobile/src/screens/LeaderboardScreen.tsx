@@ -88,7 +88,11 @@ type LeaderboardEntry = {
  * seçmek zorunlu; liste satırı zaten böyle davranıyordu, aynı kaldı.
  */
 function twrColor(twrPercentRaw: number) {
-  return { color: twrPercentRaw >= 0 ? colors.gain : colors.loss };
+  const isZero = Math.abs(twrPercentRaw * 100) < 0.005;
+  if (isZero) {
+    return { color: colors.inkMuted };
+  }
+  return { color: twrPercentRaw > 0 ? colors.gain : colors.loss };
 }
 
 export function LeaderboardScreen({
@@ -380,7 +384,21 @@ export function LeaderboardScreen({
           }
           // 4., 5., 6... Sıradaki Kullanıcı Satırları
           renderItem={({ item }) => {
-            const isPositive = item.twrPercentRaw >= 0;
+            const isZero = Math.abs(item.twrPercentRaw * 100) < 0.005;
+            const isPositive = !isZero && item.twrPercentRaw > 0;
+
+            const badgeStyle = isZero
+              ? styles.twrBadgeNeutral
+              : isPositive
+                ? styles.twrBadgePositive
+                : styles.twrBadgeNegative;
+
+            const textStyle = isZero
+              ? styles.twrTextNeutral
+              : isPositive
+                ? styles.twrTextPositive
+                : styles.twrTextNegative;
+
             const openable = item.username !== undefined && onSelectUser !== undefined;
 
             return (
@@ -409,8 +427,8 @@ export function LeaderboardScreen({
                   <Text style={styles.userName}>{item.displayName}</Text>
                 </View>
 
-                <View style={[styles.twrBadge, isPositive ? styles.twrBadgePositive : styles.twrBadgeNegative]}>
-                  <Text style={[styles.twrBadgeText, isPositive ? styles.twrTextPositive : styles.twrTextNegative]}>
+                <View style={[styles.twrBadge, badgeStyle]}>
+                  <Text style={[styles.twrBadgeText, textStyle]}>
                     {item.twrPercentFormatted}
                   </Text>
                 </View>
@@ -751,6 +769,11 @@ const styles = StyleSheet.create({
   twrBadgeNegative: {
     backgroundColor: colors.lossSoft,
   },
+  twrBadgeNeutral: {
+    backgroundColor: colors.surfaceSunken,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   twrBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 14,
@@ -760,5 +783,8 @@ const styles = StyleSheet.create({
   },
   twrTextNegative: {
     color: colors.loss,
+  },
+  twrTextNeutral: {
+    color: colors.inkMuted,
   },
 });
