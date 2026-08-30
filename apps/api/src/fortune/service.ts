@@ -1,6 +1,4 @@
-import {
-  createDailyFortune,
-  findDailyFortune,
+﻿import {
   getActiveFortuneAssets,
   getActiveFortuneLines,
   type FortuneCategory,
@@ -82,15 +80,7 @@ export function composeFortune(input: {
 
 export async function getTodayFortune(userId: string): Promise<FortuneResult> {
   const fortuneDate = getFortuneDate();
-  const cached = null; // TEST: await findDailyFortune(userId, fortuneDate);
-  if (cached) {
-    return {
-      date: cached.date,
-      content: cached.content,
-      asset: cached.asset,
-      cached: true,
-    };
-  }
+  const cached = null;
 
   const [assets, lines] = await Promise.all([
     getActiveFortuneAssets(),
@@ -112,3 +102,5 @@ export async function getTodayFortune(userId: string): Promise<FortuneResult> {
     cached: false,
   };
 }
+
+

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { z } from 'zod';
 import { requireAccessToken } from '../auth/middleware.js';
 import { setProfileVisibility } from './repository.js';
@@ -39,6 +39,8 @@ profileRouter.get('/search', async (request, response) => {
         username: users.username,
         firstName: users.firstName,
         lastName: users.lastName,
+        avatarSeed: users.avatarSeed,
+        avatarStyle: users.avatarStyle,
       })
       .from(users)
       .where(
@@ -57,6 +59,8 @@ profileRouter.get('/search', async (request, response) => {
       id: u.id,
       username: u.username,
       displayName: `${u.firstName} ${u.lastName}`,
+        avatarSeed: u.avatarSeed,
+        avatarStyle: u.avatarStyle,
     }));
 
     return response.json({ users: mapped });
@@ -75,6 +79,23 @@ profileRouter.get('/search', async (request, response) => {
  * boşalıyor (`visible: false`). Farklı şekiller döndürseydik istemci iki
  * ayrı ekran çizmek zorunda kalırdı.
  */
+profileRouter.get('/me', async (request, response) => {
+  const viewerId = response.locals.userId as string;
+  try {
+    const { db } = await import('../db/client.js');
+    const { eq } = await import('drizzle-orm');
+    const { users } = await import('../db/schema.js');
+    
+    const [me] = await db.select().from(users).where(eq(users.id, viewerId));
+    if (!me) throw new Error("User not found");
+    
+    const profile = await getPublicProfile(viewerId, me.username);
+    return response.json({ profile });
+  } catch (error) {
+    return response.status(404).json({ error: { code: 'NOT_FOUND', message: 'Kullanıcı bulunamadı.' } });
+  }
+});
+
 profileRouter.get('/:username', async (request, response) => {
   const viewerId = response.locals.userId as string;
   const { username } = request.params;
@@ -205,3 +226,4 @@ profileRouter.patch('/me', async (request, response) => {
     });
   }
 });
+

@@ -35,17 +35,16 @@ export async function createPortfolioSnapshot(
 /**
  * Belirli bir kullanıcı için aktif ligdeki Zaman Ağırlıklı Getiri (TWR) oranını hesaplar.
  */
-export async function calculateTwrForUser(
+export async function calculateTwrForPeriod(
   userId: string,
-  _leagueId?: string,
+  startsAt: Date,
+  endsAt: Date,
 ): Promise<{
   twrPct: string;
   twrFloat: number;
   startValueCents: bigint;
   endValueCents: bigint;
 }> {
-  const league = await ensureCurrentLeaguePeriod();
-
   // 1. Kullanıcının şu anki portföy özetini al
   let portfolio;
   try {
@@ -73,8 +72,8 @@ export async function calculateTwrForUser(
     .where(
       and(
         eq(portfolioSnapshots.userId, userId),
-        gte(portfolioSnapshots.ts, league.startsAt),
-        lte(portfolioSnapshots.ts, league.endsAt),
+        gte(portfolioSnapshots.ts, startsAt),
+        lte(portfolioSnapshots.ts, endsAt),
       ),
     )
     .orderBy(asc(portfolioSnapshots.ts));
@@ -96,8 +95,8 @@ export async function calculateTwrForUser(
         // varsayılan olarak akış SAYILMIYOR. Doğrudan eşitlikte o türler
         // sessizce dışarıda kalırdı ve TWR yine yanlış olurdu.
         inArray(cashMovements.kind, EXTERNAL_FLOW_KINDS),
-        gte(cashMovements.createdAt, league.startsAt),
-        lte(cashMovements.createdAt, league.endsAt),
+        gte(cashMovements.createdAt, startsAt),
+        lte(cashMovements.createdAt, endsAt),
       ),
     )
     .orderBy(asc(cashMovements.createdAt));
@@ -260,4 +259,21 @@ export async function syncAllLeagueEntriesAndRanks() {
     await updateEntryRank(league.id, entry.userId, rank);
     rank++;
   }
+}
+
+
+/**
+ * Belirli bir kullanıcı için aktif ligdeki TWR oranını hesaplar. (Geriye Dönük Uyumluluk Wrapper'ı)
+ */
+export async function calculateTwrForUser(
+  userId: string,
+  _leagueId?: string,
+): Promise<{
+  twrPct: string;
+  twrFloat: number;
+  startValueCents: bigint;
+  endValueCents: bigint;
+}> {
+  const league = await ensureCurrentLeaguePeriod();
+  return calculateTwrForPeriod(userId, league.startsAt, league.endsAt);
 }

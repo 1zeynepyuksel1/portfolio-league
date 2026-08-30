@@ -474,7 +474,7 @@ function AppShell() {
               </View>
             )
           ) : (
-            <DiscoveryScreen />
+            <DiscoveryScreen onSelectUser={(username) => setViewingProfile(username)} />
           )}
 
           {/*

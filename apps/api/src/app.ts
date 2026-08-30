@@ -1,8 +1,9 @@
-import cors from 'cors';
+﻿import cors from 'cors';
 import express from 'express';
 import { authRouter } from './auth/router.js';
 import { meRouter } from './auth/me.router.js';
 import { bonusRouter } from './bonus/router.js';
+import { postsRouter } from './posts/router.js';
 import { friendsRouter } from './friends/router.js';
 import { leaguesRouter } from './leagues/router.js';
 import { marketRouter } from './market/router.js';
@@ -25,25 +26,26 @@ app.use(express.json());
 app.use('/auth', authRouter);
 app.use('/me', meRouter);
 /*
- * ⚠️ İKİ PROFİL UCU YAZILDI — AYNI ADRESE.
+ * âš ï¸ İKİ PROFİL UCU YAZILDI â€” AYNI ADRESE.
  *
  * Aynı gün paralel çalışırken ikimiz de GET /users/:username yazmışız:
- *   users/router.ts   (Zeynep) — kimlik + rank + twr
- *   profile/router.ts (Batuhan) — üstüne varlık DAĞILIMI, pozisyon kârı,
+ *   users/router.ts   (Zeynep) â€” kimlik + rank + twr
+ *   profile/router.ts (Batuhan) â€” üstüne varlık DAÄILIMI, pozisyon kÃ¢rı,
  *                                 bekleyen istek yönü, gizlilik ayarı
  *
  * Express aynı yola bağlı iki router'ı SIRAYLA deniyor: önce bağlanan
  * kazanıyor. İkisi de açık kalsaydı hangisinin cevap verdiği bağlanma
- * sırasına bağlı olurdu — sessiz ve anlaşılması zor bir hata.
+ * sırasına bağlı olurdu â€” sessiz ve anlaşılması zor bir hata.
  *
  * profile/ bağlı çünkü ProfileScreen onun alanlarına dayanıyor
  * (allocation, pending, friendCount). users/ modülü DURUYOR ve testleri
- * geçiyor — servisi doğrudan test ediliyor, router'ı değil. Zeynep
+ * geçiyor â€” servisi doğrudan test ediliyor, router'ı değil. Zeynep
  * ikisini birleştirmeye ya da silmeye karar verecek.
  */
 // app.use('/users', usersRouter);   <- profile/router.js ile çakışıyor
 app.use('/users', profileRouter);
 app.use('/bonus', bonusRouter);
+app.use('/posts', postsRouter);
 app.use('/friends', friendsRouter);
 app.use('/leagues', leaguesRouter);
 app.use('/assets', marketRouter);
@@ -61,3 +63,4 @@ if (process.env.NODE_ENV !== 'production' || process.env.DEMO_MODE === 'true') {
 app.get('/health', (_request, response) => {
   response.json({ status: 'ok' });
 });
+

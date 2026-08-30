@@ -12,6 +12,7 @@
     "@expo-google-fonts/space-grotesk": "^0.4.1",
     "cryptocurrency-icons": "^0.18.1",
     "expo": "~57.0.14",
+    "expo-dev-client": "~57.0.16",
     "expo-font": "~57.0.1",
     "expo-secure-store": "~57.0.1",
     "expo-status-bar": "~57.0.1",

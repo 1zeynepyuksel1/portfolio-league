@@ -151,7 +151,7 @@ export async function getPublicProfile(
 
   // ⚠️ Yalnızca kendi profilinde sayılıyor: başkasının arkadaş sayısı
   // ne gösteriliyor ne de gönderiliyor. Sorgu da boşuna çalışmıyor.
-  const friendCount = isSelf ? await countFriends(owner.id) : 0;
+  const friendCount = await countFriends(owner.id);
   const pending = isSelf ? null : await pendingBetween(viewerId, owner.id);
   const pendingRequests = isSelf ? await countIncomingRequests(owner.id) : 0;
 
@@ -230,7 +230,7 @@ export async function getPublicProfile(
     rank: entry?.rank ?? null,
     totalParticipants,
     achievementsCount: achCount.length,
-    allocation,
+    allocation: isSelf ? allocation : [],
     pending,
     friendCount,
     pendingRequests,

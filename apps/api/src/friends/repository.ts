@@ -10,6 +10,8 @@ export async function findUserByEmail(email: string) {
       email: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
+      avatarSeed: users.avatarSeed,
+      avatarStyle: users.avatarStyle,
       isPublic: users.isPublic,
     })
     .from(users)
@@ -40,6 +42,8 @@ export async function findUserByUsername(username: string) {
       email: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
+      avatarSeed: users.avatarSeed,
+      avatarStyle: users.avatarStyle,
       isPublic: users.isPublic,
     })
     .from(users)
@@ -143,6 +147,8 @@ export async function getAcceptedFriends(userId: string) {
       friendId: users.id,
       firstName: users.firstName,
       lastName: users.lastName,
+      avatarSeed: users.avatarSeed,
+      avatarStyle: users.avatarStyle,
       // ⚠️ E-posta yerine bunu göstereceğiz: kullanıcı adı hem kısa hem
       // ligde tanınan kimlik. E-posta kişisel bir veri ve arkadaş
       // listesinde durmasının bir faydası yok.
@@ -167,6 +173,8 @@ export async function getAcceptedFriends(userId: string) {
       friendId: users.id,
       firstName: users.firstName,
       lastName: users.lastName,
+      avatarSeed: users.avatarSeed,
+      avatarStyle: users.avatarStyle,
       // ⚠️ E-posta yerine bunu göstereceğiz: kullanıcı adı hem kısa hem
       // ligde tanınan kimlik. E-posta kişisel bir veri ve arkadaş
       // listesinde durmasının bir faydası yok.
@@ -191,6 +199,8 @@ export async function getAcceptedFriends(userId: string) {
     username: row.username,
     email: row.email,
     isPublic: row.isPublic,
+    avatarSeed: row.avatarSeed,
+    avatarStyle: row.avatarStyle,
     since: row.since,
   }));
 
@@ -201,6 +211,8 @@ export async function getAcceptedFriends(userId: string) {
     username: row.username,
     email: row.email,
     isPublic: row.isPublic,
+    avatarSeed: row.avatarSeed,
+    avatarStyle: row.avatarStyle,
     since: row.since,
   }));
 
@@ -216,6 +228,8 @@ export async function getPendingRequests(userId: string) {
       senderId: users.id,
       senderFirstName: users.firstName,
       senderLastName: users.lastName,
+      avatarSeed: users.avatarSeed,
+      avatarStyle: users.avatarStyle,
       senderEmail: users.email,
       createdAt: friendships.createdAt,
     })
@@ -236,6 +250,8 @@ export async function getPendingRequests(userId: string) {
       recipientId: users.id,
       recipientFirstName: users.firstName,
       recipientLastName: users.lastName,
+      avatarSeed: users.avatarSeed,
+      avatarStyle: users.avatarStyle,
       recipientEmail: users.email,
       createdAt: friendships.createdAt,
     })
@@ -254,6 +270,8 @@ export async function getPendingRequests(userId: string) {
     senderId: row.senderId,
     senderDisplayName: `${row.senderFirstName} ${row.senderLastName}`,
     senderEmail: row.senderEmail,
+    avatarSeed: row.avatarSeed,
+    avatarStyle: row.avatarStyle,
     createdAt: row.createdAt,
   }));
 
@@ -262,6 +280,8 @@ export async function getPendingRequests(userId: string) {
     recipientId: row.recipientId,
     recipientDisplayName: `${row.recipientFirstName} ${row.recipientLastName}`,
     recipientEmail: row.recipientEmail,
+    avatarSeed: row.avatarSeed,
+    avatarStyle: row.avatarStyle,
     createdAt: row.createdAt,
   }));
 

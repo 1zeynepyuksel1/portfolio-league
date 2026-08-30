@@ -1,20 +1,28 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ScrollView, Image, SafeAreaView, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { colors, fonts } from '../theme';
-import { Heart, MessageSquare, TrendingUp, TrendingDown, Gift } from 'lucide-react-native';
+import { apiFetch } from '../api/client';
+import { PostCard } from '../components/PostCard';
+import { ActivityIndicator, FlatList, RefreshControl } from 'react-native';
+
+import { Heart, MessageSquare, TrendingUp, TrendingDown, Gift, Plus } from 'lucide-react-native';
+import { GlobalShareMenu } from '../components/GlobalShareMenu';
 import { WhatIfScreen } from './WhatIfScreen';
 import { WheelTab } from '../components/WheelTab';
 import { AstroTab } from '../components/AstroTab';
+import { FriendsScreen } from './FriendsScreen';
 
-type DiscoveryTab = 'feed' | 'whatif' | 'wheel' | 'astro';
+type DiscoveryTab = 'feed' | 'whatif' | 'wheel' | 'astro' | 'social';
 
-export function DiscoveryScreen() {
+export function DiscoveryScreen({ onSelectUser }: { onSelectUser?: (username: string) => void }) {
+  const [shareMenuVisible, setShareMenuVisible] = useState(false);
+
   const [activeTab, setActiveTab] = useState<DiscoveryTab>('feed');
 
   return (
     <View style={styles.container}>
       <SafeAreaView>
-        <View style={styles.topTabBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topTabBar}>
           <TouchableOpacity onPress={() => setActiveTab('feed')} style={[styles.tabButton, activeTab === 'feed' && styles.tabButtonActive]}>
             <Text style={[styles.tabText, activeTab === 'feed' && styles.tabTextActive]}>Akış</Text>
           </TouchableOpacity>
@@ -27,23 +35,80 @@ export function DiscoveryScreen() {
           <TouchableOpacity onPress={() => setActiveTab('astro')} style={[styles.tabButton, activeTab === 'astro' && styles.tabButtonActive]}>
             <Text style={[styles.tabText, activeTab === 'astro' && styles.tabTextActive]}>Burç</Text>
           </TouchableOpacity>
-        </View>
+          <TouchableOpacity onPress={() => setActiveTab('social')} style={[styles.tabButton, activeTab === 'social' && styles.tabButtonActive]}>
+            <Text style={[styles.tabText, activeTab === 'social' && styles.tabTextActive]}>Sosyal</Text>
+          </TouchableOpacity>
+        </ScrollView>
         <View style={styles.tabBorderLine} />
       </SafeAreaView>
 
       <View style={styles.content}>
-        {activeTab === 'feed' && <FeedTab />}
+        {activeTab === 'feed' && <FeedTab onSelectUser={onSelectUser} />}
         {activeTab === 'whatif' && <WhatIfScreen />}
         {activeTab === 'wheel' && <WheelTab />}
         {activeTab === 'astro' && <AstroTab />}
+        {activeTab === 'social' && <FriendsScreen onSelectUser={onSelectUser} />}
       </View>
+      <TouchableOpacity style={styles.fab} onPress={() => setShareMenuVisible(true)}>
+        <Plus size={24} color="#FFF" />
+      </TouchableOpacity>
+      <GlobalShareMenu visible={shareMenuVisible} onClose={() => setShareMenuVisible(false)} onNavigateAstro={() => setActiveTab('astro')} />
     </View>
   );
 }
 
-function FeedTab() {
+function FeedTab({ onSelectUser }: { onSelectUser?: (username: string) => void }) {
+  
+  const [posts, setPosts] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  async function loadFeed(isRefresh = false) {
+    if (isRefresh) setRefreshing(true);
+    try {
+      const res = await apiFetch<{ posts: any[] }>('/posts/feed');
+      setPosts(res.posts || []);
+    } catch (err) {
+      console.warn('Failed to load feed:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  React.useEffect(() => {
+    loadFeed();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.feedContent}>
+    <FlatList
+      data={posts}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={styles.feedContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadFeed(true)} tintColor={colors.accent} />}
+      ListEmptyComponent={
+        <Text style={{ fontFamily: fonts.medium, color: colors.inkMuted, textAlign: 'center', marginTop: 40 }}>Henüz hiç paylaşım yok. İlk sen paylaş!</Text>
+      }
+      renderItem={({ item }) => (
+        <PostCard 
+          post={item} 
+          user={item.user || { username: 'Gizli Kullanıcı', avatarStyle: 'shapes', avatarSeed: 'default' }} 
+          isPreview={false}
+          onPressUser={(username) => { if (onSelectUser) onSelectUser(username); }} 
+        />
+      )}
+      ListFooterComponent={
+        <View style={{ marginTop: 24, opacity: 0.8 }}>
+          
+          
       {/* Post 1 */}
       <View style={styles.postCard}>
         <View style={styles.postHeader}>
@@ -146,7 +211,10 @@ function FeedTab() {
           </TouchableOpacity>
         </View>
       </View>
-    </ScrollView>
+    
+        </View>
+      }
+    />
   );
 }
 
@@ -164,6 +232,22 @@ function PlaceholderTab({ title, description, icon }: { title: string, descripti
 }
 
 const styles = StyleSheet.create({
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 6
+  },
   container: {
     flex: 1,
     backgroundColor: colors.surface,
