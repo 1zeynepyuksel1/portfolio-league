@@ -20,22 +20,56 @@ import { colors, fonts } from '../theme';
  * imkânsız. SVG her yerde birebir aynı.
  */
 
-export type TabKey = 'wallet' | 'market' | 'league' | 'whatif' | 'profile';
+export type TabKey =
+  | 'wallet'
+  | 'market'
+  | 'league'
+  | 'whatif'
+  | 'coach'
+  | 'profile';
 
 /**
- * ⚠️ BEŞİNCİ SEKME EKLENDİ — ve etiketler buna göre KISALDI.
+ * ⚠️ ALTINCI SEKME EKLENDİ — VE BU ÖNCEKİ NOTU ÇÜRÜTÜYOR.
  *
- * 'Ya alsaydın' dört sekmede rahat sığıyordu; beşincide taşıyor.
- * Etiketi kısaltmak, sekmeyi çıkarmaktan iyi: özellik duruyor,
- * yalnızca adı daralıyor. Beşten fazlası alt çubuğu okunmaz yapar.
+ * Burada uzun süre "beşten fazlası alt çubuğu okunmaz yapar" yazıyordu ve
+ * davranış analizi bu yüzden Profil'in içine konmuştu. Karar değişti:
+ * özellik büyüdü (yedi gösterge + yapay zekâ yorumu + sohbet) ve bir
+ * ayarlar sayfasının içinde durmayacak kadar bağımsız bir iş oldu.
+ *
+ * Bedeli gerçek: altı sekmede her birine ekranın ~%16'sı düşüyor. Onun
+ * için etiket kısa tutuldu: 'KocAI', beş harf. 'Alışkanlıklar' ya da
+ * 'Analiz' yazsaydık en uzun etiket olur ve çubuğun tamamını daraltırdı.
+ *
+ * ⚠️ 'KOÇ' DEĞİL 'KocAI' — ve inceltme işareti bilerek yok. 'Koç' Türkçe
+ * yazımı doğru olan hâli ama etiket bir MARKA adı gibi kullanılıyor;
+ * 'KocAI' iki parçayı (koç + AI) tek kelimede birleştiriyor ve
+ * 'KoçAI' yazımı okurken duraksatıyor.
+ *
+ * ⚠️ YEDİNCİ SEKME EKLENMEMELİ. Altı sınırın kendisi; bir tane daha
+ * eklenirse etiketler kırpılmaya başlar ve simgeler tek başına kalır.
  */
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'wallet', label: 'Cüzdan' },
+  { key: 'coach', label: 'KocAI' },
   { key: 'market', label: 'Piyasa' },
   { key: 'league', label: 'Lig' },
   { key: 'whatif', label: 'Alsaydın' },
+  { key: 'wallet', label: 'Cüzdan' },
   { key: 'profile', label: 'Profil' },
 ];
+
+/*
+  ⚠️ SIRA DEĞİŞTİ AMA `START_TAB` DEĞİŞMEDİ — VE İKİSİ AYRI ŞEYLER.
+
+  Bu dizi sekmelerin ÇİZİLME sırasını belirliyor; uygulamanın hangi
+  sekmeyle AÇILDIĞINI `App.tsx`'teki `START_TAB` söylüyor ve o hâlâ
+  'wallet'. Yani KocAI en solda duruyor ama uygulama yine Cüzdan'da
+  açılıyor.
+
+  Karıştırılırsa sinsi bir hata çıkar: diziyi sıralamak "ilk sekme
+  açılsın" sanılır, oysa ilişki yok. İkisinin ayrı durması bilinçli —
+  kullanıcı en çok Cüzdan'a bakıyor, ama en soldaki yer yeni özelliğin
+  görünmesi için ayrıldı.
+*/
 
 /** Cüzdan — kart yuvası. */
 function WalletIcon({ color }: { color: string }) {
@@ -101,11 +135,30 @@ function ProfileIcon({ color }: { color: string }) {
   );
 }
 
+/**
+ * Koç — konuşma balonu + içinde yükselen çizgi.
+ *
+ * ⚠️ ROBOT/KIVILCIM SİMGESİ KULLANILMADI. "Yapay zekâ" çağrışımı yapan
+ * simgeler özelliği modelin kendisi gibi gösterir; oysa sekmenin içeriği
+ * ÖLÇÜM (yedi gösterge, kesin sayılarla), model onun üstüne konuşuyor.
+ * Konuşma balonu + grafik çizgisi ikisini birlikte anlatıyor.
+ */
+function CoachIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M4 5.5h16v11H9l-4 3.5v-3.5H4z" />
+      <Polyline points="7.5,13 10.5,10 13,12 16.5,8.5" />
+    </Svg>
+  );
+}
+
 const ICONS: Record<TabKey, (props: { color: string }) => ReactElement> = {
   wallet: WalletIcon,
   market: MarketIcon,
   league: LeagueIcon,
   whatif: HistoryIcon,
+  coach: CoachIcon,
   profile: ProfileIcon,
 };
 
@@ -215,6 +268,14 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   tab: { flex: 1, alignItems: 'center', gap: 5 },
-  label: { fontFamily: fonts.medium, fontSize: 10, letterSpacing: 0.1 },
+  /*
+    ⚠️ PUNTO 10 -> 9 VE HARF ARALIĞI SIFIRA İNDİ.
+
+    Altıncı sekmeyle birlikte 'Alsaydın' (en uzun etiket) 10 puntoda
+    komşusuna değiyordu. Etiketi kısaltmak yerine puntoyu düşürdük:
+    'Alsaydın' zaten bir kez kısaltılmış bir ad, daha da kısaltmak
+    anlamını götürürdü.
+  */
+  label: { fontFamily: fonts.medium, fontSize: 9, letterSpacing: 0 },
   labelOn: { fontFamily: fonts.semibold },
 });

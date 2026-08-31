@@ -14,6 +14,7 @@ import {
 } from '@expo-google-fonts/dm-mono';
 import { FriendsScreen } from './src/screens/FriendsScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
+import { CoachScreen } from './src/screens/CoachScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { MarketScreen } from './src/screens/MarketScreen';
 import { TradeScreen } from './src/screens/TradeScreen';
@@ -445,6 +446,17 @@ function AppShell() {
               onOpenFriends={() => setFriendsOpen(true)}
               onSelectUser={(username) => setViewingProfile(username)}
             />
+          ) : activeTab === 'coach' ? (
+            /*
+              KOÇ — davranış göstergeleri + yapay zekâ yorumu + sohbet.
+
+              ⚠️ Başka ekranların aksine parametre almıyor: kimlik
+              token'dan geliyor (`GET /me/behavior`). Kullanıcı adını
+              geçirseydik başkasının alışkanlığını istemek İSTEMCİDE
+              mümkün görünürdü — sunucu reddederdi ama arayüz yanlış bir
+              şey vaat etmiş olurdu.
+            */
+            <CoachScreen />
           ) : activeTab === 'profile' ? (
             /*
               ⚠️ KENDİ PROFİLİN — kullanıcı adı `currentUser`'dan geliyor.
