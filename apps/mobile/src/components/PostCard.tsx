@@ -26,7 +26,29 @@ type Props = {
   isPreview?: boolean;
 };
 
+
+function timeAgo(dateString: string) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return 'şimdi';
+  
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) return `${diffInMinutes}d önce`;
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}s önce`;
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) return `${diffInDays}g önce`;
+  
+  return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(date);
+}
+
 export function PostCard({ post, user, isPreview, onPressUser }: Props) {
+
   const payload = post.payload || {};
   const isPnl = post.type === 'pnl_share';
   const isFortune = post.type === 'horoscope_share';
@@ -70,7 +92,7 @@ export function PostCard({ post, user, isPreview, onPressUser }: Props) {
           </View>
           <View style={{ justifyContent: 'center' }}>
             <Text style={styles.name}>{user?.firstName || 'Kullanıcı'} {user?.lastName || ''}</Text>
-            <Text style={styles.time}>{isPreview ? 'Şimdi' : '2s önce'}</Text>
+            <Text style={styles.time}>{isPreview ? 'Şimdi' : timeAgo(post.createdAt)}</Text>
           </View>\n          </TouchableOpacity>\n          <View style={styles.badge}>
           <Text style={styles.badgeText}>{badgeText}</Text>
         </View>

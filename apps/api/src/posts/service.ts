@@ -122,14 +122,35 @@ export async function getMyPosts(userId: string, limit = 20, offset = 0) {
   return db.select().from(posts).where(eq(posts.userId, userId)).orderBy(desc(posts.createdAt)).limit(limit).offset(offset);
 }
 
-export async function getFeed(limit = 20, offset = 0) {
+export async function getFeed(viewerId: string, limit = 20, offset = 0) {
+  const { friendships } = await import('../db/schema.js');
+  const { inArray, or, and } = await import('drizzle-orm');
+
+  const asRequester = await db.select({ id: friendships.addresseeId }).from(friendships).where(and(eq(friendships.requesterId, viewerId), eq(friendships.status, 'accepted')));
+  const asAddressee = await db.select({ id: friendships.requesterId }).from(friendships).where(and(eq(friendships.addresseeId, viewerId), eq(friendships.status, 'accepted')));
+  const friendIds = [...asRequester.map(r => r.id), ...asAddressee.map(r => r.id)];
+
+  let visibilityCondition;
+  if (friendIds.length > 0) {
+    visibilityCondition = or(
+      eq(posts.visibility, 'public'),
+      eq(posts.userId, viewerId),
+      and(eq(posts.visibility, 'friends_only'), inArray(posts.userId, friendIds))
+    )!;
+  } else {
+    visibilityCondition = or(
+      eq(posts.visibility, 'public'),
+      eq(posts.userId, viewerId)
+    )!;
+  }
+
   const rows = await db.select({
     post: posts,
     user: users
   })
   .from(posts)
   .leftJoin(users, eq(posts.userId, users.id))
-  .where(eq(posts.visibility, 'public'))
+  .where(visibilityCondition)
   .orderBy(desc(posts.createdAt))
   .limit(limit)
   .offset(offset);
@@ -145,7 +166,3 @@ export async function getFeed(limit = 20, offset = 0) {
     }
   }));
 }
-
-
-
-

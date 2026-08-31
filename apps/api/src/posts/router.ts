@@ -7,7 +7,7 @@ export const postsRouter = Router();
 postsRouter.get('/user/:username', requireAccessToken, async (req: Request, res: Response) => {
   try {
     const viewerId = res.locals.userId as string;
-    const { username } = req.params;
+    const username = req.params.username as string;
     const offset = parseInt(req.query.offset as string) || 0;
     
     // Check privacy
@@ -92,8 +92,9 @@ postsRouter.get('/me', requireAccessToken, async (req: Request, res: Response) =
 
 postsRouter.get('/feed', requireAccessToken, async (req: Request, res: Response) => {
   try {
+    const userId = res.locals.userId as string;
     const offset = parseInt(req.query.offset as string) || 0;
-    const feed = await getFeed(20, offset);
+    const feed = await getFeed(userId, 20, offset);
     return res.json({ posts: feed });
   } catch (err: any) {
     return res.status(400).json({ error: { message: err.message } });

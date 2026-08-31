@@ -33,7 +33,7 @@ export function DiscoveryScreen({ onSelectUser }: { onSelectUser?: (username: st
             <Text style={[styles.tabText, activeTab === 'wheel' && styles.tabTextActive]}>Çark</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setActiveTab('astro')} style={[styles.tabButton, activeTab === 'astro' && styles.tabButtonActive]}>
-            <Text style={[styles.tabText, activeTab === 'astro' && styles.tabTextActive]}>Burç</Text>
+            <Text style={[styles.tabText, activeTab === 'astro' && styles.tabTextActive]}>Fal</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setActiveTab('social')} style={[styles.tabButton, activeTab === 'social' && styles.tabButtonActive]}>
             <Text style={[styles.tabText, activeTab === 'social' && styles.tabTextActive]}>Sosyal</Text>
