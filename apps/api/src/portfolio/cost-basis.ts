@@ -47,7 +47,7 @@ export interface CostBasis {
 }
 
 /**
- * Emir defterinden kalan miktarı ve maliyetini çıkarır.
+ * Alım: miktar ve maliyet birlikte artar.
  *
  * ⚠️ YÖNTEM: HAREKETLİ ORTALAMA (moving average), FIFO DEĞİL.
  *
@@ -55,8 +55,31 @@ export interface CostBasis {
  * alımı ayrı bir parti olarak izlemeyi gerektirir. Bu bir simülasyon
  * ligi; kullanıcının görmek istediği "ortalama kaça aldım" — perakende
  * yatırım uygulamalarının tamamı bunu gösteriyor.
- *
- * ⚠️ SATIŞTA MALİYET ORANSAL AZALIYOR — VE BU KISIM KOLAY YANLIŞ YAPILIR.
+ */
+export function applyBuy(
+  position: CostBasis,
+  quantity: Amount,
+  netCents: Penny,
+): CostBasis {
+  return {
+    quantity: (position.quantity + quantity) as Amount,
+    costCents: addPenny(position.costCents, netCents),
+  };
+}
+
+/** `applySell` sonucu: yeni pozisyon + satılan kısmın maliyeti. */
+export interface SellOutcome {
+  position: CostBasis;
+  /**
+   * Satılan miktarın maliyeti.
+   *
+   * Kâr/zarar bunun üzerinden hesaplanır: `eleGeçenNet − costOfSoldCents`.
+   */
+  costOfSoldCents: Penny;
+}
+
+/**
+ * Satış: maliyet ORANSAL azalır — ve bu kısım kolay yanlış yapılır.
  *
  * Yarısını sattığında maliyetin de yarısı gitmeli. Maliyeti olduğu gibi
  * bırakıp yalnızca miktarı azaltsaydık, kalan yarım BTC tam maliyetle
@@ -66,37 +89,61 @@ export interface CostBasis {
  *
  * Bölme `divRound`'dan geçiyor: bigint bölmesi kırpar ve her satışta
  * kullanıcı aleyhine kuruş erirdi.
+ *
+ * ⚠️ SATILAN KISMIN MALİYETİ AYRI HESAPLANMIYOR, ÇIKARILIYOR.
+ *
+ * `maliyet × (satılan / eskiMiktar)` diye ikinci bir bölme yazmak doğal
+ * görünüyor ama iki bölmenin yuvarlaması ayrı ayrı olur ve toplamları
+ * eski maliyeti tutmayabilir — bir kuruş buharlaşır ya da yoktan var
+ * olur. `eski − yeni` bu tutarsızlığı yapısal olarak imkânsız kılıyor.
  */
-export function calculateCostBasis(orders: LedgerOrder[]): CostBasis {
-  let quantity = 0n as Amount;
-  let costCents = 0n as Penny;
-
-  for (const order of orders) {
-    if (order.side === 'buy') {
-      quantity = (quantity + order.quantity) as Amount;
-      costCents = addPenny(costCents, order.netCents);
-      continue;
-    }
-
-    // --- SATIŞ ---
-
-    // Tamamı satıldıysa maliyet de sıfırlanır. Ayrıca ele alınıyor çünkü
-    // aşağıdaki bölme paydası sıfır olurdu.
-    if (order.quantity >= quantity || quantity === 0n) {
-      quantity = 0n as Amount;
-      costCents = 0n as Penny;
-      continue;
-    }
-
-    const remaining = (quantity - order.quantity) as Amount;
-
-    // Ölçekler sadeleşiyor: iki taraf da Amount (1e10) ölçekli, oran
-    // birimsiz. Sonuç yine kuruş.
-    costCents = divRound(costCents * remaining, quantity) as Penny;
-    quantity = remaining;
+export function applySell(position: CostBasis, quantity: Amount): SellOutcome {
+  // Tamamı satıldıysa maliyet de sıfırlanır. Ayrıca ele alınıyor çünkü
+  // aşağıdaki bölme paydası sıfır olurdu.
+  if (quantity >= position.quantity || position.quantity === 0n) {
+    return {
+      position: { quantity: 0n as Amount, costCents: 0n as Penny },
+      costOfSoldCents: position.costCents,
+    };
   }
 
-  return { quantity, costCents };
+  const remaining = (position.quantity - quantity) as Amount;
+
+  // Ölçekler sadeleşiyor: iki taraf da Amount (1e10) ölçekli, oran
+  // birimsiz. Sonuç yine kuruş.
+  const remainingCost = divRound(
+    position.costCents * remaining,
+    position.quantity,
+  ) as Penny;
+
+  return {
+    position: { quantity: remaining, costCents: remainingCost },
+    costOfSoldCents: subPenny(position.costCents, remainingCost),
+  };
+}
+
+/**
+ * Emir defterinden kalan miktarı ve maliyetini çıkarır.
+ *
+ * Adımların kendisi `applyBuy` / `applySell`'de; burası yalnızca defteri
+ * baştan sona katlıyor.
+ *
+ * ⚠️ ADIMLARIN AYRI DURMASININ SEBEBİ: davranış göstergeleri (`behavior/`)
+ * her satışta O ANKİ maliyeti bilmek zorunda — bu fonksiyon ise sadece son
+ * durumu döndürüyor. Kuralı oraya kopyalasaydık iki yerde yaşayan bir
+ * hesap olurdu; bu projede bulunan hataların en sık türü tam olarak bu.
+ */
+export function calculateCostBasis(orders: LedgerOrder[]): CostBasis {
+  let position: CostBasis = { quantity: 0n as Amount, costCents: 0n as Penny };
+
+  for (const order of orders) {
+    position =
+      order.side === 'buy'
+        ? applyBuy(position, order.quantity, order.netCents)
+        : applySell(position, order.quantity).position;
+  }
+
+  return position;
 }
 
 export interface PositionProfit {

@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import { authRouter } from './auth/router.js';
+import { behaviorRouter } from './behavior/router.js';
 import { meRouter } from './auth/me.router.js';
 import { bonusRouter } from './bonus/router.js';
 import { friendsRouter } from './friends/router.js';
@@ -19,6 +20,19 @@ app.use(express.json());
 
 app.use('/auth', authRouter);
 app.use('/me', meRouter);
+/*
+ * ⚠️ AYNI ÖNEKE İKİNCİ ROUTER — ve bu sefer çakışma YOK.
+ *
+ * Aşağıdaki `/users` notunda anlatılan kaza tam olarak bundan çıkmıştı:
+ * iki router aynı YOLU tanımlarsa ilk bağlanan kazanır, ikincisi sessizce
+ * ölür. Burada çakışma yok çünkü `meRouter` yalnızca `/` tanımlıyor,
+ * `behaviorRouter` ise `/behavior`. Express eşleşmeyen router'ı atlayıp
+ * sıradakine geçiyor.
+ *
+ * Ayrı dosya olmasının sebebi: kimlik ile davranış analizi farklı işler.
+ * `me.router.ts` Zeynep'in şeridinde, `behavior/` benim.
+ */
+app.use('/me', behaviorRouter);
 /*
  * ⚠️ İKİ PROFİL UCU YAZILDI — AYNI ADRESE.
  *

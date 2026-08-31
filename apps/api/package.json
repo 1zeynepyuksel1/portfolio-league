@@ -12,6 +12,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@google/genai": "^2.19.0",
     "argon2": "^0.45.1",
     "cors": "^2.8.6",
     "dotenv": "^16.4.7",
