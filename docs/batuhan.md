@@ -50,6 +50,35 @@ neden koddan daha çabuk eskidiğinin örneği.
 ⚠️ **YEDİNCİ SEKME EKLENMEMELİ** — koda not düşüldü. Altı, etiketlerin
 okunabildiği sınır.
 
+### 36. KocAI maskotu — üç yerde tek yüz — 31 Ağu 2026
+
+**Yeni:** `apps/mobile/assets/kocai/kocai.png` (256px) · `kocai-tab.png` (96px)
+**Değişti:** `BehaviorChat.tsx` · `TabBar.tsx` · `CoachScreen.tsx`
+
+Maskot görseli üç yerde: alt sekme simgesi, ekran başlığı, sohbet
+balonlarındaki avatar. Aynı dosya — üç yerde farklı simge olsaydı
+kullanıcı bunların aynı şey olduğunu bağlayamazdı.
+
+**Ne sorulacak:**
+
+1. Kaynak 1254×1254 / **1,6 MB** idi. Neden olduğu gibi kullanılmadı?
+   (32 piksellik bir avatar için 1,6 MB taşımak paketi boşuna şişirir.
+   İki boyut üretildi: 256px → 98 KB, 96px → 19 KB.)
+2. Neden `require`, `import` değil? (Metro görselleri derleme anında
+   topluyor; yolun SABİT olması gerekiyor. Değişkenden yol üretilseydi
+   görsel pakete hiç girmez, çalışma anında sessizce boş kalırdı.)
+3. Sekme simgesi neden `opacity` ile aktif/pasif oluyor, `color` ile
+   değil? (Çizgi simgeler tek renkli, rengi değiştirilebiliyor. Maskot
+   bir ÇİZİM — rengi değişmiyor.)
+4. Avatar 28'den 34 piksele çıkarıldı. Neden?
+
+⚠️ **BEDELİ YAZILI: TEK RESİM SİMGE, BEŞ ÇİZGİ SİMGENİN ARASINDA.**
+Diğer sekmeler `lucide` çizgi simgeleri; maskot onların sistemine ait
+değil ve 24 pikselde detayı (gözlük, kravat, grafik) kayboluyor.
+Karşılığında marka kimliği kazanılıyor — kullanıcı sekmeyi metni
+okumadan tanıyor. İstemek makul, ama tutarsızlık da gerçek; ikisi de
+koda yazıldı.
+
 ### 35. KocAI: cüzdan erişimi, sohbet geçmişi, karşılama — 31 Ağu 2026
 
 **Yeni:** `mobile/src/lib/chat-store.ts`

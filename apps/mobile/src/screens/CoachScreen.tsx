@@ -1,6 +1,9 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BehaviorCard } from '../components/BehaviorCard';
 import { colors, fonts, spacing } from '../theme';
+
+/** Ekran başlığındaki maskot — sohbettekiyle aynı görsel, aynı dosya. */
+const MASKOT = require('../../assets/kocai/kocai.png');
 
 /**
  * CoachScreen — yatırım alışkanlıkları ve sohbet.
@@ -29,7 +32,17 @@ export function CoachScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>KocAI</Text>
+      {/*
+        BAŞLIK — maskot + ad.
+
+        ⚠️ Aynı görsel sekmede, başlıkta ve sohbet balonlarında
+        kullanılıyor. Üç yerde farklı bir simge koysaydık kullanıcı
+        bunların aynı şey olduğunu bağlayamazdı; tek yüz, tek kimlik.
+      */}
+      <View style={styles.titleRow}>
+        <Image source={MASKOT} style={styles.titleLogo} accessibilityLabel="KocAI" />
+        <Text style={styles.title}>KocAI</Text>
+      </View>
 
       {/*
         ⚠️ ALT BAŞLIK SINIRI ÖNDEN SÖYLÜYOR.
@@ -58,11 +71,17 @@ const styles = StyleSheet.create({
     // Alt çubuğun üstüne binmesin; sohbet kutusu en altta.
     paddingBottom: 40,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  titleLogo: { width: 40, height: 40, borderRadius: 20 },
   title: {
     fontFamily: fonts.bold,
     fontSize: 26,
     color: colors.ink,
-    marginBottom: 6,
   },
   subtitle: {
     fontFamily: fonts.regular,

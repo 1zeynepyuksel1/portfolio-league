@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Lightbulb, MessageSquarePlus, Trash2 } from 'lucide-react-native';
+import { MessageSquarePlus, Trash2 } from 'lucide-react-native';
 import { ApiError, apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
+
 import {
   baslikUret,
   deleteConversation,
@@ -19,6 +21,21 @@ import {
   type Conversation,
   type Turn,
 } from '../lib/chat-store';
+
+/**
+ * KocAI maskotu.
+ *
+ * ⚠️ `require` KULLANILIYOR, `import` DEĞİL — React Native'de görsel
+ * varlıkları paketleyici (Metro) derleme anında topluyor ve bunun için
+ * yolun SABİT olması gerekiyor. Değişkenden yol üretilseydi görsel
+ * pakete hiç girmez, çalışma anında sessizce boş kalırdı.
+ *
+ * ⚠️ İKİ BOYUT VAR VE İKİSİ DE GEREKLİ. Kaynak 1254x1254 / 1,6 MB idi;
+ * 32 piksellik bir avatar için o dosyayı taşımak paketi bosuna şişirir.
+ * 256'lık sürüm retina payıyla avatar ve başlık için, 96'lık sürüm alt
+ * sekme simgesi için (`TabBar.tsx`).
+ */
+const MASKOT = require('../../assets/kocai/kocai.png');
 
 /**
  * BehaviorChat — koç sohbeti.
@@ -306,9 +323,7 @@ export function BehaviorChat({ hasFindings }: { hasFindings: boolean }) {
       */}
       {turns.length === 0 && (
         <View style={styles.turn0}>
-          <View style={styles.avatar}>
-            <Lightbulb size={16} color={colors.onInverse} strokeWidth={2.2} />
-          </View>
+          <Image source={MASKOT} style={styles.avatar} accessibilityLabel="KocAI" />
 
           <View style={styles.welcome}>
             <Text style={styles.welcomeTitle}>Merhaba, ben KocAI 👋</Text>
@@ -341,9 +356,7 @@ export function BehaviorChat({ hasFindings }: { hasFindings: boolean }) {
             söylemez — zaten sağda ve ters zeminde, kimin yazdığı belli.
           */}
           {t.role === 'model' && (
-            <View style={styles.avatar}>
-              <Lightbulb size={16} color={colors.onInverse} strokeWidth={2.2} />
-            </View>
+            <Image source={MASKOT} style={styles.avatar} accessibilityLabel="KocAI" />
           )}
 
           <View
@@ -447,13 +460,19 @@ const styles = StyleSheet.create({
   listMeta: { fontFamily: fonts.regular, fontSize: 11, color: colors.inkDisabled },
   turnRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   turn0: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12 },
+  /*
+    ⚠️ MASKOT BÜYÜTÜLDÜ: 28 -> 34. Simge yerine ÇİZİM koyunca 28 piksel
+    yetmiyor — gözlük, kravat ve grafik detayları bulanıklaşıyordu.
+    Çizgi simge küçükken de okunur, resim okunmaz.
+
+    Arka plan rengi VERİLMEDİ: görselin kendi zemini zaten koyu ve
+    uygulamanın yüzeyiyle yakın. Altına bir dolgu koysaydık kenarında
+    ince bir halka görünürdü.
+  */
   avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.inverse,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     marginTop: 2,
   },
   welcome: {

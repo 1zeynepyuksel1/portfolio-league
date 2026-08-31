@@ -1,6 +1,6 @@
 import React, { ReactElement } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Wallet, LineChart, Trophy, User, Compass, Lightbulb } from 'lucide-react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Wallet, LineChart, Trophy, User, Compass } from 'lucide-react-native';
 import { colors, fonts } from '../theme';
 
 export type TabKey =
@@ -55,16 +55,39 @@ function LeagueIcon({ color }: { color: string }) {
   return <Trophy size={24} color={color} strokeWidth={2} />;
 }
 
+/** 96 piksellik sürüm — sekme simgesi 24pt, retinada 4 kat. */
+const MASKOT_TAB = require('../../assets/kocai/kocai-tab.png');
+
 /**
- * KocAI — ampul.
+ * KocAI — maskot görseli.
  *
- * ⚠️ KIVILCIM/ROBOT SİMGESİ SEÇİLMEDİ. Onlar "yapay zekâ" diyor; oysa
- * sekmenin içeriği ÖLÇÜM (yedi gösterge, kesin sayılarla) ve model onun
- * üstüne konuşuyor. Ampul "içgörü" diyor — yapılan işi anlatıyor, aracı
- * değil.
+ * ⚠️ TEK RESİM SİMGE, BEŞ ÇİZGİ SİMGENİN ARASINDA — VE BEDELİ BİLİNİYOR.
+ *
+ * Diğer sekmeler `lucide` çizgi simgeleri: tek renkli, aktif olunca
+ * beyaza dönüyor. Maskot bir ÇİZİM, yani rengi değişmiyor; aktif/pasif
+ * ayrımını renkle değil OPAKLIKLA veriyoruz.
+ *
+ * Karşılığında marka kimliği kazanılıyor — KocAI'nin bir yüzü oluyor ve
+ * kullanıcı sekmeyi metni okumadan tanıyor. Bunu istemek makul; ama
+ * simge sistemine ait olmadığı da doğru, o yüzden yazılı duruyor.
+ *
+ * ⚠️ 24 PİKSELDE DETAY KAYBOLUYOR. Gözlük, kravat ve arkadaki grafik bu
+ * boyutta ayırt edilemiyor; kalan şey beyaz bir kafa silueti. Yeterli,
+ * çünkü sekmeyi tanıtan şey siluet ve renk.
  */
 function CoachIcon({ color }: { color: string }) {
-  return <Lightbulb size={24} color={color} strokeWidth={2} />;
+  return (
+    <Image
+      source={MASKOT_TAB}
+      style={[
+        styles.coachIcon,
+        // Aktif sekme tam opak, pasif sönük. `color` burada rengi değil
+        // DURUMU taşıyor: çizgi simgeler onu doğrudan kullanıyor, resim
+        // kullanamıyor.
+        { opacity: color === colors.ink ? 1 : 0.45 },
+      ]}
+    />
+  );
 }
 
 function ProfileIcon({ color }: { color: string }) {
@@ -136,6 +159,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  coachIcon: { width: 26, height: 26 },
   label: {
     fontFamily: fonts.medium,
     fontSize: 10,
