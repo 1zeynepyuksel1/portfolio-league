@@ -147,26 +147,49 @@ export async function getRecentOrders(
     executedAt: Date;
   }>
 > {
-  return db
-    .select({
-      id: orders.id,
-      symbol: assets.symbol,
-      name: assets.name,
-      side: orders.side,
-      quantity: orders.quantity,
-      priceTry: orders.priceTry,
-      feeCents: orders.feeCents,
-      netCents: orders.netCents,
-      executedAt: orders.executedAt,
-    })
-    .from(orders)
-    .innerJoin(assets, eq(assets.id, orders.assetId))
-    .where(eq(orders.userId, userId))
-    // ⚠️ `id` ikincil sıralama ölçütü: aynı milisaniyede iki emir
-    // geçebilir ve yalnızca zamana göre sıralarsak sıraları her
-    // sorguda değişir — liste kullanıcının gözünde titrer.
-    .orderBy(desc(orders.executedAt), desc(orders.id))
-    .limit(limit);
+  const [dbOrders, dbMovements] = await Promise.all([
+    db
+      .select({
+        id: orders.id,
+        symbol: assets.symbol,
+        name: assets.name,
+        side: orders.side,
+        quantity: orders.quantity,
+        priceTry: orders.priceTry,
+        feeCents: orders.feeCents,
+        netCents: orders.netCents,
+        executedAt: orders.executedAt,
+      })
+      .from(orders)
+      .innerJoin(assets, eq(assets.id, orders.assetId))
+      .where(eq(orders.userId, userId))
+      .orderBy(desc(orders.executedAt), desc(orders.id))
+      .limit(limit),
+    db
+      .select()
+      .from(cashMovements)
+      .where(and(eq(cashMovements.userId, userId), eq(cashMovements.kind, 'daily_bonus')))
+      .orderBy(desc(cashMovements.createdAt), desc(cashMovements.id))
+      .limit(limit)
+  ]);
+
+  const combined = [
+    ...dbOrders,
+    ...dbMovements.map(m => ({
+      id: m.id,
+      symbol: 'ÇARK',
+      name: 'Şans Çarkı',
+      side: (m.amountCents >= 0n ? 'buy' : 'sell') as 'buy' | 'sell',
+      quantity: m.amountCents >= 0n ? '+1' : '-1',
+      priceTry: (Number(m.amountCents >= 0n ? m.amountCents : -m.amountCents) / 100).toString(),
+      feeCents: 0n,
+      netCents: m.amountCents >= 0n ? m.amountCents : -m.amountCents,
+      executedAt: m.createdAt,
+    }))
+  ];
+
+  combined.sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
+  return combined.slice(0, limit);
 }
 
 export async function getPortfolioHistory(

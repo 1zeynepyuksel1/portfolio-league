@@ -59,6 +59,8 @@ export async function getGlobalLeaderboard(
       // çalışmıyordu. Tek tek alan sayan eşlemelerin bilinen bedeli:
       // yeni alan eklemek İKİ yerde iş demek.
       username: entry.username,
+      avatarStyle: entry.avatarStyle,
+      avatarSeed: entry.avatarSeed,
       isPublic: entry.isPublic,
       twrPercentRaw: twrFloat,
       twrPercentFormatted: formatTwrPercent(twrFloat),
@@ -95,6 +97,8 @@ export async function getFriendsLeaderboard(
       // çalışmıyordu. Tek tek alan sayan eşlemelerin bilinen bedeli:
       // yeni alan eklemek İKİ yerde iş demek.
       username: entry.username,
+      avatarStyle: entry.avatarStyle,
+      avatarSeed: entry.avatarSeed,
       isPublic: entry.isPublic,
       twrPercentRaw: twrFloat,
       twrPercentFormatted: formatTwrPercent(twrFloat),

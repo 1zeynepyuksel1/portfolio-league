@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View, ScrollView, ActivityIndicator, Alert, Image, Dimensions } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View, ScrollView, ActivityIndicator, Alert, Image, Dimensions, Modal } from 'react-native';
 import Svg, { Path, Text as SvgText, G } from 'react-native-svg';
 import { colors, fonts } from '../theme';
 import { Share2, Play, Check } from 'lucide-react-native';
@@ -193,98 +193,54 @@ export function WheelTab() {
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.container}>
       <View style={styles.card}>
-        {result ? (
-          <View style={styles.resultView}>
+        <Modal visible={!!result} transparent animationType="fade" onRequestClose={() => {
+        const nextAt = Date.now() + (cooldownSeconds || 60) * 1_000;
+        setCanSpin(false);
+        setNextSpinAt(nextAt);
+        setRemainingSeconds(cooldownSeconds || 60);
+        setResult(null);
+        spinAnim.setValue(0);
+      }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: colors.surface, width: '100%', maxWidth: 360, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
             
-            <Text style={[styles.resultMainTitle, { color: getRarityStyle(result).text, textShadowColor: getRarityStyle(result).glow }]}>
-              {getRarityStyle(result).title}
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: result?.rewardType === 'cash' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+              {result?.rewardType === 'cash' ? (
+                <Image source={iconMoney} style={{width: 32, height: 32}} resizeMode="contain" />
+              ) : (
+                <Image source={iconSad} style={{width: 32, height: 32}} resizeMode="contain" />
+              )}
+            </View>
+
+            <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink, marginBottom: 8, textAlign: 'center' }}>
+              {result?.displayName}
             </Text>
             
-            {!isClaimed && result.rewardType !== 'none' ? (
-              <Text style={styles.resultSubtitle}>Günün şans çarkı durdu.</Text>
-            ) : null}
-            
-            {/* 1. Aşama: Ödülü Al (Ödül Varsa) */}
-            {!isClaimed && result.rewardType !== 'none' ? (
-              <>
-                <View style={[styles.resultBox, { borderColor: getRarityStyle(result).glow }]}>
-                  <Image 
-                    source={getResultIcon(result)} 
-                    style={styles.emojiIcon} 
-                    resizeMode="contain" 
-                  />
-                  <Text style={styles.resultBoxText}>{result.displayName}</Text>
-                  <Text style={styles.resultBoxSub}>{result.description}</Text>
-                </View>
+            <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted, textAlign: 'center', marginBottom: 28, paddingHorizontal: 8 }}>
+              {result?.rewardType === 'cash' 
+                ? `${result?.rewardValue?.amount} TL hesabınıza yatırıldı.`
+                : result?.description}
+            </Text>
 
-                <View style={{ width: '100%' }}>
-                  <TouchableOpacity 
-                    style={styles.claimBtn} 
-                    onPress={() => setIsClaimed(true)}
-                  >
-                    <Check size={20} color="#0f172a" strokeWidth={3} />
-                    <Text style={styles.claimBtnText}>Ödülü Al</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              /* 2. Aşama: Alındı Mesajı ve Paylaş/Kapat Butonları (Veya Boş Çıktı) */
-              <>
-                <View style={[styles.resultBox, { borderColor: getRarityStyle(result).glow }]}>
-                  {result.rewardType !== 'none' ? (
-                    // Başarılı Alım Ekranı
-                    <View style={{ alignItems: 'center' }}>
-                      <View style={styles.successIconWrapper}>
-                        <Check size={40} color="#10b981" strokeWidth={3} />
-                      </View>
-                      <Text style={styles.resultBoxText}>Harika!</Text>
-                      <Text style={[styles.resultBoxSub, { color: '#10b981', fontFamily: fonts.semibold }]}>
-                        {result.rewardType === 'cash' 
-                          ? `${result.rewardValue?.amount} TL hesabınıza yattı.`
-                          : `"${result.displayName}" başarıyla tanımlandı.`}
-                      </Text>
-                    </View>
-                  ) : (
-                    // Boş/Negatif Ekranı
-                    <View style={{ alignItems: 'center' }}>
-                      <Image 
-                        source={getResultIcon(result)} 
-                        style={styles.emojiIcon} 
-                        resizeMode="contain" 
-                      />
-                      <Text style={styles.resultBoxText}>{result.displayName}</Text>
-                      <Text style={styles.resultBoxSub}>{result.description}</Text>
-                    </View>
-                  )}
-                </View>
+            <TouchableOpacity 
+              onPress={() => {
+                const nextAt = Date.now() + (cooldownSeconds || 60) * 1_000;
+                setCanSpin(false);
+                setNextSpinAt(nextAt);
+                setRemainingSeconds(cooldownSeconds || 60);
+                setResult(null);
+                spinAnim.setValue(0);
+              }} 
+              activeOpacity={0.7}
+              style={{ width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center' }}>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: 'white', letterSpacing: 1 }}>KAPAT</Text>
+            </TouchableOpacity>
 
-                <View style={{ width: '100%' }}>
-                  <TouchableOpacity style={styles.shareBtn}>
-                    <Share2 size={18} color={colors.inkBright} />
-                    <Text style={styles.shareBtnText}>Hemen Paylaş</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.closeBtn} 
-                    onPress={() => {
-                      // Kullanıcı sonuç ekranını kapattığı anda geri sayım başlar.
-                      const nextAt = Date.now() + cooldownSeconds * 1_000;
-                      setCanSpin(false);
-                      setNextSpinAt(nextAt);
-                      setRemainingSeconds(cooldownSeconds);
-                      setResult(null);
-                      spinAnim.setValue(0);
-                    }}
-                  >
-                    <Text style={styles.closeBtnText}>Kapat</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-            
           </View>
-        ) : (
-          <View style={styles.wheelView}>
+        </View>
+      </Modal>
+
+      <View style={styles.wheelView}>
             <Text style={styles.title}>Şansını Dene</Text>
             <Text style={styles.subtitle}>
               {cooldownSeconds < 60 * 60
@@ -358,10 +314,9 @@ export function WheelTab() {
                 <Play size={20} color={colors.warn} fill={colors.warn} style={{ marginLeft: 3 }} />
               </View>
             </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    </ScrollView>
+            </View>
+        </View>
+      </ScrollView>
   );
 }
 

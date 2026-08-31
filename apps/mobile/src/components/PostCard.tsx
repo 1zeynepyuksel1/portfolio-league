@@ -221,13 +221,21 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
       )}
 
       {isFortune && (
-        <View style={[styles.modernPnlBox, { backgroundColor: 'rgba(139, 92, 246, 0.05)', borderColor: 'rgba(139, 92, 246, 0.15)' }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.modernPnlLabel, { color: colors.bronze }]}>Falcı Abla Diyor ki:</Text>
-            <Text style={{ fontFamily: fonts.medium, fontSize: 15, color: colors.ink, lineHeight: 22, marginTop: 4 }}>"{payload.fortune_content}"</Text>
+          <View style={{ backgroundColor: '#2e1065', borderRadius: 16, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: '#4c1d95' }}>
+            <View style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, borderRadius: 50, backgroundColor: '#8b5cf6', opacity: 0.2 }} />
+            <View style={{ position: 'absolute', bottom: -20, left: -20, width: 80, height: 80, borderRadius: 40, backgroundColor: '#c084fc', opacity: 0.2 }} />
+            
+            <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+                <Text style={{ fontSize: 28, textShadowColor: '#8b5cf6', textShadowRadius: 10 }}>🔮</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: '#c4b5fd', marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase' }}>Falcı Abla Diyor ki:</Text>
+                <Text style={{ fontFamily: fonts.medium, fontSize: 15, color: '#ffffff', lineHeight: 22, fontStyle: 'italic' }}>"{payload.fortune_content}"</Text>
+              </View>
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
       {isWheel && (
         <View style={[styles.modernPnlBox, { backgroundColor: 'rgba(245, 158, 11, 0.05)', borderColor: 'rgba(245, 158, 11, 0.15)' }]}>
