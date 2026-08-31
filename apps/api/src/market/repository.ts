@@ -84,7 +84,25 @@ export async function insertPrice(
  * INSERT hem belleği hem sorgu boyutu sınırlarını zorlar.
  */
 export async function insertPrices(
-  rows: Array<{ assetId: string; ts: Date; priceTry: string }>,
+  rows: Array<{
+    assetId: string;
+    ts: Date;
+    priceTry: string;
+    /**
+     * Satırın çözünürlüğü: '5m' | '1h' | '1d'.
+     *
+     * ⚠️ İSTEĞE BAĞLI — VE BOŞ BIRAKMANIN ANLAMI VAR.
+     *
+     * Kolon uzun süre yazılmadan durdu. Doldurulmayan satırlar canlı
+     * cron'un 15 saniyelik anlık kayıtları; doldurulanlar ise geçmişten
+     * mum olarak çekilmiş, daha kaba veriler (`catch-up.ts`).
+     *
+     * Ayrım `retention.ts` için şart: temizlik işi anlık satırları
+     * seyreltip mum satırlarına dokunmamalı. İkisi ayırt edilemezse ya
+     * gerçek geçmiş silinir ya da hiçbir şey temizlenemez.
+     */
+    granularity?: string;
+  }>,
 ): Promise<void> {
   if (rows.length === 0) return;
 
