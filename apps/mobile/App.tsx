@@ -463,6 +463,7 @@ function AppShell() {
             currentUser?.username ? (
               <ProfileScreen
                 username={currentUser.username}
+                currentUserId={currentUser.id}
                 onOpenFriends={() => setFriendsOpen(true)}
                 onLogout={() => void handleLogout()}
               />
@@ -474,7 +475,7 @@ function AppShell() {
               </View>
             )
           ) : (
-            <DiscoveryScreen onSelectUser={(username) => setViewingProfile(username)} />
+            <DiscoveryScreen onSelectUser={(username) => setViewingProfile(username)} currentUser={currentUser} />
           )}
 
           {/*
@@ -522,6 +523,7 @@ function AppShell() {
             <SlideView direction="right">
               <ProfileScreen
                 username={viewingProfile}
+                currentUserId={currentUser?.id}
                 onClose={() => setViewingProfile(null)}
               />
             </SlideView>

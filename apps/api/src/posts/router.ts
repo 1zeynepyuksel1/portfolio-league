@@ -104,3 +104,53 @@ postsRouter.get('/feed', requireAccessToken, async (req: Request, res: Response)
 
 
 
+
+
+postsRouter.delete('/:id', requireAccessToken, async (req: Request, res: Response) => {
+  try {
+    const userId = res.locals.userId as string;
+    const { deletePost } = await import('./service.js');
+    await deletePost(userId, req.params.id);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(400).json({ error: { message: err.message } });
+  }
+});
+
+
+
+postsRouter.patch('/:id/pin', requireAccessToken, async (req: Request, res: Response) => {
+  try {
+    const userId = res.locals.userId as string;
+    const { togglePostPin } = await import('./service.js');
+    const updated = await togglePostPin(req.params.id as string, userId);
+    return res.json({ post: updated });
+  } catch (err: any) {
+    return res.status(400).json({ error: { message: err.message } });
+  }
+});
+
+postsRouter.patch('/:id', requireAccessToken, async (req: Request, res: Response) => {
+  try {
+    const userId = res.locals.userId as string;
+    const { caption } = req.body;
+    const { updatePostCaption } = await import('./service.js');
+    const updated = await updatePostCaption(req.params.id, userId, caption);
+    return res.json({ post: updated });
+  } catch (err: any) {
+    return res.status(400).json({ error: { message: err.message } });
+  }
+});
+
+postsRouter.patch('/:id/visibility', requireAccessToken, async (req: Request, res: Response) => {
+  try {
+    const userId = res.locals.userId as string;
+    const { visibility } = req.body;
+    const { updatePostVisibility,
+  updatePostCaption } = await import('./service.js');
+    const updated = await updatePostVisibility(userId, req.params.id, visibility);
+    return res.json({ post: updated });
+  } catch (err: any) {
+    return res.status(400).json({ error: { message: err.message } });
+  }
+});
