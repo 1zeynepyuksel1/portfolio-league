@@ -1,3 +1,4 @@
+import { SharePostModal, ShareScope } from './SharePostModal';
 ﻿import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, Image, Dimensions, ScrollView, Animated, Easing } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
@@ -58,6 +59,7 @@ export function AstroTab() {
   const [fortuneNextAvailableAt, setFortuneNextAvailableAt] = useState<number | null>(null);
   const [fortuneRemainingSeconds, setFortuneRemainingSeconds] = useState(0);
   const [fortuneText, setFortuneText] = useState<string | null>(null);
+  const [shareScope, setShareScope] = useState<ShareScope | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -254,27 +256,46 @@ export function AstroTab() {
             <Text style={styles.resultText}>
               {fortuneText ?? 'Falcı Abla kristal küresine bakıyor...'}
             </Text>
-            <TouchableOpacity 
-              style={styles.btnSecondary} 
-              onPress={() => {
-                const readAt = Date.now();
-                const nextAvailableAt = readAt + FORTUNE_COOLDOWN_SECONDS * 1000;
-                setFortuneNextAvailableAt(nextAvailableAt);
-                setFortuneRemainingSeconds(FORTUNE_COOLDOWN_SECONDS);
-                void SecureStore.setItemAsync(FORTUNE_LAST_READ_KEY, String(readAt));
-                if (fortuneText) SecureStore.setItemAsync('FORTUNE_LAST_TEXT', fortuneText).catch(() => {});
-                setPhase(0);
-                setCurrentImage(img1);
-                setSubtitle('Falın tamamlandı. Yeni fal hakkın için geri sayımı takip et.');
-                resultBoxOpacity.setValue(0);
-                resultBoxTranslateY.setValue(30);
-              }}>
-              <Text style={styles.btnSecondaryText}>Teşekkürler Abla</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+                <TouchableOpacity 
+                  style={[styles.btnSecondary, { flex: 1, alignItems: 'center' }]} 
+                  onPress={() => {
+                    const readAt = Date.now();
+                    const nextAvailableAt = readAt + FORTUNE_COOLDOWN_SECONDS * 1000;
+                    setFortuneNextAvailableAt(nextAvailableAt);
+                    setFortuneRemainingSeconds(FORTUNE_COOLDOWN_SECONDS);
+                    void SecureStore.setItemAsync(FORTUNE_LAST_READ_KEY, String(readAt));
+                    if (fortuneText) SecureStore.setItemAsync('FORTUNE_LAST_TEXT', fortuneText).catch(() => {});
+                    setPhase(0);
+                    setCurrentImage(img1);
+                    setSubtitle('Falın tamamlandı. Yeni fal hakkın için geri sayımı takip et.');
+                    resultBoxOpacity.setValue(0);
+                    resultBoxTranslateY.setValue(30);
+                  }}>
+                  <Text style={styles.btnSecondaryText}>Kapat</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.btnSecondary, { flex: 1, alignItems: 'center', backgroundColor: '#8b5cf6' }]} 
+                  onPress={() => {
+                    if (fortuneText) {
+                      setShareScope({ type: 'horoscope', content: fortuneText, assetName: 'Günün Falı' });
+                    }
+                  }}>
+                  <Text style={[styles.btnSecondaryText, { color: '#fff' }]}>Paylaş</Text>
+                </TouchableOpacity>
+              </View>
           </Animated.View>
         )}
       </View>
-    </ScrollView>
+        
+        <SharePostModal 
+          visible={!!shareScope} 
+          scope={shareScope} 
+          onClose={() => setShareScope(null)} 
+          onSuccess={() => setShareScope(null)} 
+        />
+      </ScrollView>
   );
 }
 

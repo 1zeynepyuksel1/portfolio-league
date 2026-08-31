@@ -155,27 +155,86 @@ export async function getRecentOrders(
     note: string | null;
   }>
 > {
-  return db
-    .select({
-      id: orders.id,
-      symbol: assets.symbol,
-      name: assets.name,
-      side: orders.side,
-      quantity: orders.quantity,
-      priceTry: orders.priceTry,
-      feeCents: orders.feeCents,
-      netCents: orders.netCents,
-      executedAt: orders.executedAt,
-      note: orders.note,
-    })
-    .from(orders)
-    .innerJoin(assets, eq(assets.id, orders.assetId))
-    .where(eq(orders.userId, userId))
-    // ⚠️ `id` ikincil sıralama ölçütü: aynı milisaniyede iki emir
-    // geçebilir ve yalnızca zamana göre sıralarsak sıraları her
-    // sorguda değişir — liste kullanıcının gözünde titrer.
-    .orderBy(desc(orders.executedAt), desc(orders.id))
-    .limit(limit);
+  /*
+    ⚠️ İKİ KAYNAK BİRLEŞTİRİLİYOR: EMİRLER + ÇARK ÖDÜLLERİ.
+
+    "Son işlemler" listesi yalnızca alım-satımı göstermiyor; şans
+    çarkından gelen günlük bonuslar da kullanıcının gözünde bir
+    "işlem". Ayrı listeler olsaydı kullanıcı bakiyesinin neden
+    değiştiğini iki yere bakarak anlamak zorunda kalırdı.
+
+    ⚠️ İKİSİ AYRI SORGU VE PARALEL. Tek sorguda UNION yapılabilirdi ama
+    kolonlar uyuşmuyor (emirde varlık ve fiyat var, bonusta yok);
+    birleştirmeyi bellekte yapmak hem okunur hem esnek.
+
+    ⚠️ HER İKİSİ DE `limit` KADAR ÇEKİLİYOR, SONRA BİRLEŞTİRİLİP TEKRAR
+    KIRPILIYOR. Sebebi: hangisinin daha yeni olduğunu önceden
+    bilemiyoruz. Yarısını birinden yarısını ötekinden alsaydık, çok emir
+    verip hiç çark çevirmemiş bir kullanıcının listesi eksik kalırdı.
+  */
+  const [dbOrders, dbMovements] = await Promise.all([
+    db
+      .select({
+        id: orders.id,
+        symbol: assets.symbol,
+        name: assets.name,
+        side: orders.side,
+        quantity: orders.quantity,
+        priceTry: orders.priceTry,
+        feeCents: orders.feeCents,
+        netCents: orders.netCents,
+        executedAt: orders.executedAt,
+        note: orders.note,
+      })
+      .from(orders)
+      .innerJoin(assets, eq(assets.id, orders.assetId))
+      .where(eq(orders.userId, userId))
+      // ⚠️ `id` ikincil sıralama ölçütü: aynı milisaniyede iki emir
+      // geçebilir ve yalnızca zamana göre sıralarsak sıraları her
+      // sorguda değişir — liste kullanıcının gözünde titrer.
+      .orderBy(desc(orders.executedAt), desc(orders.id))
+      .limit(limit),
+    db
+      .select()
+      .from(cashMovements)
+      .where(
+        and(
+          eq(cashMovements.userId, userId),
+          eq(cashMovements.kind, 'daily_bonus'),
+        ),
+      )
+      .orderBy(desc(cashMovements.createdAt), desc(cashMovements.id))
+      .limit(limit),
+  ]);
+
+  const combined = [
+    ...dbOrders,
+    ...dbMovements.map((m) => ({
+      id: m.id,
+      symbol: 'ÇARK',
+      name: 'Şans Çarkı',
+      side: (m.amountCents >= 0n ? 'buy' : 'sell') as 'buy' | 'sell',
+      quantity: m.amountCents >= 0n ? '+1' : '-1',
+      priceTry: (
+        Number(m.amountCents >= 0n ? m.amountCents : -m.amountCents) / 100
+      ).toString(),
+      feeCents: 0n,
+      netCents: m.amountCents >= 0n ? m.amountCents : -m.amountCents,
+      executedAt: m.createdAt,
+      /*
+        ⚠️ ÇARK SATIRINDA KARAR NOTU YOK — ve olamaz.
+
+        Not, kullanıcının bir emri verirken yazdığı gerekçe. Çark
+        ödülü bir KARAR değil, bir olay: kullanıcı "neden" diye bir
+        şey yazmadı, yazamazdı da. Boş metin koysaydık ekran boş bir
+        alıntı kutusu çizerdi.
+      */
+      note: null as string | null,
+    })),
+  ];
+
+  combined.sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
+  return combined.slice(0, limit);
 }
 
 export async function getPortfolioHistory(

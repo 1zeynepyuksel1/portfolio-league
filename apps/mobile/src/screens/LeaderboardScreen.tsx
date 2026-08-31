@@ -8,6 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from 'react-native';
+import { SvgXml } from 'react-native-svg';
+import { createAvatar } from '@dicebear/core';
+import { shapes } from '@dicebear/collection';
+
+
 import { apiFetch } from '../api/client';
 import { colors, fonts, spacing } from '../theme';
 import { SectionLabel } from '../components/DesignKit';
@@ -20,6 +26,19 @@ import { AddFriend } from '../components/AddFriend';
  * Sunucu "2026 - 33. Hafta Ligi" döndürüyor; kullanıcı hafta numarasını
  * bilmiyor ama tarihi biliyor. Aynı ay içindeyse ay bir kez yazılıyor.
  */
+
+const localAvatars: Record<string, any> = {
+  meerkat: require('../../assets/avatars/meerkat.png'),
+  chicken: require('../../assets/avatars/chicken.png'),
+  bear: require('../../assets/avatars/bear.png'),
+  cat: require('../../assets/avatars/cat.png'),
+  rabbit: require('../../assets/avatars/rabbit.png'),
+  panda: require('../../assets/avatars/panda.png'),
+};
+
+const bgColors = ['facc15', 'fb923c', 'f87171', 'c084fc', '818cf8', '38bdf8', '4ade80', 'a3e635'];
+const shapeColors = ['ffffff', '000000', '1e293b', '334155'];
+
 const AY = [
   'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
@@ -93,6 +112,17 @@ function twrColor(twrPercentRaw: number) {
     return { color: colors.inkMuted };
   }
   return { color: twrPercentRaw > 0 ? colors.gain : colors.loss };
+}
+
+
+function renderAvatar(user: any) {
+  if (user?.avatarStyle === 'local' && user?.avatarSeed && localAvatars[user.avatarSeed as keyof typeof localAvatars]) {
+    return <Image source={localAvatars[user.avatarSeed as keyof typeof localAvatars]} style={{width: '100%', height: '100%', borderRadius: 100}} resizeMode="contain" />;
+  } else if (user?.avatarSeed) {
+    return <SvgXml xml={createAvatar(shapes, { seed: user.avatarSeed, backgroundColor: bgColors, shape1Color: shapeColors, shape2Color: shapeColors, shape3Color: shapeColors }).toString()} width="100%" height="100%" style={{borderRadius: 100}} />;
+  } else {
+    return <Text style={styles.avatarText}>{user?.displayName?.slice(0, 2).toUpperCase()}</Text>;
+  }
 }
 
 export function LeaderboardScreen({
@@ -308,7 +338,7 @@ export function LeaderboardScreen({
                   {top2 ? (
                     <>
                       <View style={[styles.avatarCircle, styles.silverBorder]}>
-                        <Text style={styles.avatarText}>{top2.displayName.slice(0, 2).toUpperCase()}</Text>
+                        {renderAvatar(top2)}
                         <View style={[styles.medalBadge, styles.silverBadge]}>
                           <Text style={styles.medalText}>2</Text>
                         </View>
@@ -336,7 +366,7 @@ export function LeaderboardScreen({
                   {top1 ? (
                     <>
                       <View style={[styles.avatarCircle, styles.goldBorder]}>
-                        <Text style={styles.avatarText}>{top1.displayName.slice(0, 2).toUpperCase()}</Text>
+                        {renderAvatar(top1)}
                         <View style={[styles.medalBadge, styles.goldBadge]}>
                           <Text style={styles.medalText}>👑</Text>
                         </View>
@@ -364,7 +394,7 @@ export function LeaderboardScreen({
                   {top3 ? (
                     <>
                       <View style={[styles.avatarCircle, styles.bronzeBorder]}>
-                        <Text style={styles.avatarText}>{top3.displayName.slice(0, 2).toUpperCase()}</Text>
+                        {renderAvatar(top3)}
                         <View style={[styles.medalBadge, styles.bronzeBadge]}>
                           <Text style={styles.medalText}>3</Text>
                         </View>
@@ -423,9 +453,12 @@ export function LeaderboardScreen({
                   <Text style={styles.rankText}>{item.rank}</Text>
                 </View>
 
-                <View style={styles.userInfo}>
-                  <Text style={styles.userName}>{item.displayName}</Text>
-                </View>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfacePressed, justifyContent: 'center', alignItems: 'center', marginRight: 12, overflow: 'hidden' }}>
+                    {renderAvatar(item)}
+                  </View>
+                  <View style={styles.userInfo}>
+                    <Text style={styles.userName}>{item.displayName}</Text>
+                  </View>
 
                 <View style={[styles.twrBadge, badgeStyle]}>
                   <Text style={[styles.twrBadgeText, textStyle]}>
