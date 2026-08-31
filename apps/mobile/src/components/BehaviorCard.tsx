@@ -222,18 +222,25 @@ export function BehaviorCard() {
               </Text>
             </View>
           ))}
-
-          {/*
-            SOHBET — kartların ALTINDA.
-
-            ⚠️ Sıra önemli: önce ÖLÇÜM (kartlar, kesin sayılarla), sonra
-            YORUM, en sonda sohbet. Sohbeti üste koysaydık özellik bir
-            "yapay zekâ asistanı" gibi okunurdu; oysa asıl iş ölçüm,
-            sohbet onun üstüne konuşuyor.
-          */}
-          <BehaviorChat hasFindings={data.findings.length > 0} />
         </>
       )}
+
+      {/*
+        SOHBET — HER ZAMAN ÇİZİLİYOR.
+
+        ⚠️ ÖNCE ÜÇLÜ DALIN İÇİNDEYDİ, YANİ YALNIZCA BULGU VARSA
+        GÖRÜNÜYORDU — ve bu yanlıştı.
+
+        Bulgusu olmayan kullanıcı (yeni başlayan, ki en çok yardıma
+        ihtiyacı olan kişi) hiçbir şey soramıyordu. Oysa "tek varlığa
+        yüklenmek mantıklı mı" sorusunun ölçülmüş bir bulguyla ilgisi
+        yok; bir İLKE sorusu ve her zaman cevaplanabilir.
+
+        ⚠️ Sıra hâlâ önemli: önce ÖLÇÜM (kartlar, kesin sayılarla),
+        sonra yorum, en sonda sohbet. Sohbeti üste koysaydık özellik bir
+        "yapay zekâ asistanı" gibi okunurdu; oysa asıl iş ölçüm.
+      */}
+      <BehaviorChat hasFindings={data.findings.length > 0} />
     </View>
   );
 }

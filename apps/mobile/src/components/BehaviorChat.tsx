@@ -11,7 +11,12 @@ import { ApiError, apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 
 /**
- * BehaviorChat — kendi ölçümleri hakkında sınırlı sohbet.
+ * BehaviorChat — koç sohbeti.
+ *
+ * ⚠️ ÖNCE YALNIZCA KULLANICININ ÖLÇÜLMÜŞ BULGULARI HAKKINDA KONUŞUYORDU.
+ * Açıldı: genel sohbet, yatırım kavramları ve "şu yaklaşım mantıklı mı"
+ * soruları da cevaplanıyor. Reddedilen tek şey fiyat tahmini ve belirli
+ * varlık tavsiyesi — gerekçesi `chat.ts`'te.
  *
  * ⚠️ GEÇMİŞ İSTEMCİDE TUTULUYOR — VE BUNUN BEDELİ BİLİNİYOR.
  *
@@ -42,9 +47,22 @@ const MAX_LENGTH = 500;
  * özelliğin bozuk olduğunu sanıyor. Örnekler sınırı davranışla
  * öğretiyor — kuralı okumasına gerek kalmadan.
  */
-const ORNEKLER = [
+const ORNEKLER_BULGULU = [
   'Bu bulgular ne anlama geliyor?',
   'Bu alışkanlığı nasıl bırakabilirim?',
+];
+
+/**
+ * Bulgusu olmayan kullanıcıya gösterilen örnekler.
+ *
+ * ⚠️ İKİSİ DE İLKE SORUSU, TAHMİN DEĞİL — ve bu bilinçli. Örnekler
+ * yalnızca fikir vermiyor, botun NE TÜR sorulara cevap verdiğini de
+ * öğretiyor. "BTC yükselir mi" yazsaydık kullanıcıya reddedilecek bir
+ * soruyu önermiş olurduk.
+ */
+const ORNEKLER_BOS = [
+  'Tek varlığa yüklenmek mantıklı mı?',
+  'Komisyon nasıl işliyor?',
 ];
 
 export function BehaviorChat({ hasFindings }: { hasFindings: boolean }) {
@@ -114,13 +132,18 @@ export function BehaviorChat({ hasFindings }: { hasFindings: boolean }) {
       <Text style={styles.label}>SOR</Text>
 
       {/*
-        ⚠️ SINIR AÇIKÇA YAZILI. Bot fiyat sorusunu reddedecek; bunu
-        önceden söylemek, reddedilmeyi "arıza" gibi göstermekten iyi.
+        ⚠️ ESKİ METİN BULGU YOKKEN "konuşacak bir şey yok" DİYORDU —
+        ve bu hem yanlış hem caydırıcıydı. Bulgu olmaması, sorulacak
+        soru olmaması demek değil: "tek varlığa yüklenmek mantıklı mı"
+        bir İLKE sorusu ve her zaman cevaplanabilir.
+
+        Metin sınırı önden söylüyor. Bot fiyat tahminini reddedecek;
+        bunu baştan bilmek, reddedilmeyi "arıza" olmaktan çıkarıyor.
       */}
       <Text style={styles.hint}>
         {hasFindings
-          ? 'Kendi alışkanlıkların hakkında soru sorabilirsin. Fiyat tahmini ve yatırım tavsiyesi vermiyor.'
-          : 'Ölçülmüş bir bulgun olmadığı için henüz konuşacak bir şey yok.'}
+          ? 'Alışkanlıkların, yatırım kavramları ya da aklındaki bir yaklaşım hakkında sorabilirsin. Fiyat tahmini ve varlık tavsiyesi vermiyor.'
+          : 'Yatırım kavramları ya da aklındaki bir yaklaşım hakkında sorabilirsin. Fiyat tahmini ve varlık tavsiyesi vermiyor.'}
       </Text>
 
       {turns.map((t, i) => (
@@ -139,9 +162,9 @@ export function BehaviorChat({ hasFindings }: { hasFindings: boolean }) {
       {error !== null && <Text style={styles.error}>{error}</Text>}
 
       {/* Örnekler yalnızca sohbet HENÜZ BAŞLAMADIYSA görünüyor. */}
-      {turns.length === 0 && hasFindings && (
+      {turns.length === 0 && (
         <View style={styles.chips}>
-          {ORNEKLER.map((o) => (
+          {(hasFindings ? ORNEKLER_BULGULU : ORNEKLER_BOS).map((o) => (
             <TouchableOpacity
               key={o}
               style={styles.chip}

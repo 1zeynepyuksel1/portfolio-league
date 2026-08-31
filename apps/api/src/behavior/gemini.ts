@@ -44,15 +44,28 @@ const API_KEY = process.env.GEMINI_API_KEY ?? null;
  *
  * ⚠️ SONRA KOTA HER ŞEYİ DEĞİŞTİRDİ — VE SEÇİM `2.5-flash`'A DÖNDÜ.
  *
- * Sohbet katmanını denerken ücretsiz katman kotası doldu ve hata mesajı
- * gerçek sınırları açık etti:
+ * Sohbet katmanını denerken ücretsiz katman kotası doldu:
  *
- *   gemini-3.5-flash  ->  GÜNDE 20 istek  (ve dakikada 5)
- *   gemini-2.5-flash  ->  aynı anda hâlâ çalışıyor, günlük sınırı çok yüksek
+ *   GenerateRequestsPerDayPerProjectPerModel-FreeTier  ->  GÜNDE 20
+ *   GenerateRequestsPerMinutePerProjectPerModel        ->  dakikada 5
  *
- * Günde 20 istek bir sohbet özelliği için kullanılamaz; hatta anlatıcı
- * bile 20 kullanıcıda tükenirdi. Gecikme farkı (ortanca 973 ms ile
- * 1228 ms) bunun yanında önemsiz.
+ * ⚠️ İLK YORUMUM YANLIŞTI VE DÜZELTİLDİ. Burada bir süre "gemini-2.5-flash
+ * günlük sınırı çok yüksek" yazıyordu; öyle değilmiş. `3.5` dolduğunda
+ * `2.5` hâlâ çalışıyordu, ben de sınırının yüksek olduğunu SANDIM. Ertesi
+ * denemelerde `2.5` de aynı 20/gün duvarına çarptı.
+ *
+ * Gerçek şu: **her modelin KENDİ 20/gün kovası var.** Biri dolunca öteki
+ * çalışmaya devam ediyor — çünkü kota model başına, hesap başına değil.
+ * "Öteki çalışıyor" gözlemi "sınırı yüksek" demek değilmiş.
+ *
+ * Ders: iki gözlemden birini sebep sanmak. `2.5` çalıştığı için sınırı
+ * yüksek sanmıştım; oysa yalnızca o günkü kovası boştu.
+ *
+ * ⚠️ PRATİK SONUÇ: ücretsiz katman DEMO için yeter, gerçek kullanım için
+ * yetmez. 20 istek hem anlatıcı hem sohbet tarafından paylaşılıyor.
+ * Seçenekler: (a) kotası kalan bir modele `.env`'den geçmek — tek satır,
+ * (b) Google Cloud'da faturalandırmayı açmak (bu hacimde kuruşluk),
+ * (c) sınırla yaşamak.
  *
  * ⚠️ VE `2.5`'İN ZAYIF YANI ARTIK ZARARSIZ. Onu elemiş sebep yayılımının
  * geniş olmasıydı (en kötü 3275 ms), çünkü o sırada çağrı KARTLARI

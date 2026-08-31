@@ -50,6 +50,56 @@ neden koddan daha çabuk eskidiğinin örneği.
 ⚠️ **YEDİNCİ SEKME EKLENMEMELİ** — koda not düşüldü. Altı, etiketlerin
 okunabildiği sınır.
 
+### 34. Sohbet açıldı + kota gerçeği — 31 Ağu 2026
+
+**Değişti:** `behavior/chat.ts` · `behavior/gemini.ts` · `BehaviorChat.tsx`
+· `BehaviorCard.tsx` · `.env`
+
+İlk sürüm YALNIZCA kullanıcının ölçülmüş bulguları hakkında konuşuyordu.
+Fazla katıydı: bulgusu olmayan kullanıcı hiçbir şey soramıyordu, üstelik
+"makarna tarifi" ile "tek varlığa yüklenmek mantıklı mı" aynı kefeye
+giriyordu.
+
+**Yeni çizgi tek:**
+
+```
+İLKE sorusu   "çeşitlendirmek riski azaltır"   -> cevaplanır (doğru, tahmin değil)
+TAHMİN        "BTC yükselir"                   -> reddedilir (kimse bilmiyor)
+```
+
+**Ne sorulacak:**
+
+1. İlke ile tahmin arasındaki fark nedir, ve neden ilki güvenli?
+2. Sohbet bileşeni önce üçlü dalın İÇİNDEYDİ, yani yalnızca bulgu varsa
+   çiziliyordu. Bu neden yanlıştı? (En çok yardıma ihtiyacı olan kişi
+   yeni başlayan, ve onun hiç bulgusu yok.)
+3. Örnek çipleri neden bulguya göre değişiyor, ve neden hiçbiri fiyat
+   sorusu değil? (Örnek, botun ne tür soruya cevap verdiğini davranışla
+   öğretiyor.)
+
+Doğrulandı (bulgusuz kullanıcı, dört senaryo): düz sohbet ✅ · ilke
+sorusu ✅ (üstelik bulgu uydurmadan) · fiyat tahmini reddedildi ✅ ·
+varlık tavsiyesi reddedildi ✅
+
+⚠️ **KOTA GERÇEĞİ — VE BİR ÇIKARIM HATAM.**
+
+`gemini.ts`'te bir süre şu yazdı: *"gemini-2.5-flash günlük sınırı çok
+yüksek."* Yanlıştı. `3.5` dolduğunda `2.5` hâlâ çalışıyordu, ben de
+sınırının yüksek olduğunu SANDIM. Ertesi denemede `2.5` de aynı duvara
+çarptı.
+
+Gerçek: **her modelin KENDİ 20/gün kovası var.** Kota model başına, hesap
+başına değil. "Öteki çalışıyor" gözlemi "sınırı yüksek" demek değilmiş.
+
+**Ders:** iki gözlemden birini sebep sanmak. Ölçüm doğruydu, ÇIKARIM
+yanlıştı — ve yanlış çıkarım koda yorum olarak yazıldı, yani bir
+sonraki okuyanı da yanıltacaktı.
+
+Pratik sonuç: ücretsiz katman demo için yeter, gerçek kullanım için
+yetmez (20 istek anlatıcı + sohbet arasında paylaşılıyor). Seçenekler:
+kotası kalan modele `.env`'den geçmek (tek satır), faturalandırmayı
+açmak, ya da sınırla yaşamak.
+
 ### 32. Sınırlı sohbet botu — kısıtlar dört katmanda — 31 Ağu 2026
 
 **Yeni:** `behavior/gemini.ts` · `behavior/chat.ts` · `chat.test.ts` (11 test)
