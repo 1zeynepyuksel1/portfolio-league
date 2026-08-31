@@ -79,7 +79,7 @@ profileRouter.get('/search', async (request, response) => {
  * boşalıyor (`visible: false`). Farklı şekiller döndürseydik istemci iki
  * ayrı ekran çizmek zorunda kalırdı.
  */
-profileRouter.get('/me', async (request, response) => {
+profileRouter.get('/me', async (_request, response) => {
   const viewerId = response.locals.userId as string;
   try {
     const { db } = await import('../db/client.js');

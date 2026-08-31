@@ -78,9 +78,16 @@ export function composeFortune(input: {
   return parts.join(' ');
 }
 
-export async function getTodayFortune(userId: string): Promise<FortuneResult> {
+/**
+ * ⚠️ `_userId` — parametre KULLANILMIYOR ama imzadan ÇIKARILMADI.
+ *
+ * Günlük fal önbelleği test için devre dışı bırakılmış (bkz. silinen
+ * `cached` satırı); önbellek geri gelince kullanıcı kimliği yine
+ * gerekecek. Parametreyi silmek çağıran tarafları da değiştirmek
+ * demekti — alt çizgi, TypeScript'e "bilerek kullanılmıyor" diyor.
+ */
+export async function getTodayFortune(_userId: string): Promise<FortuneResult> {
   const fortuneDate = getFortuneDate();
-  const cached = null;
 
   const [assets, lines] = await Promise.all([
     getActiveFortuneAssets(),

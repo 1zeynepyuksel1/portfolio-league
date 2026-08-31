@@ -58,7 +58,6 @@ export async function getPortfolioPreview(userId: string) {
   
   const rows = Array.isArray(buyRes) ? buyRes : (buyRes.rows || []);
   const buyDatesMap = new Map();
-  const iconsMap = new Map();
   for (const row of rows) {
     if (row.symbol && row.first_buy) {
       buyDatesMap.set(row.symbol as string, new Date(row.first_buy as string).toISOString());
@@ -87,7 +86,7 @@ export async function getPortfolioPreview(userId: string) {
   };
 }
 
-export async function createPost(userId: string, type: 'pnl_share' | 'wheel_share' | 'horoscope_share', scope: 'single_asset' | 'portfolio' | null, targetKey: string | null, periodParams: any, caption: string, visibility: 'public' | 'friends_only', clientPayload?: any) {
+export async function createPost(userId: string, type: 'pnl_share' | 'wheel_share' | 'horoscope_share', scope: 'single_asset' | 'portfolio' | null, targetKey: string | null, _periodParams: any, caption: string, visibility: 'public' | 'friends_only', clientPayload?: any) {
   let payload: any = {};
   
   if (type === 'pnl_share') {

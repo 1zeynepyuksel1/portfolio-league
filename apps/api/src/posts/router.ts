@@ -35,7 +35,7 @@ postsRouter.get('/user/:username', requireAccessToken, async (req: Request, res:
 });
 
 
-postsRouter.get('/traded-assets', requireAccessToken, async (req: Request, res: Response) => {
+postsRouter.get('/traded-assets', requireAccessToken, async (_req: Request, res: Response) => {
   try {
     const userId = res.locals.userId as string;
     const assets = await getTradedAssets(userId);
@@ -56,7 +56,7 @@ postsRouter.get('/share-preview/asset/:assetKey', requireAccessToken, async (req
   }
 });
 
-postsRouter.get('/share-preview/portfolio', requireAccessToken, async (req: Request, res: Response) => {
+postsRouter.get('/share-preview/portfolio', requireAccessToken, async (_req: Request, res: Response) => {
   try {
     const userId = res.locals.userId as string;
     
@@ -110,7 +110,9 @@ postsRouter.delete('/:id', requireAccessToken, async (req: Request, res: Respons
   try {
     const userId = res.locals.userId as string;
     const { deletePost } = await import('./service.js');
-    await deletePost(userId, req.params.id);
+    // `/:id` rotasi id'nin varligini garanti ediyor; ayni cast bu
+    // dosyada `togglePostPin` cagrisinda da kullanilmis.
+    await deletePost(userId, req.params.id as string);
     return res.json({ success: true });
   } catch (err: any) {
     return res.status(400).json({ error: { message: err.message } });
@@ -135,7 +137,11 @@ postsRouter.patch('/:id', requireAccessToken, async (req: Request, res: Response
     const userId = res.locals.userId as string;
     const { caption } = req.body;
     const { updatePostCaption } = await import('./service.js');
-    const updated = await updatePostCaption(req.params.id, userId, caption);
+    const updated = await updatePostCaption(
+      req.params.id as string,
+      userId,
+      caption,
+    );
     return res.json({ post: updated });
   } catch (err: any) {
     return res.status(400).json({ error: { message: err.message } });
@@ -146,9 +152,17 @@ postsRouter.patch('/:id/visibility', requireAccessToken, async (req: Request, re
   try {
     const userId = res.locals.userId as string;
     const { visibility } = req.body;
-    const { updatePostVisibility,
-  updatePostCaption } = await import('./service.js');
-    const updated = await updatePostVisibility(userId, req.params.id, visibility);
+    /*
+      `updatePostCaption` bu bloktan cikarildi -- burada
+      kullanilmiyor. Bir ustteki PATCH /:id isleyicisi onu kendi
+      import'uyla zaten aliyor; buradaki kopya olu bir bagdi.
+    */
+    const { updatePostVisibility } = await import('./service.js');
+    const updated = await updatePostVisibility(
+      userId,
+      req.params.id as string,
+      visibility,
+    );
     return res.json({ post: updated });
   } catch (err: any) {
     return res.status(400).json({ error: { message: err.message } });
