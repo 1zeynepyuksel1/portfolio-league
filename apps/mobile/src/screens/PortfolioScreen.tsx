@@ -9,7 +9,10 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  Modal,
+  Dimensions,
 } from 'react-native';
+import { PriceChart } from '../components/PriceChart';
 import { apiFetch } from '../api/client';
 import {
   formatCentsString,
@@ -100,6 +103,14 @@ type BonusStatus = {
 
 /** Piyasa ekranıyla aynı sebeple cron aralığından farklı — faz kilitlenmesin. */
 const REFRESH_MS = 10_000;
+const CHART_WIDTH = Dimensions.get('window').width - 32;
+const CHART_HEIGHT = 160;
+const PORTFOLIO_RANGES = [
+  { value: '1w', label: '1H' },
+  { value: '1m', label: '1A' },
+  { value: '3m', label: '3A' },
+  { value: '1y', label: '1Y' },
+] as const;
 
 /**
  * Katlanmış hâlde kaç satır görünüyor.
@@ -117,6 +128,7 @@ type Order = {
   side: 'buy' | 'sell';
   quantity: string;
   priceTry: string;
+  feeCents: string;
   netCents: string;
   executedAt: string;
 };
@@ -166,10 +178,15 @@ export function PortfolioScreen({
 
   const [sort, setSort] = useState<SortState>(null);
   const [expandedPositions, setExpandedPositions] = useState(false);
-  const [expandedOrders, setExpandedOrders] = useState(false);
+  const [showAllOrders, setShowAllOrders] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [bonusStatus, setBonusStatus] = useState<BonusStatus | null>(null);
   const [claiming, setClaiming] = useState(false);
+
+  const [historyPoints, setHistoryPoints] = useState<{ ts: string; price: string }[]>([]);
+  const [selectedRange, setSelectedRange] = useState<'1w' | '1m' | '3m' | '1y'>('1w');
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [scrubbed, setScrubbed] = useState<{ ts: string; price: string } | null>(null);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -287,6 +304,27 @@ export function PortfolioScreen({
   }, [query, load]);
 
   useEffect(() => {
+    async function loadHistory() {
+      setHistoryLoading(true);
+      try {
+        const res = await apiFetch<{ points: { ts: string; value: string }[] }>(
+          `/portfolio/history?range=${selectedRange}&currency=${currency}`
+        );
+        const mapped = (res.points || []).map(p => ({
+          ts: p.ts,
+          price: p.value,
+        }));
+        setHistoryPoints(mapped);
+      } catch (err) {
+        console.error('Portföy geçmişi yüklenemedi:', err);
+      } finally {
+        setHistoryLoading(false);
+      }
+    }
+    void loadHistory();
+  }, [selectedRange, currency]);
+
+  useEffect(() => {
     function start() {
       if (intervalRef.current !== null) return;
       intervalRef.current = setInterval(() => void load(), REFRESH_MS);
@@ -381,7 +419,7 @@ export function PortfolioScreen({
 
   const positions = expandedPositions ? sorted : sorted.slice(0, COLLAPSED_ROWS);
 
-  const visibleOrders = expandedOrders ? orders : orders.slice(0, 3);
+  const visibleOrders = orders.slice(0, 3);
 
   /**
    * ÇUBUK SIRASI — paydan BÜYÜKTEN KÜÇÜĞE.
@@ -455,7 +493,7 @@ export function PortfolioScreen({
     if (p.sharePercent === null || p.valueCents === null) continue;
 
     slices.push({
-      label: p.symbol,
+      label: p.name,
       percent: Number(p.sharePercent),
       detail: `${money(p.valueCents, p.valueUsdCents)} · ${formatQuantity(p.quantity)} adet`,
     });
@@ -477,10 +515,11 @@ export function PortfolioScreen({
   const gaining = !portfolio.profitCents.startsWith('-');
 
   return (
-    <FlatList
+    <View style={styles.screen}>
+      <FlatList
         showsVerticalScrollIndicator={false}
-      style={styles.screen}
-      data={positions}
+        style={styles.flatList}
+        data={positions}
       keyExtractor={(item) => item.symbol}
       refreshControl={
         <RefreshControl
@@ -529,6 +568,52 @@ export function PortfolioScreen({
                 1 $ = {formatPrice(portfolio.usdTryRate)} · bugünün kuruyla
               </Text>
             )}
+          </View>
+
+          {/* --- portföy geçmiş grafiği --- */}
+          <View style={styles.chartSection}>
+            {historyLoading ? (
+              <View style={styles.chartPlaceholder}>
+                <ActivityIndicator color={colors.gain} />
+              </View>
+            ) : historyPoints.length === 0 ? (
+              <View style={styles.chartPlaceholder}>
+                <Text style={styles.chartErrorText}>Gösterilecek grafik verisi bulunamadı.</Text>
+              </View>
+            ) : (
+              <PriceChart
+                points={historyPoints}
+                width={CHART_WIDTH}
+                height={CHART_HEIGHT}
+                onScrub={setScrubbed}
+                currency={currency}
+              />
+            )}
+
+            <View style={styles.rangeRow}>
+              {PORTFOLIO_RANGES.map((r) => {
+                const on = selectedRange === r.value;
+                return (
+                  <TouchableOpacity
+                    key={r.value}
+                    onPress={() => setSelectedRange(r.value)}
+                    style={[
+                      styles.rangeButton,
+                      on && styles.rangeButtonActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.rangeText,
+                        on && styles.rangeTextActive,
+                      ]}
+                    >
+                      {r.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           {/* --- dağılım --- */}
@@ -761,50 +846,63 @@ export function PortfolioScreen({
             <View style={styles.section}>
               <View style={styles.sectionHead}>
                 <SectionLabel>SON İŞLEMLER</SectionLabel>
-
-                {orders.length > 3 && (
-                  <TouchableOpacity
-                    onPress={() => setExpandedOrders((open) => !open)}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.sectionAction}>
-                      {expandedOrders ? 'DAHA AZ' : 'TÜMÜ'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
               </View>
 
               {visibleOrders.map((order) => (
                 <View key={order.id} style={styles.orderRow}>
-                  {/*
-                    AL yeşil, SAT kırmızı — yön renkleriyle aynı dil.
-                    Burada "yön" fiyatın değil işlemin yönü ama kullanıcı
-                    için ikisi de aynı sezgiye oturuyor.
-                  */}
-                  <Text
-                    style={[
-                      styles.orderSide,
-                      {
-                        color: order.side === 'buy' ? colors.gain : colors.loss,
-                      },
-                    ]}
-                  >
-                    {order.side === 'buy' ? 'AL' : 'SAT'}
-                  </Text>
+                  <View style={styles.orderTopRow}>
+                    <View
+                      style={[
+                        styles.orderSideBadge,
+                        {
+                          backgroundColor:
+                            order.side === 'buy'
+                              ? 'rgba(52, 194, 138, 0.12)'
+                              : 'rgba(229, 72, 77, 0.12)',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.orderSideText,
+                          {
+                            color:
+                              order.side === 'buy'
+                                ? colors.gain
+                                : colors.loss,
+                          },
+                        ]}
+                      >
+                        {order.side === 'buy' ? 'AL' : 'SAT'}
+                      </Text>
+                    </View>
 
-                  <Text style={styles.orderName} numberOfLines={1}>
-                    {order.name}
-                  </Text>
+                    <Text style={styles.orderName} numberOfLines={1}>
+                      {order.name}
+                    </Text>
 
-                  <Text style={styles.orderQuantity}>
-                    {formatQuantity(order.quantity)}
-                  </Text>
+                    <Text style={styles.orderTime}>
+                      {formatRelativeTime(order.executedAt)}
+                    </Text>
+                  </View>
 
-                  <Text style={styles.orderTime}>
-                    {formatRelativeTime(order.executedAt)}
-                  </Text>
+                  <View style={styles.orderBottomRow}>
+                    <Text style={styles.orderDetailsText}>
+                      {formatQuantity(order.quantity)} {order.symbol}  ·  {formatCentsString(order.netCents)}  ·  komisyon: {formatCentsString(order.feeCents)}
+                    </Text>
+                  </View>
                 </View>
               ))}
+
+              {orders.length > 3 && (
+                <TouchableOpacity
+                  style={[styles.expand, { borderTopWidth: 0, paddingVertical: 10 }]}
+                  onPress={() => setShowAllOrders(true)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.expandText}>Tüm işlemleri gör →</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -819,11 +917,144 @@ export function PortfolioScreen({
         </View>
       }
     />
+
+    {/* Tüm İşlemler Modal */}
+    <Modal
+      visible={showAllOrders}
+      animationType="slide"
+      onRequestClose={() => setShowAllOrders(false)}
+    >
+      <View style={[styles.screen, { paddingTop: 20 }]}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={() => setShowAllOrders(false)} hitSlop={12}>
+            <Text style={styles.backText}>‹ Geri</Text>
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>Tüm İşlemler</Text>
+          <View style={{ width: 44 }} />
+        </View>
+
+        <FlatList
+          showsVerticalScrollIndicator={false}
+          data={orders}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item: order }) => (
+            <View style={[styles.orderRow, { paddingHorizontal: 16 }]}>
+              <View style={styles.orderTopRow}>
+                <View
+                  style={[
+                    styles.orderSideBadge,
+                    {
+                      backgroundColor:
+                        order.side === 'buy'
+                          ? 'rgba(52, 194, 138, 0.12)'
+                          : 'rgba(229, 72, 77, 0.12)',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.orderSideText,
+                      {
+                        color:
+                          order.side === 'buy'
+                            ? colors.gain
+                            : colors.loss,
+                      },
+                    ]}
+                  >
+                    {order.side === 'buy' ? 'AL' : 'SAT'}
+                  </Text>
+                </View>
+
+                <Text style={styles.orderName} numberOfLines={1}>
+                  {order.name}
+                </Text>
+
+                <Text style={styles.orderTime}>
+                  {formatRelativeTime(order.executedAt)}
+                </Text>
+              </View>
+
+              <View style={styles.orderBottomRow}>
+                <Text style={styles.orderDetailsText}>
+                  {formatQuantity(order.quantity)} {order.symbol}  ·  {formatCentsString(order.netCents)}  ·  komisyon: {formatCentsString(order.feeCents)}
+                </Text>
+              </View>
+            </View>
+          )}
+        />
+      </View>
+    </Modal>
+  </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
+  flatList: { flex: 1 },
+  backText: { color: colors.gain, fontSize: 15, fontFamily: fonts.semibold },
+  listContent: { paddingBottom: 20 },
+  chartSection: {
+    paddingHorizontal: spacing.screen,
+    marginTop: 14,
+  },
+  chartPlaceholder: {
+    height: CHART_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceSunken,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  chartErrorText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.inkMuted,
+  },
+  rangeRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  rangeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  rangeButtonActive: {
+    backgroundColor: colors.border,
+    borderColor: colors.borderStrong,
+  },
+  rangeText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    color: colors.inkMuted,
+  },
+  rangeTextActive: {
+    color: colors.ink,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  modalTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: colors.ink,
+    textAlign: 'center',
+  },
 
   centered: {
     flex: 1,
@@ -1037,16 +1268,38 @@ const styles = StyleSheet.create({
     color: colors.inkBright,
   },
   orderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
     paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    gap: 6,
   },
-  orderSide: { width: 30, fontFamily: fonts.bold, fontSize: 10, letterSpacing: 0.8 },
+  orderTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  orderBottomRow: {
+    paddingLeft: 44,
+  },
+  orderDetailsText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkMuted,
+  },
+  orderSideBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 34,
+  },
+  orderSideText: {
+    fontFamily: fonts.bold,
+    fontSize: 9,
+    letterSpacing: 0.8,
+  },
   orderName: { flex: 1, fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
-  orderQuantity: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkMuted },
   orderTime: { fontFamily: fonts.regular, fontSize: 10, color: colors.inkDisabled },
 
 });

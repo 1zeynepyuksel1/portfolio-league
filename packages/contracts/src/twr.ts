@@ -73,11 +73,15 @@ export function formatTwrPercent(twr: number, decimals = 2): string {
   }
 
   const percentage = twr * 100;
-  // Türkçe format: Noktayı virgüle çeviriyoruz (Örn: "39.63" -> "39,63")
+  const isZeroValue = Math.abs(percentage) < 0.5 / Math.pow(10, decimals);
+
   const formattedNumber = Math.abs(percentage)
     .toFixed(decimals)
     .replace('.', ',');
 
+  if (isZeroValue) {
+    return `%${formattedNumber}`;
+  }
   if (percentage > 0) {
     return `+%${formattedNumber}`;
   }

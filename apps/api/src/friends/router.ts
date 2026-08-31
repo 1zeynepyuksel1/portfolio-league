@@ -16,6 +16,37 @@ import {
 
 export const friendsRouter = Router();
 
+friendsRouter.post('/by-username/:username/accept', async (req, res) => {
+  const userId = res.locals.userId as string;
+  const username = req.params.username;
+  try {
+    const { db } = await import('../db/client.js');
+    const { eq } = await import('drizzle-orm');
+    const { users } = await import('../db/schema.js');
+    const [sender] = await db.select({ id: users.id }).from(users).where(eq(users.username, username));
+    if (!sender) return res.status(404).json({ error: 'User not found' });
+    
+    // Find the pending request
+    const { friendships } = await import('../db/schema.js');
+    const { and } = await import('drizzle-orm');
+    const [request] = await db.select().from(friendships).where(
+      and(
+        eq(friendships.requesterId, sender.id),
+        eq(friendships.addresseeId, userId),
+        eq(friendships.status, 'pending')
+      )
+    );
+    if (!request) return res.status(404).json({ error: 'No pending request found from this user' });
+    
+    const { acceptFriendRequest } = await import('./service.js');
+    const updated = await acceptFriendRequest(userId, request.id);
+    res.json({ message: 'Accepted', friendship: updated });
+  } catch (error) {
+    res.status(500).json({ error: 'Sunucu hatası' });
+  }
+});
+
+
 // Tüm arkadaşlık rotaları giriş yapmayı (Bearer token) zorunlu kılar
 friendsRouter.use(requireAccessToken);
 

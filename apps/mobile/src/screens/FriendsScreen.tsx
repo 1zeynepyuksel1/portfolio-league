@@ -11,6 +11,24 @@ import {
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 
+import { Image } from 'react-native';
+import { SvgXml } from 'react-native-svg';
+import { createAvatar } from '@dicebear/core';
+import { shapes } from '@dicebear/collection';
+
+const localAvatars: Record<string, any> = {
+  meerkat: require('../../assets/avatars/meerkat.png'),
+  chicken: require('../../assets/avatars/chicken.png'),
+  bear: require('../../assets/avatars/bear.png'),
+  rabbit: require('../../assets/avatars/rabbit.png'),
+  cat: require('../../assets/avatars/cat.png'),
+  panda: require('../../assets/avatars/panda.png'),
+};
+
+const bgColors = [colors.surfaceRaised.replace('#',''), colors.surfacePressed.replace('#','')];
+const shapeColors = [colors.gain, colors.loss, colors.warn, colors.gold, colors.accent].map(c => c.replace('#', ''));
+
+
 type Friend = {
   id?: string;
   friendshipId?: string;
@@ -20,6 +38,8 @@ type Friend = {
   username?: string;
   email?: string;
   since?: string;
+  avatarSeed?: string;
+  avatarStyle?: string;
 };
 
 type IncomingRequest = {
@@ -27,6 +47,8 @@ type IncomingRequest = {
   senderId: string;
   senderDisplayName: string;
   senderEmail: string;
+  avatarSeed?: string;
+  avatarStyle?: string;
   createdAt: string;
 };
 
@@ -35,6 +57,8 @@ type OutgoingRequest = {
   recipientId: string;
   recipientDisplayName: string;
   recipientEmail: string;
+  avatarSeed?: string;
+  avatarStyle?: string;
   createdAt: string;
 };
 
@@ -85,6 +109,36 @@ export function FriendsScreen({
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Arama Önerileri
+  const [searchResults, setSearchResults] = useState<{ id: string; username: string; displayName: string }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const handleSearchTextChange = async (text: string) => {
+    setEmailInput(text);
+    const clean = text.trim();
+    if (!clean) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const data = await apiFetch<{ users: { id: string; username: string; displayName: string; avatarSeed?: string; avatarStyle?: string }[] }>(
+        `/users/search?q=${encodeURIComponent(clean)}`
+      );
+      setSearchResults(data.users || []);
+    } catch (err) {
+      console.error('Arama hatası:', err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSelectSuggestion = (username: string) => {
+    setEmailInput(username);
+    setSearchResults([]);
+  };
 
   // Verileri Yükle
   async function loadFriendsData() {
@@ -208,7 +262,7 @@ export function FriendsScreen({
             placeholder="@kullaniciadi ya da e-posta"
             placeholderTextColor={colors.inkFaint}
             value={emailInput}
-            onChangeText={setEmailInput}
+            onChangeText={handleSearchTextChange}
             keyboardType="default"
             autoCapitalize="none"
           />
@@ -226,11 +280,43 @@ export function FriendsScreen({
           </TouchableOpacity>
         </View>
 
-        {errorMsg && <Text style={styles.errorText}>⚠️ {errorMsg}</Text>}
-        {successMsg && <Text style={styles.successText}>✅ {successMsg}</Text>}
-      </View>
+        {/* Arama Önerileri Listesi */}
+        {searchResults.length > 0 && (
+          
+          <View style={styles.suggestionsContainer}>
+              {searchResults.map((user: any) => {
+                const name = user.displayName;
+                const initials = name.slice(0, 2).toUpperCase();
+                return (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={styles.suggestionItem}
+                    onPress={() => { if (onSelectUser) onSelectUser(user.username); }}
+                  >
+                    <View style={[styles.suggestionAvatar, user?.avatarSeed && { backgroundColor: 'transparent' }]}>
+                      {user?.avatarStyle === 'local' && user?.avatarSeed && localAvatars[user.avatarSeed] ? (
+                        <Image source={localAvatars[user.avatarSeed]} style={{width: '100%', height: '100%'}} resizeMode="contain" />
+                      ) : user?.avatarSeed ? (
+                        <SvgXml xml={createAvatar(shapes, { seed: user.avatarSeed, backgroundColor: bgColors, shape1Color: shapeColors, shape2Color: shapeColors, shape3Color: shapeColors }).toString()} width="100%" height="100%" />
+                      ) : (
+                        <Text style={styles.suggestionAvatarText}>{initials}</Text>
+                      )}
+                    </View>
+                    <View style={styles.suggestionInfo}>
+                      <Text style={styles.suggestionName}>{name}</Text>
+                      <Text style={styles.suggestionUsername}>@{user.username}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
-      {/* 2. Sekmeler (Arkadaşlarım vs İstekler) */}
+          {errorMsg && <Text style={styles.errorText}>⚠️ {errorMsg}</Text>}
+          {successMsg && <Text style={styles.successText}>🏆 {successMsg}</Text>}
+        </View>
+
+        {/* 2. Sekmeler (Arkadaşlarım vs İstekler) */}
       <View style={styles.subTabContainer}>
         <TouchableOpacity
           style={[styles.subTabButton, activeTab === 'list' && styles.subTabButtonActive]}
@@ -314,9 +400,17 @@ export function FriendsScreen({
                 accessibilityRole={openable ? 'button' : undefined}
                 accessibilityLabel={`${name} profilini aç`}
               >
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>{initials}</Text>
-                </View>
+                
+<View style={[styles.avatarCircle, item?.avatarSeed && { backgroundColor: 'transparent' }]}>
+  {item?.avatarStyle === 'local' && item?.avatarSeed && localAvatars[item.avatarSeed] ? (
+    <Image source={localAvatars[item.avatarSeed]} style={{width: '100%', height: '100%'}} resizeMode="contain" />
+  ) : item?.avatarSeed ? (
+    <SvgXml xml={createAvatar(shapes, { seed: item.avatarSeed, backgroundColor: bgColors, shape1Color: shapeColors, shape2Color: shapeColors, shape3Color: shapeColors }).toString()} width="100%" height="100%" />
+  ) : (
+    <Text style={styles.avatarText}>{initials}</Text>
+  )}
+</View>
+
 
                 <View style={styles.friendDetails}>
                   <Text style={styles.friendName}>{name}</Text>
@@ -372,9 +466,17 @@ export function FriendsScreen({
 
             return (
               <View style={styles.requestCard}>
-                <View style={styles.avatarCircleSmall}>
-                  <Text style={styles.avatarTextSmall}>{initials}</Text>
-                </View>
+                
+<View style={[styles.avatarCircleSmall, item?.avatarSeed && { backgroundColor: 'transparent' }]}>
+  {item?.avatarStyle === 'local' && item?.avatarSeed && localAvatars[item.avatarSeed] ? (
+    <Image source={localAvatars[item.avatarSeed]} style={{width: '100%', height: '100%'}} resizeMode="contain" />
+  ) : item?.avatarSeed ? (
+    <SvgXml xml={createAvatar(shapes, { seed: item.avatarSeed, backgroundColor: bgColors, shape1Color: shapeColors, shape2Color: shapeColors, shape3Color: shapeColors }).toString()} width="100%" height="100%" />
+  ) : (
+    <Text style={styles.avatarTextSmall}>{initials}</Text>
+  )}
+</View>
+
 
                 <View style={styles.requestInfo}>
                   <Text style={styles.requestName}>{name}</Text>
@@ -435,8 +537,8 @@ export function FriendsScreen({
 const styles = StyleSheet.create({
   backRow: {
     paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 10,
+    paddingTop: 26,
+    paddingBottom: 16,
   },
   backText: {
     color: colors.gain,
@@ -454,6 +556,50 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 14,
   },
+  suggestionsContainer: {
+    backgroundColor: colors.surfaceSunken,
+    borderRadius: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 10,
+  },
+  suggestionAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionAvatarText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: colors.inkBright,
+  },
+  suggestionInfo: {
+    flex: 1,
+  },
+  suggestionName: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.inkBright,
+  },
+  suggestionUsername: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkMuted,
+    marginTop: 1,
+  },
+  
   sectionTitle: {
     color: colors.ink,
     fontSize: 16,

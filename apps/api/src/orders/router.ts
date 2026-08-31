@@ -85,6 +85,7 @@ ordersRouter.get('/', requireAccessToken, async (request, response) => {
         side: row.side,
         quantity: row.quantity,
         priceTry: row.priceTry,
+        feeCents: row.feeCents.toString(),
         netCents: row.netCents.toString(),
         executedAt: row.executedAt.toISOString(),
       })),

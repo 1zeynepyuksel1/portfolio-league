@@ -22,7 +22,7 @@ import {
   PriceChart,
   type ChartPoint,
 } from '../components/PriceChart';
-import { formatPrice, formatRelativeTime } from '../lib/format';
+import { formatPrice, formatRelativeTime, formatPercent } from '../lib/format';
 import { colors, fonts } from '../theme';
 
 type Props = {
@@ -250,8 +250,7 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
             >
               {/* Gerçek eksi işareti değil normal işaret: burada hizalama
                   değil okunabilirlik önemli. */}
-              {rising ? '+' : ''}
-              {changePercent.toFixed(2).replace('.', ',')}%{' '}
+              {formatPercent(changePercent, false)} 
               <Text style={styles.changeLabel}>
                 ({RANGES.find((r) => r.value === range)?.label})
               </Text>
