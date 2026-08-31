@@ -15,6 +15,7 @@ import {
 import { PriceChart } from '../components/PriceChart';
 import { apiFetch } from '../api/client';
 import {
+  centsToDecimal,
   formatCentsString,
   formatPrice,
   formatQuantity,
@@ -310,9 +311,24 @@ export function PortfolioScreen({
         const res = await apiFetch<{ points: { ts: string; value: string }[] }>(
           `/portfolio/history?range=${selectedRange}&currency=${currency}`
         );
-        const mapped = (res.points || []).map(p => ({
+        /*
+          ⚠️ KURUŞ -> LİRA ÇEVRİMİ ŞART.
+
+          Uç `value`'yu KURUŞ olarak döndürüyor (projenin kuralı: para
+          her yerde kuruş). `PriceChart` ise ondalıklı bir FİYAT metni
+          bekliyor — varlık grafiklerinde "117491.35" gibi.
+
+          Çevirmeden geçirilince eksen 100 kat büyük yazıyordu: bakiye
+          101.329,59 ₺ iken etiket "10.18M" diyordu. Çizginin şekli
+          doğruydu (hepsi aynı oranda büyük), o yüzden grafik
+          "çalışıyor" görünüyor ve hata yalnızca etiketlerde kalıyordu.
+
+          ⚠️ USD görünümünde de aynı: sunucu orada da `Penny` döndürüyor
+          (sent), yani ölçek aynı ve tek çevrim ikisini de kapsıyor.
+        */
+        const mapped = (res.points || []).map((p) => ({
           ts: p.ts,
-          price: p.value,
+          price: centsToDecimal(p.value),
         }));
         setHistoryPoints(mapped);
       } catch (err) {

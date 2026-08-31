@@ -1,14 +1,46 @@
+/**
+ * theme.ts — tasarım belirteçleri.
+ *
+ * ⚠️ ARKA PLAN LACİVERTTEN NÖTR SİYAHA GERİ ALINDI (31 Ağu 2026).
+ *
+ * Birleştirmeyle gelen sürüm yüzeyleri lacivert yapmıştı (#051424) ve
+ * metin gri tonlarını da mavimsi seçmişti (#94a3b8, #475569). İstenen
+ * eski görünüm: nötr siyah.
+ *
+ * ⚠️ YALNIZCA NÖTR AİLE DEĞİŞTİ — anlam renklerine DOKUNULMADI.
+ * `gain`, `loss`, `accent`, madalya renkleri ve `error`/`warn` olduğu
+ * gibi duruyor: onlar arka plan değil, YÖN ve DURUM taşıyor. Hepsini
+ * birden geri almak, arka plan isteğinin ötesine geçip başkasının
+ * tasarım kararlarını da silmek olurdu.
+ *
+ * ⚠️ FONTLARA DA DOKUNULMADI. `App.tsx` üç aileyi birden yüklüyor
+ * (Rubik, DM Mono, Space Grotesk), yani geri almak teknik olarak
+ * güvenli — ama istenen şey arka plandı. Font değişimi ayrı bir karar
+ * ve tek satırlık bir iş.
+ *
+ * ⚠️ EKSİK OLAN ŞEY: bu dosya 300 satırdan 98'e inerken renk
+ * kararlarının GEREKÇELERİ silinmişti. Aşağıdaki değerler geri geldi
+ * ama açıklamaları gelmedi; bir sonraki dokunuşta `git show` ile eski
+ * sürümden taşınmalı. Değerini bilmek yetmiyor, NEDEN öyle olduğunu da
+ * bilmek gerekiyor:
+ *
+ *   - Yüzeyler gölge kullanmıyor; derinlik yüzey TONUYLA anlatılıyor.
+ *   - `inkFaint` tasarımdaki #79797F'den açıldı: 9-11px etiketlerde
+ *     kontrast yetmiyordu.
+ *   - `inverse`/`onInverse` seçili durumu renkle değil TERS ZEMİNLE
+ *     anlatıyor — vurgu renkleri yön için ayrılmış.
+ */
 export const colors = {
-  surface: '#051424',
-  surfaceRaised: '#0d1c2d',
-  surfacePressed: '#162840',
-  surfaceSunken: '#162840',
-  border: 'rgba(255, 255, 255, 0.05)',
+  surface: '#0F0F10',
+  surfaceRaised: '#1A1A1C',
+  surfacePressed: '#202022',
+  surfaceSunken: '#141415',
+  border: '#2B2B2E',
   ink: '#FFFFFF',
-  inkBright: '#FFFFFF',
-  inkMuted: '#94a3b8',
-  inkFaint: '#475569',
-  inkDisabled: '#475569',
+  inkBright: '#E9E9EA',
+  inkMuted: '#A6A6AC',
+  inkFaint: '#8E8E96',
+  inkDisabled: '#6A6A71',
   gain: '#10b981',
   loss: '#ef4444',
   warn: '#f59e0b',
@@ -17,9 +49,9 @@ export const colors = {
   bronze: '#8b5cf6',
   accent: '#3b82f6',
   error: '#ef4444',
-  inverse: '#FFFFFF',
-  onInverse: '#000000',
-  onInverseMuted: '#475569',
+  inverse: '#E9E9EA',
+  onInverse: '#0F0F10',
+  onInverseMuted: '#4E4E53',
   
   gainSoft: 'rgba(16, 185, 129, 0.15)',
   lossSoft: 'rgba(239, 68, 68, 0.15)',
@@ -28,24 +60,24 @@ export const colors = {
   silverSoft: 'rgba(203, 213, 225, 0.15)',
   bronzeSoft: 'rgba(139, 92, 246, 0.15)',
 
-  axisLine: 'rgba(255,255,255,0.05)',
-  axisText: '#475569',
-  axisGrid: 'rgba(255,255,255,0.02)',
-  readoutFill: '#0d1c2d',
+  axisLine: '#2B2B2E',
+  axisText: '#79797F',
+  axisGrid: 'rgba(121, 121, 127, 0.14)',
+  readoutFill: '#202022',
 
-  inkDim: '#94a3b8',
-  inkGhost: '#475569',
-  inkPlaceholder: '#475569',
-  fieldFill: '#0d1c2d',
-  hairlineSoft: 'rgba(255,255,255,0.05)',
-  hairline: 'rgba(255,255,255,0.05)',
-  hairlineStrong: 'rgba(255,255,255,0.1)',
+  inkDim: '#A6A6AC',
+  inkGhost: '#5C5C61',
+  inkPlaceholder: '#5C5C61',
+  fieldFill: '#1A1A1C',
+  hairlineSoft: '#2B2B2E',
+  hairline: '#2B2B2E',
+  hairlineStrong: '#3A3A3E',
   hairlineFocus: '#3b82f6',
-  gridLine: 'rgba(255,255,255,0.02)',
-  volumeBar: 'rgba(255,255,255,0.05)',
-  chartLabel: '#475569',
+  gridLine: 'rgba(121, 121, 127, 0.10)',
+  volumeBar: 'rgba(121, 121, 127, 0.14)',
+  chartLabel: 'rgba(121, 121, 127, 0.16)',
   accentSoft: 'rgba(59, 130, 246, 0.15)',
-  borderStrong: 'rgba(255, 255, 255, 0.1)',
+  borderStrong: '#3A3A3E',
 } as const;
 
 export const fonts = {

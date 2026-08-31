@@ -91,6 +91,36 @@ export function formatCentsString(
   return formatCents(BigInt(cents), currency);
 }
 
+/**
+ * Kuruş metnini ondalıklı LİRA metnine çevirir: "10132959" -> "101329.59"
+ *
+ * ⚠️ BU FONKSİYON GERÇEK BİR EKRAN HATASINDAN DOĞDU.
+ *
+ * `GET /portfolio/history` değerleri KURUŞ olarak döndürüyor (projenin
+ * kuralı: para her yerde kuruş). Cüzdan ekranı bu diziyi olduğu gibi
+ * `PriceChart`'a veriyordu; grafik ise verilen sayıyı LİRA sanıp eksene
+ * yazıyordu.
+ *
+ * Sonuç: bakiye 101.329,59 ₺ iken eksen "10.18M" diyordu — yani 100 kat
+ * büyük. Çizginin ŞEKLİ doğruydu (hepsi aynı oranda büyük), yalnızca
+ * etiketler yanlıştı. Bu yüzden gözden kaçması kolay: grafik "çalışıyor"
+ * görünüyor.
+ *
+ * ⚠️ `Number(cents) / 100` YAZILMADI. Bu bir para değeri ve ekranda
+ * gösteriliyor; float'a düşmek `money.ts`'in varlık sebebini çöpe atar.
+ * Bölme metin üzerinde yapılıyor: tam sayı kısmı ile son iki basamak
+ * ayrılıyor, kayıp yok.
+ */
+export function centsToDecimal(cents: string): string {
+  const negatif = cents.startsWith('-');
+  const rakamlar = (negatif ? cents.slice(1) : cents).padStart(3, '0');
+
+  const lira = rakamlar.slice(0, -2);
+  const kurus = rakamlar.slice(-2);
+
+  return `${negatif ? '-' : ''}${lira}.${kurus}`;
+}
+
 /** Ondalıklı fiyat metnini biçimlendirir: "3107273.31000900" -> "3.107.273,31 ₺" */
 export function formatPrice(
   decimal: string,
