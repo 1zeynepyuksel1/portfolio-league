@@ -132,6 +132,14 @@ type Order = {
   feeCents: string;
   netCents: string;
   executedAt: string;
+  /**
+   * Kullanıcının emri verirken yazdığı gerekçe.
+   *
+   * ⚠️ `null` OLABİLİR — ve çoğunlukla öyle. Not isteğe bağlı; boş
+   * gelen satırda hiçbir şey ÇİZİLMEMELİ. Boş bir alan bırakmak, her
+   * işlem satırını "eksik" gösterirdi.
+   */
+  note?: string | null;
 };
 
 /**
@@ -907,6 +915,23 @@ export function PortfolioScreen({
                       {formatQuantity(order.quantity)} {order.symbol}  ·  {formatCentsString(order.netCents)}  ·  komisyon: {formatCentsString(order.feeCents)}
                     </Text>
                   </View>
+
+                  {/*
+                    KARAR NOTU — varsa.
+
+                    ⚠️ TIRNAK İÇİNDE VE İTALİK: bu metin sunucunun
+                    hesabı değil, KULLANICININ kendi cümlesi. Diğer
+                    satırlarla aynı biçimde yazsaydık ölçülmüş bir veri
+                    gibi okunurdu.
+
+                    ⚠️ Sol şerit, kartın kendi kararını taşıdığını
+                    gösteriyor — alıntı bloğu geleneği.
+                  */}
+                  {order.note ? (
+                    <View style={styles.noteBox}>
+                      <Text style={styles.noteText}>"{order.note}"</Text>
+                    </View>
+                  ) : null}
                 </View>
               ))}
 
@@ -1296,6 +1321,18 @@ const styles = StyleSheet.create({
   },
   orderBottomRow: {
     paddingLeft: 44,
+  },
+  noteBox: {
+    marginTop: 8,
+    paddingLeft: 10,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.border,
+  },
+  noteText: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    fontStyle: 'italic',
   },
   orderDetailsText: {
     fontFamily: fonts.mono,

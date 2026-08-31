@@ -145,6 +145,14 @@ export async function getRecentOrders(
     feeCents: bigint;
     netCents: bigint;
     executedAt: Date;
+    /**
+     * Kullanıcının emri verirken yazdığı gerekçe. Boş bırakılabilir.
+     *
+     * ⚠️ KOLON BAŞTAN BERİ VARDI AMA SEÇİLMİYORDU — yani veri yazılıyor,
+     * okunmuyordu. `POST /orders` notu kabul edip kaydediyor; bu sorgu
+     * onu geri getirmediği için ekran hiç göremiyordu.
+     */
+    note: string | null;
   }>
 > {
   return db
@@ -158,6 +166,7 @@ export async function getRecentOrders(
       feeCents: orders.feeCents,
       netCents: orders.netCents,
       executedAt: orders.executedAt,
+      note: orders.note,
     })
     .from(orders)
     .innerJoin(assets, eq(assets.id, orders.assetId))

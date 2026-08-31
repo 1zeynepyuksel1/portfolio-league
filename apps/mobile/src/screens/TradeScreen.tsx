@@ -124,6 +124,16 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
   const [quantity, setQuantity] = useState('');
 
   /**
+   * Karar notu — "neden aldım".
+   *
+   * ⚠️ İSTEĞE BAĞLI VE ÖYLE KALMALI. Zorunlu yapsaydık kullanıcı fiyat
+   * kaçmasın diye rastgele bir şey yazıp geçerdi; elimizde not olurdu
+   * ama hiçbir bilgi taşımazdı. Boş bırakılabilen bir alan, dolu
+   * olduğunda gerçekten bir şey söylüyor.
+   */
+  const [note, setNote] = useState('');
+
+  /**
    * Giriş modu: miktar mı, tutar mı.
    *
    * ⚠️ TEK KAYNAK MİKTAR. Tutar modunda kullanıcı TL yazıyor ama sunucuya
@@ -235,11 +245,25 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
       const res = await apiFetch<OrderResponse>('/orders', {
         method: 'POST',
         headers: { 'Idempotency-Key': idempotencyKey.current },
-        body: JSON.stringify({ symbol, side, quantity: quantity.trim() }),
+        body: JSON.stringify({
+          symbol,
+          side,
+          quantity: quantity.trim(),
+          /*
+            ⚠️ BOŞ NOT `undefined` OLARAK GİDİYOR, BOŞ METİN OLARAK DEĞİL.
+
+            Zod şeması notu isteğe bağlı tanımlıyor; boş metin
+            gönderseydik veritabanına '' yazılırdı ve "not yazmadı" ile
+            "not yazdı ama sildi" ayırt edilemezdi. Ekran da boş bir not
+            satırı çizmek zorunda kalırdı.
+          */
+          note: note.trim() === '' ? undefined : note.trim(),
+        }),
       });
 
       setResult(res);
       setQuantity('');
+      setNote('');
       resetKey(); // emir geçti, sonraki emir yeni bir kimlik alacak
 
       await loadPortfolio();
@@ -502,6 +526,38 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
           göndermedik, dolayısıyla açılış saatini bilmiyoruz. Sunucu
           reddederken tam saati söylüyor (`describeNextSessionOpen`).
         */}
+        {/*
+          KARAR NOTU — onay düğmesinin hemen ÜSTÜNDE.
+
+          ⚠️ YERİ RASTGELE DEĞİL. Not, emir verilmeden ÖNCE yazılmalı:
+          sonradan sorulsaydı kullanıcı gerekçeyi sonucu bildikten sonra
+          uydururdu ("zaten yükseleceğini biliyordum"). Karar anındaki
+          düşünceyi yakalamak, o düşünceyi sonradan hatırlamaktan
+          tamamen farklı bir şey — ve özelliğin tek değeri bu.
+
+          ⚠️ Miktar alanının ALTINDA çünkü ikincil: emir notsuz da
+          geçerli. Üstte olsaydı zorunluymuş gibi görünürdü.
+        */}
+        <View style={styles.noteBlock}>
+          <Text style={styles.label}>Karar notu (isteğe bağlı)</Text>
+
+          <TextInput
+            style={styles.noteInput}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Neden bu emri veriyorsun?"
+            placeholderTextColor={colors.inkPlaceholder}
+            /* Sunucudaki Zod şeması da 500 — ikisi ayrışmasın. */
+            maxLength={500}
+            multiline
+            editable={!submitting}
+          />
+
+          <Text style={styles.noteHint}>
+            Sonradan Cüzdan'daki işlem geçmişinde görünür.
+          </Text>
+        </View>
+
         {!tradable && (
           <View style={styles.closedBox}>
             <Text style={styles.closedText}>
@@ -635,6 +691,22 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 18,
   },
+
+  noteBlock: { gap: 8, marginTop: 18 },
+  noteInput: {
+    backgroundColor: colors.fieldFill,
+    borderColor: colors.hairline,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: colors.ink,
+    fontSize: 14,
+    // Miktar alanından KÜÇÜK punto: o sayı, bu cümle.
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  noteHint: { color: colors.inkFaint, fontSize: 11 },
 
   estimate: {
     backgroundColor: colors.fieldFill,

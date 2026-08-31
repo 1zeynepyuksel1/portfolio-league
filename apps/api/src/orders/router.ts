@@ -88,6 +88,15 @@ ordersRouter.get('/', requireAccessToken, async (request, response) => {
         feeCents: row.feeCents.toString(),
         netCents: row.netCents.toString(),
         executedAt: row.executedAt.toISOString(),
+        /*
+          ⚠️ `null` OLABİLİR VE EKRAN BUNU NORMAL KARŞILAMALI.
+
+          Not isteğe bağlı: kullanıcı acele ederken yazmayabilir. Boş
+          metne çevirseydik "not yazdı ama boş bıraktı" ile "hiç
+          yazmadı" ayırt edilemezdi — oysa ikincisi çoğunluk ve ekran
+          o satırı hiç çizmemeli.
+        */
+        note: row.note,
       })),
     });
   } catch (error) {
