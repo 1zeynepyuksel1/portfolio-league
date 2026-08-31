@@ -2,8 +2,14 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BehaviorCard } from '../components/BehaviorCard';
 import { colors, fonts, spacing } from '../theme';
 
-/** Ekran başlığındaki maskot — sohbettekiyle aynı görsel, aynı dosya. */
-const MASKOT = require('../../assets/kocai/kocai.png');
+/**
+ * Ekran başlığındaki maskot — TAM sürüm, halkasıyla.
+ *
+ * ⚠️ Sekme ve sohbet avatarı KAFA kırpımını kullanıyor çünkü 26-34
+ * pikselde tam maskot okunmuyor. Başlık 40 piksel ve tek başına duruyor;
+ * burada halkanın tamamı görünebiliyor ve markanın asıl hâli bu.
+ */
+const MASKOT = require('../../assets/kocai/kocai-full.png');
 
 /**
  * CoachScreen — yatırım alışkanlıkları ve sohbet.

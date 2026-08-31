@@ -30,12 +30,20 @@ import {
  * yolun SABİT olması gerekiyor. Değişkenden yol üretilseydi görsel
  * pakete hiç girmez, çalışma anında sessizce boş kalırdı.
  *
- * ⚠️ İKİ BOYUT VAR VE İKİSİ DE GEREKLİ. Kaynak 1254x1254 / 1,6 MB idi;
- * 32 piksellik bir avatar için o dosyayı taşımak paketi bosuna şişirir.
- * 256'lık sürüm retina payıyla avatar ve başlık için, 96'lık sürüm alt
- * sekme simgesi için (`TabBar.tsx`).
+ * ⚠️ İKİ KIRPIM VAR — VE FARKI BOYUT DEĞİL, KADRAJ.
+ *
+ *   kocai-head.png   kafaya yakın, köşeleri saydam  -> 26-34 piksel
+ *   kocai-full.png   tam maskot, halkasıyla         -> 40 piksel ve üstü
+ *
+ * Avatar 34 piksel; o boyutta tam maskot koyu bir lekeye dönüşüyor
+ * (bkz. `TabBar.tsx`'teki not). Kafa kırpımı beyaz kask ve parlak
+ * gözleri öne çıkarıyor, ikisi de açık renk olduğu için koyu zeminde
+ * ayrışıyor.
+ *
+ * Kaynak 1254x1254 / 1,6 MB idi; 34 piksellik bir avatar için o dosyayı
+ * taşımak paketi boşuna şişirirdi.
  */
-const MASKOT = require('../../assets/kocai/kocai.png');
+const MASKOT = require('../../assets/kocai/kocai-head.png');
 
 /**
  * BehaviorChat — koç sohbeti.

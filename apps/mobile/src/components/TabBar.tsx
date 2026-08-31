@@ -55,8 +55,25 @@ function LeagueIcon({ color }: { color: string }) {
   return <Trophy size={24} color={color} strokeWidth={2} />;
 }
 
-/** 96 piksellik sürüm — sekme simgesi 24pt, retinada 4 kat. */
-const MASKOT_TAB = require('../../assets/kocai/kocai-tab.png');
+/**
+ * Maskotun KAFA kırpımı, 96 piksel (24pt × 4 retina).
+ *
+ * ⚠️ TAM MASKOT KULLANILAMADI — ÇALIŞTIRINCA GÖRÜLDÜ.
+ *
+ * İlk sürüm görselin tamamıydı ve alt çubukta "karanlık bir kare" gibi
+ * duruyordu. İki ayrı sebep vardı:
+ *
+ *   1. Görselin kendi arka planı koyu lacivert, çubuğunki #0F0F10 —
+ *      iki farklı koyu ton yan yana gelince kenar belli oluyordu.
+ *   2. Robot dairenin içinde küçük kalıyor; 26 pikselde kalan şey
+ *      koyu bir leke.
+ *
+ * Çözüm iki adımlı: köşeler dairesel maskeyle SAYDAM yapıldı (zemin
+ * rengi ne olursa olsun oturuyor), ve kadraj robotun KAFASINA
+ * yakınlaştırıldı. Kafa beyaz, gözler parlak — ikisi de açık renk, yani
+ * koyu bir çubukta kendiliğinden ayrışıyor.
+ */
+const MASKOT_HEAD = require('../../assets/kocai/kocai-head.png');
 
 /**
  * KocAI — maskot görseli.
@@ -78,7 +95,7 @@ const MASKOT_TAB = require('../../assets/kocai/kocai-tab.png');
 function CoachIcon({ color }: { color: string }) {
   return (
     <Image
-      source={MASKOT_TAB}
+      source={MASKOT_HEAD}
       style={[
         styles.coachIcon,
         // Aktif sekme tam opak, pasif sönük. `color` burada rengi değil

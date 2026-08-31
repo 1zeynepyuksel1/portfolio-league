@@ -72,6 +72,30 @@ kullanıcı bunların aynı şey olduğunu bağlayamazdı.
    bir ÇİZİM — rengi değişmiyor.)
 4. Avatar 28'den 34 piksele çıkarıldı. Neden?
 
+⚠️ **İLK SÜRÜM ALT ÇUBUKTA "KARANLIK BİR KARE" GİBİ DURDU.**
+
+İki ayrı sebebi vardı ve ikisi de ancak çalıştırınca görüldü:
+
+1. Görselin **kendi arka planı** koyu lacivert; alt çubuğunki `#0F0F10`.
+   İki farklı koyu ton yan yana gelince kenar belli oluyordu.
+2. Robot dairenin içinde küçük kalıyor; 26 pikselde geriye koyu bir leke
+   kalıyordu.
+
+Çözüm iki adımlı: köşeler **dairesel maskeyle saydam** yapıldı (zemin
+rengi ne olursa olsun oturuyor), ve sekme/avatar için kadraj robotun
+**KAFASINA** yakınlaştırıldı. Kafa beyaz, gözler parlak — ikisi de açık
+renk, koyu bir çubukta kendiliğinden ayrışıyor.
+
+Sonuçta iki kırpım var ve **farkları boyut değil KADRAJ**:
+
+```
+kocai-head.png   kafaya yakın, saydam köşe  ->  sekme 26px, avatar 34px
+kocai-full.png   tam maskot, halkasıyla     ->  ekran başlığı 40px
+```
+
+**Ne sorulacak:** Aynı görseli iki farklı kadrajda tutmak neden
+gerekiyordu? Tek dosyayla idare etseydik hangi boyutta ne kaybederdik?
+
 ⚠️ **BEDELİ YAZILI: TEK RESİM SİMGE, BEŞ ÇİZGİ SİMGENİN ARASINDA.**
 Diğer sekmeler `lucide` çizgi simgeleri; maskot onların sistemine ait
 değil ve 24 pikselde detayı (gözlük, kravat, grafik) kayboluyor.
