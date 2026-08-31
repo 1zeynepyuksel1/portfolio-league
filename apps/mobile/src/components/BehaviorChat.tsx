@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -7,8 +7,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Lightbulb, MessageSquarePlus, Trash2 } from 'lucide-react-native';
 import { ApiError, apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
+import {
+  baslikUret,
+  deleteConversation,
+  loadConversations,
+  saveConversation,
+  yeniId,
+  type Conversation,
+  type Turn,
+} from '../lib/chat-store';
 
 /**
  * BehaviorChat — koç sohbeti.
@@ -29,15 +39,34 @@ import { colors, fonts } from '../theme';
  * Uygulama dürüst davranıyor ama curl kullanan biri uydurabilir; asıl
  * koruma sunucuda.
  *
- * ⚠️ GEÇMİŞ EKRAN KAPANINCA SİLİNİYOR. Bu bir kayıp değil, tasarım:
- * sohbet bir danışma anı, arşiv değil. Kalıcı olsaydı kullanıcı aylar
- * önceki bir cevabı bugünün verisiymiş gibi okurdu.
+ * ⚠️ GEÇMİŞ ARTIK KALICI — VE ÖNCEKİ NOT ÇÜRÜTÜLDÜ.
+ *
+ * Burada "sohbet bir danışma anı, arşiv değil; ekran kapanınca silinsin"
+ * yazıyordu. Kullanım gösterdi ki değil: kullanıcı önceki sohbete geri
+ * dönmek ve yeni bir konuya temiz sayfayla başlamak istiyor.
+ *
+ * Depo cihazda (`lib/chat-store.ts`), sunucuda değil — gerekçesi orada.
+ * Sunucu bu geçmişe hâlâ GÜVENMİYOR: her istekte gönderilen kısım
+ * `sanitizeHistory`'den geçiyor.
  */
-
-type Turn = { role: 'user' | 'model'; text: string };
 
 /** Sunucudaki sınırla aynı — ikisi ayrışmasın diye burada da yazılı. */
 const MAX_LENGTH = 500;
+
+/**
+ * Karşılamada sayılan yetenekler.
+ *
+ * ⚠️ SIRALAMA RASTGELE DEĞİL: en somut olan başta. "Cüzdanını
+ * yorumlayabilirim" kullanıcının hemen deneyebileceği bir şey; "yatırım
+ * kavramlarını anlatırım" ise soyut. İlk madde denenmezse hiçbiri
+ * denenmiyor.
+ */
+const YETENEKLER = [
+  'Cüzdanını yorumlayabilirim — dağılım, yoğunlaşma, ne kârda ne zararda',
+  'Alım-satım notlarına bakıp kararlarınla davranışını karşılaştırabilirim',
+  'Ölçülmüş alışkanlıklarını açıklayabilirim',
+  'Yatırım kavramlarını anlatır, bir yaklaşımın mantıklı olup olmadığını tartışırım',
+];
 
 /**
  * Başlangıç önerileri.
@@ -70,6 +99,23 @@ export function BehaviorChat({ hasFindings }: { hasFindings: boolean }) {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /** Kayıtlı sohbetler ve şu an açık olanın kimliği. */
+  const [gecmisler, setGecmisler] = useState<Conversation[]>([]);
+  const [acikId, setAcikId] = useState<string | null>(null);
+  const [listeAcik, setListeAcik] = useState(false);
+
+  useEffect(() => {
+    /*
+      ⚠️ AÇILIŞTA SON SOHBET YÜKLENMİYOR, YALNIZCA LİSTE OKUNUYOR.
+
+      Kullanıcı sekmeye girdiğinde temiz bir sayfa görmeli: çoğu
+      açılışta yeni bir soru soracak. Son sohbeti otomatik açsaydık,
+      dünkü konuşmanın ortasına düşerdi ve "yeni sohbet"e basmak
+      zorunda kalırdı — yani varsayılan yanlış tarafta olurdu.
+    */
+    void loadConversations().then(setGecmisler);
+  }, []);
 
   /*
     ⚠️ `useRef` KULLANILIYOR, `useState` DEĞİL.
@@ -106,6 +152,25 @@ export function BehaviorChat({ hasFindings }: { hasFindings: boolean }) {
       const sonraki: Turn[] = [...gecmis.current, { role: 'model', text: r.reply }];
       gecmis.current = sonraki;
       setTurns(sonraki);
+
+      /*
+        ⚠️ KAYIT MODEL CEVABINDAN SONRA, SORUDAN SONRA DEĞİL.
+
+        Soruyu anında kaydetseydik, cevabı gelmemiş yarım bir sohbet
+        listede görünürdü. Kullanıcı ona geri döndüğünde kendi sorusunu
+        görür ama cevabı göremezdi — bozuk gibi durur.
+      */
+      const id = acikId ?? yeniId();
+      if (acikId === null) setAcikId(id);
+
+      const kayit: Conversation = {
+        id,
+        title: baslikUret(sonraki[0]?.text ?? soru),
+        updatedAt: Date.now(),
+        turns: sonraki,
+      };
+
+      setGecmisler(await saveConversation(kayit));
     } catch (e) {
       /*
         ⚠️ HATA KODLARI AYRI MESAJLAR ALIYOR — sunucu onları bilerek
@@ -127,9 +192,92 @@ export function BehaviorChat({ hasFindings }: { hasFindings: boolean }) {
     }
   }
 
+  function yeniSohbet() {
+    gecmis.current = [];
+    setTurns([]);
+    setAcikId(null);
+    setError(null);
+    setListeAcik(false);
+  }
+
+  function sohbetAc(c: Conversation) {
+    gecmis.current = c.turns;
+    setTurns(c.turns);
+    setAcikId(c.id);
+    setError(null);
+    setListeAcik(false);
+  }
+
+  async function sohbetSil(id: string) {
+    setGecmisler(await deleteConversation(id));
+    // Açık olanı sildiysek ekranı da temizle; yoksa var olmayan bir
+    // sohbetin içinde kalırdık ve sonraki mesaj onu diriltirdi.
+    if (id === acikId) yeniSohbet();
+  }
+
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>SOR</Text>
+      <View style={styles.head}>
+        <Text style={styles.label}>SOR</Text>
+
+        <View style={styles.headActions}>
+          {gecmisler.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setListeAcik((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel="Geçmiş sohbetler"
+            >
+              <Text style={styles.headBtn}>
+                Geçmiş ({gecmisler.length})
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {turns.length > 0 && (
+            <TouchableOpacity
+              onPress={yeniSohbet}
+              accessibilityRole="button"
+              accessibilityLabel="Yeni sohbet"
+            >
+              <MessageSquarePlus size={18} color={colors.inkFaint} strokeWidth={2} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/*
+        GEÇMİŞ LİSTESİ — katman değil, açılır blok.
+
+        ⚠️ Ayrı bir ekran açmadık. Sohbet zaten Profil'in değil kendi
+        sekmesinin içinde; bir katman daha açmak kullanıcıyı iki kez
+        geri gitmek zorunda bırakırdı.
+      */}
+      {listeAcik && (
+        <View style={styles.list}>
+          {gecmisler.map((c) => (
+            <View key={c.id} style={styles.listRow}>
+              <TouchableOpacity
+                style={styles.listMain}
+                onPress={() => sohbetAc(c)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.listTitle} numberOfLines={1}>
+                  {c.title}
+                </Text>
+                <Text style={styles.listMeta}>{c.turns.length} mesaj</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => void sohbetSil(c.id)}
+                accessibilityRole="button"
+                accessibilityLabel="Sohbeti sil"
+              >
+                <Trash2 size={16} color={colors.inkDisabled} strokeWidth={2} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/*
         ⚠️ ESKİ METİN BULGU YOKKEN "konuşacak bir şey yok" DİYORDU —
@@ -141,19 +289,70 @@ export function BehaviorChat({ hasFindings }: { hasFindings: boolean }) {
         bunu baştan bilmek, reddedilmeyi "arıza" olmaktan çıkarıyor.
       */}
       <Text style={styles.hint}>
-        {hasFindings
-          ? 'Alışkanlıkların, yatırım kavramları ya da aklındaki bir yaklaşım hakkında sorabilirsin. Fiyat tahmini ve varlık tavsiyesi vermiyor.'
-          : 'Yatırım kavramları ya da aklındaki bir yaklaşım hakkında sorabilirsin. Fiyat tahmini ve varlık tavsiyesi vermiyor.'}
+        Fiyat tahmini ve varlık tavsiyesi vermiyor.
       </Text>
 
+      {/*
+        KARŞILAMA — YEREL METİN, MODEL ÇAĞRISI DEĞİL.
+
+        ⚠️ Modele "kendini tanıt" dedirtmek en doğal yol gibi görünüyor
+        ama her ekran açılışında bir istek harcardı. Ücretsiz katmanda
+        günde 20 istek var; kullanıcı sekmeye üç kez girse kotanın altısı
+        selamlaşmaya giderdi.
+
+        ⚠️ Ayrıca DEĞİŞMEZ olması iyi: karşılama, botun ne yapabildiğini
+        öğreten tek yer. Model her seferinde farklı yazsaydı bazı
+        açılışlarda yetenekleri saymayı unuturdu.
+      */}
+      {turns.length === 0 && (
+        <View style={styles.turn0}>
+          <View style={styles.avatar}>
+            <Lightbulb size={16} color={colors.onInverse} strokeWidth={2.2} />
+          </View>
+
+          <View style={styles.welcome}>
+            <Text style={styles.welcomeTitle}>Merhaba, ben KocAI 👋</Text>
+
+            <Text style={styles.welcomeText}>Sana nasıl yardımcı olabilirim?</Text>
+
+            {/*
+              ⚠️ MADDELER AYRI `Text` — tek metnin içine `\n` KOYULMADI.
+
+              Kaçış karakteri kullanmak burada iki kez ters gitti: JSX
+              içinde `{'\n'}` yazmak hem okunmaz hem de düzenleyiciler
+              arasında taşınırken gerçek satır sonuna dönüşüp dosyayı
+              bozabiliyor. Ayrı öğeler hem güvenli hem de her maddeye
+              ayrı stil vermeyi mümkün kılıyor.
+            */}
+            {YETENEKLER.map((y) => (
+              <Text key={y} style={styles.welcomeItem}>
+                • {y}
+              </Text>
+            ))}
+          </View>
+        </View>
+      )}
+
       {turns.map((t, i) => (
-        <View
-          key={i}
-          style={[styles.turn, t.role === 'user' ? styles.mine : styles.theirs]}
-        >
-          <Text style={t.role === 'user' ? styles.mineText : styles.theirsText}>
-            {t.text}
-          </Text>
+        <View key={i} style={styles.turnRow}>
+          {/*
+            ⚠️ AVATAR YALNIZCA MODEL TARAFINDA. Kullanıcının kendi
+            mesajına kendi simgesini koymak yer kaplar ve hiçbir şey
+            söylemez — zaten sağda ve ters zeminde, kimin yazdığı belli.
+          */}
+          {t.role === 'model' && (
+            <View style={styles.avatar}>
+              <Lightbulb size={16} color={colors.onInverse} strokeWidth={2.2} />
+            </View>
+          )}
+
+          <View
+            style={[styles.turn, t.role === 'user' ? styles.mine : styles.theirs]}
+          >
+            <Text style={t.role === 'user' ? styles.mineText : styles.theirsText}>
+              {t.text}
+            </Text>
+          </View>
         </View>
       ))}
 
@@ -210,7 +409,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 1.5,
     color: colors.inkFaint,
-    marginBottom: 8,
   },
   hint: {
     fontFamily: fonts.regular,
@@ -219,6 +417,71 @@ const styles = StyleSheet.create({
     color: colors.inkDisabled,
     marginBottom: 12,
   },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  headActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  headBtn: { fontFamily: fonts.medium, fontSize: 11, color: colors.inkFaint },
+  list: {
+    marginBottom: 12,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceSunken,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  listMain: { flex: 1 },
+  listTitle: { fontFamily: fonts.medium, fontSize: 13, color: colors.inkBright },
+  listMeta: { fontFamily: fonts.regular, fontSize: 11, color: colors.inkDisabled },
+  turnRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  turn0: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12 },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.inverse,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  welcome: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceRaised,
+  },
+  welcomeTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    color: colors.ink,
+    marginBottom: 8,
+  },
+  welcomeText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.inkMuted,
+    marginBottom: 8,
+  },
+  welcomeItem: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.inkMuted,
+    marginBottom: 4,
+  },
   turn: {
     padding: 12,
     borderRadius: 14,
@@ -226,9 +489,9 @@ const styles = StyleSheet.create({
     maxWidth: '92%',
   },
   // Kullanıcı sağda ve ters zeminde — tasarımın "seçili" dili.
-  mine: { alignSelf: 'flex-end', backgroundColor: colors.inverse },
+  mine: { alignSelf: 'flex-end', marginLeft: 'auto', backgroundColor: colors.inverse },
   mineText: { fontFamily: fonts.medium, fontSize: 13, color: colors.onInverse },
-  theirs: { alignSelf: 'flex-start', backgroundColor: colors.surfaceRaised },
+  theirs: { flex: 1, backgroundColor: colors.surfaceRaised },
   theirsText: {
     fontFamily: fonts.regular,
     fontSize: 13,

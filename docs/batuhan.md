@@ -50,6 +50,69 @@ neden koddan daha çabuk eskidiğinin örneği.
 ⚠️ **YEDİNCİ SEKME EKLENMEMELİ** — koda not düşüldü. Altı, etiketlerin
 okunabildiği sınır.
 
+### 35. KocAI: cüzdan erişimi, sohbet geçmişi, karşılama — 31 Ağu 2026
+
+**Yeni:** `mobile/src/lib/chat-store.ts`
+**Değişti:** `behavior/chat.ts` · `behavior/service.ts` · `behavior/router.ts`
+· `BehaviorChat.tsx`
+
+**1 · Cüzdan ve işlem geçmişi modele veriliyor — AMA TUTARSIZ.**
+
+```
+gönderilen     sembol · pay yüzdesi · kâr/zarar yüzdesi · tarih · yön · KARAR NOTU
+gönderilmeyen  TL tutarı · fiyat · komisyon
+```
+
+**Ne sorulacak:**
+
+1. Oran gönderiliyor ama tutar gönderilmiyor. Neden bu ayrım?
+   (Kartlar kesin rakamı gösteriyor; model "yaklaşık 150 lira" dediği an
+   ekranla çelişir. Oranı yuvarlaması zararsız: "üçte ikisi" ile "%62"
+   aynı şeyi söylüyor.)
+2. Karar notunun modele verilmesi neyi mümkün kılıyor?
+3. Nakit payı neden sunucuda hesaplanıp gönderiliyor, modele
+   yaptırılmıyor?
+4. `getChatContext` neden `getBehaviorReport`'tan ayrı bir fonksiyon?
+5. Çark ödülleri neden işlem listesinden eleniyor? Filtrenin kırılgan
+   yanı ne, ve bozulursa nasıl anlaşılır?
+
+⚠️ **ÖZELLİĞİN ASIL DEĞERİ İLK DENEMEDE ORTAYA ÇIKTI.** "Cüzdanımı
+yorumlar mısın?" sorusuna gelen cevaptan:
+
+> *"BTC işlemlerinde 'kar aldım' notunu düşmene rağmen hemen geri alım
+>  yaptığını fark ettim."*
+
+Hiçbir gösterge bunu yakalayamaz — niyeti ölçemiyoruz. Ama kullanıcı
+kendi yazmış, model karşılaştırdı. Karar notunu eklemenin karşılığı bu.
+
+**2 · Sohbet geçmişi kalıcı oldu.**
+
+⚠️ Koddaki bir not daha çürütüldü: `BehaviorChat.tsx` "sohbet bir danışma
+anı, arşiv değil; ekran kapanınca silinsin" diyordu. Kullanım aksini
+gösterdi.
+
+Depo CİHAZDA (`chat-store.ts`), sunucuda değil — tablo migration ister,
+migration'ların sahibi Zeynep. Bedeli açıkça yazıldı: telefon değişirse
+geçmiş gelmez, iki cihaz farklı geçmiş görür.
+
+**Ne sorulacak:** Bu takas sohbet geçmişi için neden kabul edilebilir,
+emir defteri için neden asla olmazdı?
+
+**3 · Karşılama + logo.**
+
+⚠️ Karşılama YEREL METİN, model çağrısı değil. Modele "kendini tanıt"
+dedirtseydik her ekran açılışı bir istek harcardı — günde 20 istek var,
+kullanıcı sekmeye üç kez girse kotanın altısı selamlaşmaya giderdi.
+Ayrıca değişmez olması iyi: karşılama botun ne yapabildiğini öğreten tek
+yer, model her seferinde farklı yazsaydı bazı açılışlarda yetenek saymayı
+unuturdu.
+
+⚠️ **JSX'te `{'
+'}` KULLANMA.** Karşılama metnini tek `Text` içinde
+satır sonlarıyla yazmıştım; kaçış karakterleri düzenleyiciler arasında
+taşınırken GERÇEK satır sonuna dönüşüp dosyayı bozdu (`TS1002:
+Unterminated string literal`). Maddeler ayrı `Text` öğelerine bölündü.
+
 ### 34. Sohbet açıldı + kota gerçeği — 31 Ağu 2026
 
 **Değişti:** `behavior/chat.ts` · `behavior/gemini.ts` · `BehaviorChat.tsx`

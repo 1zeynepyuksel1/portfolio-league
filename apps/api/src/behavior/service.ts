@@ -30,7 +30,9 @@ import {
   type Indicator,
 } from './indicators.js';
 import { getBehaviorOrders } from './repository.js';
-import { formatTRY, type Penny } from '../lib/money.js';
+import { getRecentOrders } from '../portfolio/repository.js';
+import type { BehaviorPortfolio, BehaviorTrade, ChatContext } from './chat.js';
+import { divRound, formatTRY, type Penny } from '../lib/money.js';
 import { getPortfolio } from '../portfolio/service.js';
 import { getDepositedCents } from '../portfolio/repository.js';
 
@@ -309,4 +311,96 @@ function build(
     facts: indicator.facts,
     orderIds: indicator.orderIds,
   };
+}
+
+// ---------------------------------------------------------------------------
+// SOHBET BAĞLAMI
+// ---------------------------------------------------------------------------
+
+/**
+ * Sohbette modele gösterilecek son işlem sayısı.
+ *
+ * ⚠️ SINIR HEM MALİYET HEM DOĞRULUK. Geçmiş her mesajda yeniden
+ * gönderiliyor; uzadıkça hem token faturası büyüyor hem de modelin uzun
+ * bağlamda kuralları kaçırma ihtimali artıyor. Son işlemler zaten en
+ * ilgili olanlar — kullanıcı "geçen ay ne yapmıştım" diye sormuyor,
+ * "şu an ne yapıyorum" diye soruyor.
+ */
+const CHAT_TRADE_LIMIT = 20;
+
+/**
+ * Sohbetin ihtiyaç duyduğu her şeyi toplar: bulgular + portföy + işlemler.
+ *
+ * ⚠️ BU FONKSİYON `getBehaviorReport`'TAN AYRI — ve olmalı da.
+ *
+ * Kart ucu (`GET /me/behavior`) portföyü YALNIZCA yoğunlaşma göstergesi
+ * için okuyor ve işlem geçmişine hiç bakmıyor. Sohbet ise ikisini de
+ * istiyor. Tek fonksiyonda birleştirseydik kartlar da her açılışta
+ * gereksiz sorgu yapardı — oysa oranın en hızlı gelmesi gereken uç o.
+ */
+export async function getChatContext(userId: string): Promise<ChatContext> {
+  const [report, portfolio, orders] = await Promise.all([
+    getBehaviorReport(userId),
+    getPortfolio(userId),
+    getRecentOrders(userId, CHAT_TRADE_LIMIT),
+  ]);
+
+  /*
+    ⚠️ NAKİT PAYI BURADA HESAPLANIYOR, MODELDE DEĞİL.
+
+    "Portföyünün ne kadarı nakit" bir bölme işlemi ve modele
+    yaptırılmaz: yanlış hesaplarsa fark edilmez. Pozisyon payları zaten
+    `calculate.ts`'te kesin aritmetikle hesaplanmış halde geliyor;
+    nakit payını da aynı yerden türetiyoruz.
+  */
+  const toplam = portfolio.totalValueCents;
+  const nakitPay =
+    toplam > 0n
+      ? formatHundredths(divRound(portfolio.cashCents * 10_000n, toplam))
+      : null;
+
+  const behaviorPortfolio: BehaviorPortfolio = {
+    cashSharePercent: nakitPay,
+    positions: portfolio.positions.map((p) => ({
+      symbol: p.symbol,
+      sharePercent: p.sharePercent,
+      profitPercent: p.profitPercent,
+    })),
+  };
+
+  const trades: BehaviorTrade[] = orders
+    /*
+      ⚠️ ÇARK ÖDÜLLERİ ELENİYOR — çünkü bunlar KARAR DEĞİL.
+
+      `getRecentOrders` günlük bonusları da listeye katıyor (Cüzdan
+      ekranında doğru davranış: bakiye değişimi orada görünmeli). Ama
+      sohbet bağlamında model onları "kullanıcı çark aldı" diye bir
+      tercih sanır ve üzerine yorum yapar.
+
+      ⚠️ Sembol metnine bağlı bir filtre ve bu kırılgan: Zeynep sembolü
+      değiştirirse burası sessizce bozulur. Alternatifi `cash_movements`
+      için ayrı bir sorgu yazmaktı; bir satırlık filtre için iki sorgu
+      döndürmek doğru gelmedi. Bozulursa belirtisi görünür olur —
+      sohbette "ÇARK" adında bir varlık belirir.
+    */
+    .filter((o) => o.symbol !== 'ÇARK')
+    .map((o) => ({
+    // Saat değil GÜN: modelin işine yarayan şey "hangi gün", ve saat
+    // eklemek metni uzatıp bir şey katmıyor.
+    date: o.executedAt.toISOString().slice(0, 10),
+    symbol: o.symbol,
+    side: o.side,
+      note: o.note,
+    }));
+
+  return { findings: report.findings, portfolio: behaviorPortfolio, trades };
+}
+
+/** 1234n -> "12.34" — `cost-basis.ts`'teki `formatHundredths` ile aynı kural. */
+function formatHundredths(value: bigint): string {
+  const negatif = value < 0n;
+  const abs = negatif ? -value : value;
+  const tam = abs / 100n;
+  const kesir = (abs % 100n).toString().padStart(2, '0');
+  return `${negatif ? '-' : ''}${tam}.${kesir}`;
 }

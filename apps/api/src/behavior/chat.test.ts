@@ -38,7 +38,11 @@ describe('buildGrounding', () => {
 
       Yönerge bir rica; veriyi vermemek bir garanti.
     */
-    const g = buildGrounding([finding('wash_trade', 'Sat, hemen geri al')]);
+    const g = buildGrounding({
+      findings: [finding('wash_trade', 'Sat, hemen geri al')],
+      portfolio: null,
+      trades: [],
+    });
 
     expect(g).toContain('Sat, hemen geri al');
     expect(g).toContain('wash_trade');
@@ -48,7 +52,9 @@ describe('buildGrounding', () => {
   it('bulgu yoksa bunu AÇIKÇA söylüyor', () => {
     // "Bulgu yok" bilgisini vermeseydik model boşluğu doldurmaya
     // çalışır, yani bulgu uydururdu.
-    expect(buildGrounding([])).toContain('YOK');
+    expect(
+      buildGrounding({ findings: [], portfolio: null, trades: [] }),
+    ).toContain('YOK');
   });
 });
 

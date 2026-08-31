@@ -242,19 +242,127 @@ const TANIMLAR: Record<string, string> = {
  *
  * ⚠️ Kimlik de yok: kullanıcı adı, e-posta, emir kimliği gönderilmiyor.
  */
-export function buildGrounding(findings: BehaviorFinding[]): string {
-  if (findings.length === 0) {
-    return 'Bu kullanıcının ölçülmüş bir davranış bulgusu YOK.';
+/**
+ * Modelin görebileceği portföy özeti.
+ *
+ * ⚠️ ORAN VAR, TUTAR YOK — VE BU AYRIM MİMARİNİN TAMAMI.
+ *
+ * "Cüzdanımı yorumla" sorusunun anlamlı bir cevabı olması için modelin
+ * dağılımı görmesi gerekiyor: hangi varlık, ne kadarlık pay, kârda mı
+ * zararda mı. Bunlar ORAN — ve aynı oranlar zaten ekranda
+ * (`AllocationBar`).
+ *
+ * TL tutarları GÖNDERİLMİYOR. Sebep: kartlar kesin rakamı gösteriyor
+ * (146,77 ₺). Model aynı sayıyı "yaklaşık 150 lira" diye yazdığı an
+ * ekranla çelişir ve kullanıcı hangisine güveneceğini bilemez. Oranı
+ * yuvarlaması ise zararsız: "üçte ikisi" ile "%62" aynı şeyi söylüyor.
+ */
+export interface BehaviorPortfolio {
+  /** Nakdin toplam içindeki payı, yüzde metni ("12.34"). */
+  cashSharePercent: string | null;
+  positions: Array<{
+    symbol: string;
+    /** Portföydeki payı, yüzde metni. */
+    sharePercent: string | null;
+    /** Aldığından beri kâr/zarar yüzdesi. Negatif olabilir. */
+    profitPercent: string | null;
+  }>;
+}
+
+/**
+ * Modelin görebileceği tek bir işlem.
+ *
+ * ⚠️ YİNE TUTAR YOK. Tarih, sembol, yön ve kullanıcının KENDİ NOTU var.
+ *
+ * Notun burada olması özelliğin asıl değeri: model, kullanıcının
+ * SÖYLEDİĞİ sebeple YAPTIĞI şeyi karşılaştırabiliyor — "uzun vadeli
+ * tutacağım yazmışsın, ertesi gün satmışsın". Hiçbir gösterge bunu
+ * yakalayamaz çünkü niyet ölçülemiyor; ama kullanıcı kendi yazmış.
+ */
+export interface BehaviorTrade {
+  date: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  note: string | null;
+}
+
+/** Modele gidecek her şey tek yerde. */
+export interface ChatContext {
+  findings: BehaviorFinding[];
+  portfolio: BehaviorPortfolio | null;
+  trades: BehaviorTrade[];
+}
+
+/**
+ * Portföyü modele okunur bir metne çevirir.
+ *
+ * ⚠️ `null` payı olan pozisyon ATLANMIYOR, "bilinmiyor" yazılıyor.
+ * Sessizce düşürseydik model portföyün tamamını gördüğünü sanır ve
+ * eksik bir listeye bakarak "yeterince çeşitlendirmişsin" derdi.
+ */
+function portfoyMetni(p: BehaviorPortfolio | null): string {
+  if (p === null || p.positions.length === 0) {
+    return 'Portföy: kullanıcının açık pozisyonu YOK.';
   }
 
-  const liste = findings
-    .map((f, i) => {
-      const tanim = TANIMLAR[f.key];
-      return `${i + 1}. ${f.title} (${f.key})${tanim ? `\n   Tanım: ${tanim}` : ''}`;
-    })
-    .join('\n');
+  const satirlar = p.positions.map((pos) => {
+    /*
+      ⚠️ TÜRKÇE EK KOYMUYORUZ: "portföyün %11.42'i" yazıyordu ve yanlıştı
+      (doğrusu "'si"). Ek, önündeki sayının OKUNUŞUNA göre değişiyor ve
+      bunu metinden bilmek mümkün değil. Eki hiç koymamak, yanlış
+      koymaktan iyi.
+    */
+    const pay = pos.sharePercent === null ? 'payı bilinmiyor' : `payı %${pos.sharePercent}`;
+    const kar =
+      pos.profitPercent === null
+        ? 'kâr/zarar bilinmiyor'
+        : `${Number(pos.profitPercent) >= 0 ? 'kârda' : 'zararda'} (%${pos.profitPercent})`;
+    return `  - ${pos.symbol}: ${pay}, ${kar}`;
+  });
 
-  return `Bu kullanıcının ölçülmüş bulguları:\n${liste}`;
+  const nakit =
+    p.cashSharePercent === null
+      ? ''
+      : `
+  - Nakit: payı %${p.cashSharePercent}`;
+
+  return `Portföy dağılımı (ORANLAR; TL tutarları sana verilmiyor):
+${satirlar.join('\n')}${nakit}`;
+}
+
+/**
+ * Son işlemleri modele okunur bir metne çevirir.
+ *
+ * ⚠️ SINIRLI SAYIDA. Geçmiş büyüdükçe her mesajda gönderilen metin de
+ * büyür — hem maliyet hem, uzun bağlamda modelin kuralları kaçırma
+ * riski. Son işlemler en ilgili olanlar.
+ */
+function islemMetni(trades: BehaviorTrade[]): string {
+  if (trades.length === 0) return 'Son işlemler: kullanıcı henüz işlem yapmamış.';
+
+  const satirlar = trades.map((t) => {
+    const yon = t.side === 'buy' ? 'ALDI' : 'SATTI';
+    const not = t.note ? ` — kullanıcının notu: "${t.note}"` : '';
+    return `  - ${t.date} ${t.symbol} ${yon}${not}`;
+  });
+
+  return `Son işlemler (yeniden eskiye; TL tutarları sana verilmiyor):\n${satirlar.join('\n')}`;
+}
+
+export function buildGrounding(ctx: ChatContext): string {
+  const bulgular =
+    ctx.findings.length === 0
+      ? 'Ölçülmüş bir davranış bulgusu YOK.'
+      : `Ölçülmüş bulgular:\n${ctx.findings
+          .map((f, i) => {
+            const tanim = TANIMLAR[f.key];
+            return `${i + 1}. ${f.title} (${f.key})${tanim ? `\n   Tanım: ${tanim}` : ''}`;
+          })
+          .join('\n')}`;
+
+  return [bulgular, portfoyMetni(ctx.portfolio), islemMetni(ctx.trades)].join(
+    '\n\n',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +393,9 @@ konuşacak bir şey olmadığı anlamına gelmez.
 
 CEVAPLAYABİLECEKLERİN:
 - Genel sohbet, selamlaşma, uygulamanın nasıl çalıştığı
+- PORTFÖY YORUMU: dağılım, çeşitlendirme, hangi varlıkta yoğunlaşma var,
+  neyin kârda neyin zararda olduğu — sana ORANLAR veriliyor
+- SON İŞLEMLER üzerine konuşmak: hangi gün ne yapmış, notunda ne yazmış
 - Yatırım kavramları ("çeşitlendirme nedir", "komisyon nasıl işler")
 - Bir YAKLAŞIMIN mantıklı olup olmadığı ("tek varlığa yüklenmek mantıklı
   mı", "düşerken ekleme yapmak doğru mu") — burada ilkeyi tartış, artı ve
@@ -307,8 +418,15 @@ onu kimse bilmiyor ve burada söylenen şey ciddiye alınır.
 KURALLAR:
 - Türkçe yaz. En fazla 5 cümle; kısa sorularda daha da kısa ol.
 - Kullanıcıya "SEN" diye hitap et, "siz" değil.
-- SAYI YAZMA. Kullanıcının tutarı, yüzdesi, adedi sorulursa "ekrandaki
-  kartta yazıyor" de. O sayılar sana verilmiyor; uydurma.
+- TL TUTARI YAZMA. Tutar sorulursa "ekrandaki kartta yazıyor" de.
+  Tutarlar sana verilmiyor; uydurma.
+- ORANLARI (yüzde) kullanabilirsin ama SANA VERİLDİĞİ GİBİ kullan,
+  yuvarlama ve kendin hesaplama. Verilmeyen bir oranı uydurma.
+- İŞLEM GEÇMİŞİNDEN yalnızca sana VERİLENİ söyle: tarih, sembol, yön ve
+  kullanıcının kendi notu. Verilmeyen bir işlem varmış gibi konuşma.
+- Kullanıcının NOTU ile DAVRANIŞI arasındaki farkı gösterebilirsin —
+  bu en değerli gözlem. Örnek: notunda uzun vadeli tutacağını yazmış
+  ama ertesi gün satmış. Suçlayıcı değil, fark ettirici bir dille söyle.
 - Gözlem dili kullan. "Panikledin", "hata yaptın", "kötü yatırımcısın" deme.
 - Ölçülmüş bulgu YOKSA bulgu uydurma. "Şu alışkanlığın var" deme; genel
   konuş ya da işlem yapmaya başlayınca ölçebileceğini söyle.
@@ -352,7 +470,7 @@ export async function answer(
   userId: string,
   message: string,
   history: ChatMessage[],
-  findings: BehaviorFinding[],
+  ctx: ChatContext,
 ): Promise<ChatOutcome> {
   if (!isGeminiEnabled()) return { ok: false, reason: 'disabled' };
 
@@ -376,7 +494,7 @@ export async function answer(
           .map((m) => `${m.role === 'user' ? 'Kullanıcı' : 'Sen'}: ${m.text}`)
           .join('\n')}`;
 
-  const contents = `${buildGrounding(findings)}${gecmis}\n\nKULLANICININ SORUSU:\n${soru}`;
+  const contents = `${buildGrounding(ctx)}${gecmis}\n\nKULLANICININ SORUSU:\n${soru}`;
 
   const result = await callModel<{ reply?: unknown }>({
     systemInstruction: SYSTEM_INSTRUCTION,

@@ -6,6 +6,7 @@ import { narrate } from './narrator.js';
 import {
   MIN_ORDERS_FOR_ANALYSIS,
   getBehaviorReport,
+  getChatContext,
 } from './service.js';
 
 export const behaviorRouter = Router();
@@ -160,13 +161,20 @@ behaviorRouter.post(
     }
 
     try {
-      const report = await getBehaviorReport(userId);
+      /*
+        ⚠️ BULGULAR + PORTFÖY + SON İŞLEMLER birlikte çekiliyor.
+
+        Hepsi SUNUCUDA toplanıyor, istemciden alınmıyor. Alsaydık
+        kullanıcı "benim portföyüm şu" deyip olmayan bir cüzdan üzerine
+        konuşturabilirdi.
+      */
+      const ctx = await getChatContext(userId);
 
       const outcome = await answer(
         userId,
         body.message,
         sanitizeHistory(body.history),
-        report.findings,
+        ctx,
       );
 
       if (outcome.ok) return response.json({ reply: outcome.reply });
