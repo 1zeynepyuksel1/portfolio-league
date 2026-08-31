@@ -119,7 +119,7 @@ export async function createPost(userId: string, type: 'pnl_share' | 'wheel_shar
 }
 
 export async function getMyPosts(userId: string, limit = 20, offset = 0) {
-  return db.select().from(posts).where(eq(posts.userId, userId)).orderBy(desc(posts.createdAt)).limit(limit).offset(offset);
+  return db.select().from(posts).where(eq(posts.userId, userId)).orderBy(sql`COALESCE((${posts.payload}->>'isPinned')::boolean, false) DESC`, desc(posts.createdAt)).limit(limit).offset(offset);
 }
 
 export async function getFeed(viewerId: string, limit = 20, offset = 0) {
@@ -165,4 +165,53 @@ export async function getFeed(viewerId: string, limit = 20, offset = 0) {
       avatarSeed: row.user?.avatarSeed
     }
   }));
+}
+
+export async function deletePost(userId: string, postId: string) {
+  const { eq, and } = await import('drizzle-orm');
+  const [deleted] = await db.delete(posts).where(and(eq(posts.id, postId), eq(posts.userId, userId))).returning();
+  if (!deleted) throw new Error('Post not found or unauthorized');
+  return deleted;
+}
+
+
+
+export async function togglePostPin(postId: string, userId: string) {
+  const { eq, and } = await import('drizzle-orm');
+  const [post] = await db.select().from(posts).where(and(eq(posts.id, postId), eq(posts.userId, userId)));
+  if (!post) throw new Error('Gönderi bulunamadı veya yetkiniz yok');
+  
+  const payload = post.payload || {};
+  const isPinned = !(payload as any).isPinned;
+  
+  const [updated] = await db.update(posts)
+    .set({ payload: { ...payload, isPinned } })
+    .where(and(eq(posts.id, postId), eq(posts.userId, userId)))
+    .returning();
+    
+  return updated;
+}
+
+export async function updatePostCaption(postId: string, userId: string, caption: string) {
+  const { eq, and } = await import('drizzle-orm');
+  const result = await db.update(posts)
+    .set({ caption })
+    .where(and(eq(posts.id, postId), eq(posts.userId, userId)))
+    .returning();
+    
+  if (result.length === 0) {
+    throw new Error('Gönderi bulunamadı veya yetkiniz yok');
+  }
+  
+  return result[0];
+}
+
+export async function updatePostVisibility(userId: string, postId: string, visibility: 'public' | 'friends_only') {
+  const { eq, and } = await import('drizzle-orm');
+  const [updated] = await db.update(posts)
+    .set({ visibility })
+    .where(and(eq(posts.id, postId), eq(posts.userId, userId)))
+    .returning();
+  if (!updated) throw new Error('Post not found or unauthorized');
+  return updated;
 }

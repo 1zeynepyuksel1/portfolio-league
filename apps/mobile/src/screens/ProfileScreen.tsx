@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, Pressable, View, Modal, SafeAreaView, Platform, StatusBar as RNStatusBar, Image } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
 import { apiFetch } from '../api/client';
@@ -31,7 +32,7 @@ type PublicProfile = {
   friendCount: number; pendingRequests: number;
 };
 
-export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSelectUser }: { username: string; onClose?: () => void; onOpenFriends?: () => void; onLogout?: () => void; onSelectUser?: (username: string) => void }) {
+export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSelectUser, currentUserId }: { username: string; onClose?: () => void; onOpenFriends?: () => void; onLogout?: () => void; onSelectUser?: (username: string) => void; currentUserId?: string; }) {
   
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -93,7 +94,11 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
     } catch (err) { setError(err instanceof Error ? err.message : 'Profil yüklenemedi.'); } finally { setLoading(false); }
   }, [username]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { 
+    void load(); 
+    const sub = DeviceEventEmitter.addListener('refreshProfile', () => { void load(); });
+    return () => sub.remove();
+  }, [load]);
 
   const handleSaveSettings = async () => {
     setSavingSettings(true); setSettingsError('');
@@ -273,7 +278,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
               ) : (
                 <View style={{ gap: 16 }}>
                   {posts.map(post => (
-                    <PostCard key={post.id} post={post} user={profile} isPreview={false} onPressUser={(u) => { if (u !== profile.username && onSelectUser) onSelectUser(u); }} />
+                    <PostCard key={post.id} post={post} user={profile} isPreview={false} currentUserId={currentUserId} onPressUser={(u) => { if (u !== profile.username && onSelectUser) onSelectUser(u); }} />
                   ))}
                 </View>
               )}

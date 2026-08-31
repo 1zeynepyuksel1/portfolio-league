@@ -14,7 +14,7 @@ import { FriendsScreen } from './FriendsScreen';
 
 type DiscoveryTab = 'feed' | 'whatif' | 'wheel' | 'astro' | 'social';
 
-export function DiscoveryScreen({ onSelectUser }: { onSelectUser?: (username: string) => void }) {
+export function DiscoveryScreen({ onSelectUser, currentUser }: { onSelectUser?: (username: string) => void; currentUser?: any }) {
   const [shareMenuVisible, setShareMenuVisible] = useState(false);
 
   const [activeTab, setActiveTab] = useState<DiscoveryTab>('feed');
@@ -43,7 +43,7 @@ export function DiscoveryScreen({ onSelectUser }: { onSelectUser?: (username: st
       </SafeAreaView>
 
       <View style={styles.content}>
-        {activeTab === 'feed' && <FeedTab onSelectUser={onSelectUser} />}
+        {activeTab === 'feed' && <FeedTab onSelectUser={onSelectUser} currentUser={currentUser} />}
         {activeTab === 'whatif' && <WhatIfScreen />}
         {activeTab === 'wheel' && <WheelTab />}
         {activeTab === 'astro' && <AstroTab />}
@@ -57,7 +57,7 @@ export function DiscoveryScreen({ onSelectUser }: { onSelectUser?: (username: st
   );
 }
 
-function FeedTab({ onSelectUser }: { onSelectUser?: (username: string) => void }) {
+function FeedTab({ onSelectUser, currentUser }: { onSelectUser?: (username: string) => void; currentUser?: any }) {
   
   const [posts, setPosts] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -101,8 +101,9 @@ function FeedTab({ onSelectUser }: { onSelectUser?: (username: string) => void }
         <PostCard 
           post={item} 
           user={item.user || { username: 'Gizli Kullanıcı', avatarStyle: 'shapes', avatarSeed: 'default' }} 
-          isPreview={false}
-          onPressUser={(username) => { if (onSelectUser) onSelectUser(username); }} 
+            isPreview={false}
+            currentUserId={currentUser?.id}
+            onPressUser={onSelectUser} 
         />
       )}
       ListFooterComponent={
