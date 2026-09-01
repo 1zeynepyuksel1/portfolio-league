@@ -48,15 +48,39 @@ zorunda — yoksa kimse fark etmeden veri gider.
 testler geçti (posts'un testi yok), typecheck temiz (TypeScript
 veritabanına bakmaz). Yalnızca ekranı açan kullanıcı görüyor.
 
-**Düzeltme:** `schema` artık dizi — iki dosyayı da sayıyor.
-Kopya klasörde sınandı: drizzle-kit artık `posts 8 columns` diye okuyor ve
-ürettiği migration **yalnızca CREATE** içeriyor, hiçbir yıkıcı ifade yok.
+**Düzeltme — ve iki kişi aynı hatayı aynı anda buldu.**
 
-⚠️ **YARIM BIRAKILDI — BİLEREK.** Tabloyu geri getiren migration'ı ben
-yazmadım: migration'ların sahibi Zeynep (CLAUDE.md). Zaten bu arızanın
-kendisi iki kişinin aynı numarayı üretmesinden çıktı; ikinci kez aynı
-hatayı yapmanın anlamı yok. `npm run -w apps/api db:generate` + `db:migrate`
-Zeynep'te.
+Ben `drizzle.config.ts`'in `schema` alanını diziye çevirmiştim (iki dosyayı
+da say). Zeynep aynı saatlerde başka bir yerden çözmüş:
+
+```ts
+// db/schema.ts sonuna
+export * from '../posts/schema.js';
+```
+
+⚠️ **Onunki kazandı, ve sebebi önemli.** İkisi de çalışıyor; fark
+UNUTULMAYA DAYANIKLILIK. Benim çözümümde yeni bir `pgTable` dosyası açan
+kişi İKİ yeri güncel tutmak zorunda: dosyayı yazmak ve config listesine
+eklemek. Zeynep'inkinde tek giriş noktası var — `db/schema.ts`. Zaten o
+dosyayı düzenliyorsun, `export *` satırı gözünün önünde.
+
+İki mekanizmayı birlikte tutmak da yanlıştı: aynı işi iki yerden yapan
+kod, biri bozulduğunda susar.
+
+Kanıtlandı — config tek dosyaya döndürüldükten sonra:
+
+```
+posts 8 columns 0 indexes 1 fks        <- yeniden dışa aktarımdan görüyor
+No schema changes, nothing to migrate  <- 0014 anlık görüntüsü şemayla birebir
+```
+
+İkinci satır asıl güvence: sıradaki `db:generate` artık hiçbir şey
+üretmiyor, yani ortada bekleyen başka bir `DROP` kalmamış.
+
+⚠️ **Migration'ı sonunda ben ürettim** (`0014_recreate_posts`), oysa
+CLAUDE.md sahibini Zeynep diyor. Bilinçli bir istisna: tablo silinmişti ve
+paylaşım tamamen ölüydü. Üretilen SQL yalnızca `CREATE` içeriyordu,
+uygulamadan önce okundu. Yine de kural bu: bir dahaki sefere önce sor.
 
 **Ayrıca — ikinci, daha küçük hata:** paylaşımda "Dönem Seç" adımı SÜS.
 `GET /posts/share-preview/portfolio?period=week` isteği gidiyor ama
