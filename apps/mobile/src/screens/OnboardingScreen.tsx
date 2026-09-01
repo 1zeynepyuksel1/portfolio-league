@@ -212,20 +212,20 @@ const styles = StyleSheet.create({
   },
   stepIndicator: {
     color: colors.accent,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.5,
   },
   progressBarBackground: {
     height: 4,
     backgroundColor: colors.surfacePressed,
-    borderRadius: 2,
+    borderRadius: 6,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: colors.gain,
-    borderRadius: 2,
+    borderRadius: 6,
   },
   glassCard: {
     width: '100%',
@@ -256,13 +256,13 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#34D399',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
   },
   iconWrap: { alignItems: 'center', marginBottom: 14 },
   cardTitle: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   privacyToggleRow: {
     flexDirection: 'row',
     backgroundColor: colors.surfaceSunken,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 4,
     width: '100%',
   },
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
   },
   privacyButtonActive: {
     backgroundColor: colors.accent,
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   glowingPillButtonText: {
     color: '#022C22',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

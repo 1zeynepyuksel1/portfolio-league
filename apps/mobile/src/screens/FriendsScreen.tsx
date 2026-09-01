@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: colors.gain,
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: fonts.semibold,
   },
   container: {
@@ -643,14 +643,14 @@ const styles = StyleSheet.create({
   suggestionAvatar: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 20,
     backgroundColor: colors.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
   },
   suggestionAvatarText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.inkBright,
   },
   suggestionInfo: {
@@ -658,12 +658,12 @@ const styles = StyleSheet.create({
   },
   suggestionName: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.inkBright,
   },
   suggestionUsername: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.inkMuted,
     marginTop: 1,
   },
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: colors.ink,
     fontFamily: fonts.bold,
-    fontSize: 13,
+    fontSize: 14,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
   },
   subTabButtonActive: {
     backgroundColor: colors.accent,
@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
   subTabText: {
     color: colors.inkMuted,
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: 14,
   },
   subTabTextActive: {
     color: colors.ink,
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
   },
   notificationBadgeText: {
     color: colors.ink,
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.bold,
   },
   loadingContainer: {
@@ -780,13 +780,13 @@ const styles = StyleSheet.create({
   },
   noRequestText: {
     color: colors.inkFaint,
-    fontSize: 13,
+    fontSize: 14,
     fontStyle: 'italic',
     marginBottom: 16,
   },
   requestCard: {
     backgroundColor: colors.fieldFill,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
   avatarCircleSmall: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 20,
     backgroundColor: colors.hairline,
     justifyContent: 'center',
     alignItems: 'center',
@@ -806,7 +806,7 @@ const styles = StyleSheet.create({
   avatarTextSmall: {
     color: colors.ink,
     fontFamily: fonts.bold,
-    fontSize: 13,
+    fontSize: 14,
   },
   requestInfo: {
     flex: 1,
@@ -829,13 +829,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gain,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   rejectButton: {
     backgroundColor: colors.accent,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   actionButtonText: {
     color: colors.ink,
@@ -847,7 +847,7 @@ const styles = StyleSheet.create({
   },
   outgoingCard: {
     backgroundColor: colors.fieldFill,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
   },
   waitingBadge: {
     color: colors.warn,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 4,
     fontFamily: fonts.medium,
   },
@@ -869,11 +869,11 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: colors.inkMuted,
-    fontSize: 11,
+    fontSize: 12,
   },
   friendCard: {
     backgroundColor: colors.fieldFill,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: colors.ink,
     fontFamily: fonts.bold,
-    fontSize: 15,
+    fontSize: 16,
   },
   friendDetails: {
     flex: 1,
@@ -899,7 +899,7 @@ const styles = StyleSheet.create({
   friendName: {
     color: colors.ink,
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: 16,
   },
   friendEmail: {
     color: colors.inkMuted,
@@ -915,7 +915,7 @@ const styles = StyleSheet.create({
   },
   removeButtonText: {
     color: colors.error,
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.semibold,
   },
   emptyContainer: {
@@ -924,17 +924,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   emptyEmoji: {
-    fontSize: 48,
+    fontSize: 44,
     marginBottom: 10,
   },
   emptyTitle: {
     color: colors.ink,
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: fonts.bold,
   },
   emptyText: {
     color: colors.inkMuted,
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,

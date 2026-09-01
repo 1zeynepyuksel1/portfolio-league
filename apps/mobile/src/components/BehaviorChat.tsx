@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   wrap: { marginTop: 4 },
   label: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.5,
     color: colors.inkFaint,
   },
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  headBtn: { fontFamily: fonts.medium, fontSize: 11, color: colors.inkFaint },
+  headBtn: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkFaint },
   list: {
     marginBottom: 12,
     borderRadius: 14,
@@ -464,8 +464,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   listMain: { flex: 1 },
-  listTitle: { fontFamily: fonts.medium, fontSize: 13, color: colors.inkBright },
-  listMeta: { fontFamily: fonts.regular, fontSize: 11, color: colors.inkDisabled },
+  listTitle: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkBright },
+  listMeta: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkDisabled },
   turnRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   turn0: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12 },
   /*
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 20,
     marginTop: 2,
   },
   welcome: {
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 20,
     color: colors.inkMuted,
     marginBottom: 8,
@@ -517,11 +517,11 @@ const styles = StyleSheet.create({
   },
   // Kullanıcı sağda ve ters zeminde — tasarımın "seçili" dili.
   mine: { alignSelf: 'flex-end', marginLeft: 'auto', backgroundColor: colors.inverse },
-  mineText: { fontFamily: fonts.medium, fontSize: 13, color: colors.onInverse },
+  mineText: { fontFamily: fonts.medium, fontSize: 14, color: colors.onInverse },
   theirs: { flex: 1, backgroundColor: colors.surfaceRaised },
   theirsText: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 19,
     color: colors.inkBright,
   },
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.ink,
   },
   send: {
@@ -567,5 +567,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendOff: { opacity: 0.4 },
-  sendText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.onInverse },
+  sendText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.onInverse },
 });

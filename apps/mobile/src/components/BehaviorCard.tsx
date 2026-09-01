@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   section: { marginBottom: 26 },
   label: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.5,
     color: colors.inkFaint,
     marginBottom: 12,
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   cardBody: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 19,
     color: colors.inkMuted,
   },
@@ -294,14 +294,14 @@ const styles = StyleSheet.create({
   },
   commentLabel: {
     fontFamily: fonts.bold,
-    fontSize: 8,
+    fontSize: 10,
     letterSpacing: 1.4,
     color: colors.inkDisabled,
     marginBottom: 6,
   },
   commentText: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 20,
     color: colors.inkBright,
   },
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.inkBright,
     marginBottom: 4,
   },

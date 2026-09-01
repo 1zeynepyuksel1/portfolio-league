@@ -632,7 +632,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 9,
   },
-  retryText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.inkBright },
+  retryText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.inkBright },
 
   topBar: {
     flexDirection: 'row',
@@ -643,12 +643,12 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconText: { fontSize: 17, color: colors.inkBright },
+  iconText: { fontSize: 16, color: colors.inkBright },
   topTitle: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' },
   topTitleText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
 
@@ -681,14 +681,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSunken,
   },
   mathCell: { flex: 1, alignItems: 'center', gap: 5 },
-  mathValue: { fontFamily: fonts.monoBold, fontSize: 19, color: colors.ink },
+  mathValue: { fontFamily: fonts.monoBold, fontSize: 20, color: colors.ink },
   mathLabel: {
     fontFamily: fonts.bold,
-    fontSize: 8,
+    fontSize: 10,
     letterSpacing: 1.2,
     color: colors.inkFaint,
   },
-  mathOperator: { fontFamily: fonts.regular, fontSize: 15, color: colors.inkDisabled },
+  mathOperator: { fontFamily: fonts.regular, fontSize: 16, color: colors.inkDisabled },
 
   mathNote: {
     fontFamily: fonts.regular,
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
   scrubValue: {
     flex: 1,
     fontFamily: fonts.monoSemibold,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.ink,
   },
   toggleButton: {
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
   },
   toggleButtonText: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.inkBright,
   },
   compareHorizontal: {
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
   compareCard: {
     width: 120,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
@@ -780,16 +780,16 @@ const styles = StyleSheet.create({
   },
   scrubMultiple: {
     fontFamily: fonts.monoSemibold,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.gain,
   },
-  scrubHint: { fontFamily: fonts.regular, fontSize: 11, color: colors.inkFaint },
+  scrubHint: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkFaint },
 
   legend: { flexDirection: 'row', gap: 18, marginTop: 12, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  legendLine: { width: 16, height: 2, borderRadius: 1 },
+  legendLine: { width: 16, height: 2, borderRadius: 6 },
   legendDashed: { backgroundColor: colors.inkMuted, opacity: 0.6 },
-  legendText: { fontFamily: fonts.regular, fontSize: 11, color: colors.inkFaint },
+  legendText: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkFaint },
 
 
 
@@ -802,13 +802,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  detailKey: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.inkMuted },
+  detailKey: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.inkMuted },
   detailValue: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkBright },
-  detailCaret: { fontSize: 13, color: colors.inkFaint },
+  detailCaret: { fontSize: 14, color: colors.inkFaint },
 
   detailBox: {
     backgroundColor: colors.surfaceSunken,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     gap: 8,
   },
@@ -817,7 +817,7 @@ const styles = StyleSheet.create({
   detailLineValue: { fontFamily: fonts.monoSemibold, fontSize: 12, color: colors.inkBright },
   footnote: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 17,
     color: colors.inkFaint,
     marginTop: 6,
@@ -834,11 +834,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.inkBright },
+  secondaryText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.inkBright },
   textShareButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
@@ -858,5 +858,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.onInverse },
+  primaryText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.onInverse },
 });

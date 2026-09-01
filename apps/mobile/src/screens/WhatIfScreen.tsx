@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.screen,
     paddingVertical: 11,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
   summaryAmount: { fontFamily: fonts.monoBold, fontSize: 16, color: colors.ink },
   summarySep: { fontFamily: fonts.regular, fontSize: 14, color: colors.inkDisabled },
   summaryDate: { fontFamily: fonts.regular, fontSize: 14, color: colors.inkMuted },
-  summaryCaret: { fontSize: 15, color: colors.inkFaint, paddingLeft: 8 },
+  summaryCaret: { fontSize: 16, color: colors.inkFaint, paddingLeft: 8 },
 
   /**
    * Katlanır kontrol paneli.
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
    */
   panel: {
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 12,
@@ -660,7 +660,7 @@ const styles = StyleSheet.create({
   heroCard: {
     flex: 1,
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: 12,
@@ -672,17 +672,17 @@ const styles = StyleSheet.create({
   heroTop: { alignItems: 'center', gap: 6 },
   heroName: {
     fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.inkMuted,
     textAlign: 'center',
   },
   heroMultiple: { fontFamily: fonts.monoBold, fontSize: 20 },
   // Birinci sıra biraz daha büyük — sıralamayı renk yerine BOYUTLA
   // anlatıyoruz, çünkü renk zaten enflasyon eşiğini anlatmakla meşgul.
-  heroMultipleFirst: { fontSize: 24 },
+  heroMultipleFirst: { fontSize: 26 },
   heroAmount: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.inkFaint,
     textAlign: 'center',
   },
@@ -708,10 +708,10 @@ const styles = StyleSheet.create({
   liveDot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: 6,
     backgroundColor: colors.gain,
   },
-  liveText: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkMuted },
+  liveText: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkMuted },
   content: {
     paddingHorizontal: spacing.screen,
     paddingTop: 10, // Üstteki header ile uyumlu olması için 20'den 10'a düşürdük
@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 9,
-    borderRadius: 9,
+    borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
@@ -755,7 +755,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     height: 48,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
@@ -768,13 +768,13 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
   },
   amountButtonOn: { backgroundColor: colors.inverse, borderColor: colors.inverse },
-  amountText: { fontFamily: fonts.monoSemibold, fontSize: 11, color: colors.inkMuted },
+  amountText: { fontFamily: fonts.monoSemibold, fontSize: 12, color: colors.inkMuted },
   amountTextOn: { fontFamily: fonts.monoBold, color: colors.onInverse },
 
   filterRow: {
@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
   loadingBox: { paddingVertical: 40, alignItems: 'center' },
   infoBox: {
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 20,
     marginTop: 20,
     alignItems: 'center',
@@ -802,7 +802,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.inkMuted,
     textAlign: 'center',
     lineHeight: 18,
@@ -820,9 +820,9 @@ const styles = StyleSheet.create({
   rowOn: { backgroundColor: colors.surfaceRaised },
   rowNames: { flex: 1 },
   rowName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
-  rowMeta: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkFaint, marginTop: 2 },
-  rowMultiple: { fontFamily: fonts.monoBold, fontSize: 15 },
-  chevron: { fontSize: 17, color: colors.inkDisabled },
+  rowMeta: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkFaint, marginTop: 2 },
+  rowMultiple: { fontFamily: fonts.monoBold, fontSize: 16 },
+  chevron: { fontSize: 16, color: colors.inkDisabled },
 
   threshold: {
     flexDirection: 'row',
@@ -834,14 +834,14 @@ const styles = StyleSheet.create({
   },
   thresholdLabel: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.4,
     color: colors.loss,
   },
   // Kesikli çizgi: RN'de `borderStyle: 'dashed'` tek kenarda güvenilir
   // değil, o yüzden ince bir çizgi + düşük opaklık.
   thresholdLine: { flex: 1, height: 1, backgroundColor: colors.loss, opacity: 0.45 },
-  thresholdValue: { fontFamily: fonts.monoBold, fontSize: 13, color: colors.loss },
+  thresholdValue: { fontFamily: fonts.monoBold, fontSize: 14, color: colors.loss },
 
   cta: {
     height: 56,
@@ -850,5 +850,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaText: { fontFamily: fonts.semibold, fontSize: 17, color: colors.onInverse },
+  ctaText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.onInverse },
 });

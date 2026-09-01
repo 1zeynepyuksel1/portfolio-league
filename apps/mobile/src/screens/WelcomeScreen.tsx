@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   title: {
-    fontSize: 46,
+    fontSize: 44,
     // lineHeight punto'dan KÜÇÜK (46 × .98). Tasarımın istediği bu:
     // tek satırlık büyük başlıkta harfler biraz sıkışınca daha oturaklı
     // duruyor. Çok satırlı gövde metninde aynısını yapmak okunmaz kılardı.

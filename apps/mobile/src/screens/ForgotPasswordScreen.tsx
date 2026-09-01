@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   brandDot: {
     width: 9,
     height: 9,
-    borderRadius: 4.5,
+    borderRadius: 6.5,
     backgroundColor: colors.accent,
   },
   brandName: {
@@ -296,14 +296,14 @@ const styles = StyleSheet.create({
 
   hero: { paddingTop: 40 },
   title: {
-    fontSize: 42,
+    fontSize: 44,
     lineHeight: 42,
     fontFamily: fonts.bold,
     letterSpacing: -0.035 * 42,
     color: colors.ink,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: fonts.regular,
     color: colors.inkDim,
     marginTop: 18,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   form: { marginTop: 28, gap: 12 },
   ctaWrap: { marginTop: 6 },
   successText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.gain,
     textAlign: 'center',
@@ -327,12 +327,12 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   loginText: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.inkDim,
   },
   loginLink: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: fonts.semibold,
     color: colors.ink,
   },

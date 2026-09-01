@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  inviteText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.inkBright },
+  inviteText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.inkBright },
 
   box: {
     marginTop: 18,
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.ink,
   },
   send: {
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.onInverse },
+  sendText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.onInverse },
 
   message: { fontFamily: fonts.regular, fontSize: 12, color: colors.gain },
   messageFailed: { color: colors.error },

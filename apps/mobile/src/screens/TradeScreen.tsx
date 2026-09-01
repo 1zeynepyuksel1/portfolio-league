@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   modeTextOn: { fontFamily: fonts.bold, color: colors.onInverse },
   converted: {
     fontFamily: fonts.mono,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.gain,
     marginTop: 8,
   },
@@ -668,8 +668,8 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40 },
 
   header: { gap: 8, marginBottom: 16 },
-  back: { color: colors.gain, fontSize: 15, fontFamily: fonts.semibold },
-  title: { color: colors.ink, fontSize: 22, fontFamily: fonts.bold },
+  back: { color: colors.gain, fontSize: 16, fontFamily: fonts.semibold },
+  title: { color: colors.ink, fontSize: 26, fontFamily: fonts.bold },
 
   priceCard: {
     backgroundColor: colors.fieldFill,
@@ -680,10 +680,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 18,
   },
-  priceLabel: { color: colors.inkMuted, fontSize: 13 },
+  priceLabel: { color: colors.inkMuted, fontSize: 14 },
   priceValue: {
     color: colors.ink,
-    fontSize: 28,
+    fontSize: 34,
     fontFamily: fonts.bold,
     marginVertical: 4,
   },
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
   },
   buyActive: { backgroundColor: colors.gain, borderColor: colors.gain },
   sellActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  sideText: { color: colors.inkMuted, fontFamily: fonts.bold, fontSize: 15 },
+  sideText: { color: colors.inkMuted, fontFamily: fonts.bold, fontSize: 16 },
   sideTextActive: { color: colors.ink },
 
   labelRow: {
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  label: { color: colors.ink, fontSize: 13, fontFamily: fonts.medium },
+  label: { color: colors.ink, fontSize: 14, fontFamily: fonts.medium },
   available: { color: colors.gain, fontSize: 12 },
 
   input: {
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
     color: colors.ink,
-    fontSize: 18,
+    fontSize: 20,
   },
 
   noteBlock: { gap: 8, marginTop: 18 },
@@ -738,40 +738,40 @@ const styles = StyleSheet.create({
     minHeight: 72,
     textAlignVertical: 'top',
   },
-  noteHint: { color: colors.inkFaint, fontSize: 11 },
+  noteHint: { color: colors.inkFaint, fontSize: 12 },
 
   estimate: {
     backgroundColor: colors.fieldFill,
     borderWidth: 1,
     borderColor: colors.hairlineSoft,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     marginTop: 16,
     gap: 6,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
-  rowLabel: { color: colors.inkMuted, fontSize: 13 },
-  rowValue: { color: colors.ink, fontSize: 13, fontFamily: fonts.semibold },
+  rowLabel: { color: colors.inkMuted, fontSize: 14 },
+  rowValue: { color: colors.ink, fontSize: 14, fontFamily: fonts.semibold },
   rowValueStrong: { color: colors.ink, fontSize: 16, fontFamily: fonts.bold },
   divider: { height: 1, backgroundColor: colors.hairline, marginVertical: 4 },
   disclaimer: {
     color: colors.inkFaint,
-    fontSize: 11,
+    fontSize: 12,
     lineHeight: 16,
     marginTop: 6,
   },
 
-  warning: { color: colors.warn, fontSize: 13, marginTop: 12 },
+  warning: { color: colors.warn, fontSize: 14, marginTop: 12 },
 
   errorBox: {
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 12,
     marginTop: 16,
   },
-  errorText: { color: colors.error, fontSize: 13 },
+  errorText: { color: colors.error, fontSize: 14 },
   closedBox: {
     backgroundColor: colors.fieldFill,
     borderWidth: 1,
@@ -780,13 +780,13 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
-  closedText: { color: colors.warn, fontSize: 13, lineHeight: 18 },
+  closedText: { color: colors.warn, fontSize: 14, lineHeight: 18 },
 
   resultBox: {
     backgroundColor: colors.gainSoft,
     borderColor: colors.gain,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
     marginTop: 16,
     gap: 6,
@@ -816,16 +816,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalIcon: {
-    fontSize: 32,
+    fontSize: 34,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 26,
     fontFamily: fonts.bold,
     color: colors.ink,
     marginBottom: 4,
   },
   modalSubtitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: colors.inkMuted,
     marginBottom: 24,
   },
@@ -838,7 +838,7 @@ const styles = StyleSheet.create({
       arkasındaki yüzeyden bir kademe ÇUKUR durmalı: `surfaceSunken`.
     */
     backgroundColor: colors.surfaceSunken,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     gap: 12,
     marginBottom: 24,
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: colors.gain,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     marginBottom: 12,
   },
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
   modalSecondaryButton: {
     width: '100%',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
   },
   modalSecondaryButtonText: {
@@ -874,19 +874,19 @@ const styles = StyleSheet.create({
   },
   resultTitle: {
     color: colors.gain,
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: fonts.bold,
     marginBottom: 4,
   },
 
   submit: {
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     marginTop: 22,
   },
   submitBuy: { backgroundColor: colors.gain },
   submitSell: { backgroundColor: colors.accent },
   submitDisabled: { opacity: 0.4 },
-  submitText: { color: colors.ink, fontSize: 17, fontFamily: fonts.bold },
+  submitText: { color: colors.ink, fontSize: 16, fontFamily: fonts.bold },
 });

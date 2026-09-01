@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
   },
   statsTitle: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.5,
     color: colors.inkFaint,
     marginBottom: 6,
@@ -436,8 +436,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  statKey: { fontFamily: fonts.regular, fontSize: 13, color: colors.inkMuted },
-  statValue: { fontFamily: fonts.monoSemibold, fontSize: 13, color: colors.ink },
+  statKey: { fontFamily: fonts.regular, fontSize: 14, color: colors.inkMuted },
+  statValue: { fontFamily: fonts.monoSemibold, fontSize: 14, color: colors.ink },
 
   container: { flex: 1, backgroundColor: colors.surface },
   // Başlık artık dışarıda, o yüzden üst boşluk ona ait.
@@ -453,13 +453,13 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
-  back: { color: colors.gain, fontSize: 15, fontFamily: fonts.semibold },
-  title: { color: colors.ink, fontSize: 22, fontFamily: fonts.bold },
+  back: { color: colors.gain, fontSize: 16, fontFamily: fonts.semibold },
+  title: { color: colors.ink, fontSize: 26, fontFamily: fonts.bold },
 
   priceBlock: { marginBottom: 12 },
-  price: { color: colors.ink, fontSize: 30, fontFamily: fonts.bold },
-  change: { fontSize: 15, fontFamily: fonts.semibold, marginTop: 2 },
-  changeLabel: { color: colors.inkFaint, fontFamily: fonts.regular, fontSize: 13 },
+  price: { color: colors.ink, fontSize: 34, fontFamily: fonts.bold },
+  change: { fontSize: 16, fontFamily: fonts.semibold, marginTop: 2 },
+  changeLabel: { color: colors.inkFaint, fontFamily: fonts.regular, fontSize: 14 },
   asOf: { color: colors.inkFaint, fontSize: 12, marginTop: 2 },
 
   chartBox: { marginVertical: 8 },
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  errorText: { color: colors.error, fontSize: 13 },
+  errorText: { color: colors.error, fontSize: 14 },
 
   rangeRow: {
     flexDirection: 'row',
@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
   rangeButton: {
     flex: 1,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     backgroundColor: colors.fieldFill,
     borderWidth: 1,
@@ -497,18 +497,18 @@ const styles = StyleSheet.create({
   },
   reset: {
     color: colors.gain,
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: fonts.semibold,
   },
   zoomInfo: {
     color: colors.inkMuted,
-    fontSize: 11,
+    fontSize: 12,
     textAlign: 'center',
     marginTop: 4,
   },
   hint: {
     color: colors.inkFaint,
-    fontSize: 11,
+    fontSize: 12,
     textAlign: 'center',
   },
   sparse: {
@@ -530,8 +530,8 @@ const styles = StyleSheet.create({
   tradeButton: {
     backgroundColor: colors.gain,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
   },
-  tradeButtonText: { color: colors.ink, fontSize: 17, fontFamily: fonts.bold },
+  tradeButtonText: { color: colors.ink, fontSize: 16, fontFamily: fonts.bold },
 });

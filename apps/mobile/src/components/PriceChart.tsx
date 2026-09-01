@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
   emptyText: {
     color: colors.axisText,
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 14,
   },
 
   priceLabel: {
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.readoutFill,
     borderColor: colors.hairline,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
   readoutDate: {
     color: colors.inkMuted,
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 1,
   },
 

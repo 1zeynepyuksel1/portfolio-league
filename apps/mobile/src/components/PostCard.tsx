@@ -406,9 +406,9 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
                   <View>
                     <Text style={styles.positionName}>{pos.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
-                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{buyDateStr}</Text>
-                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>➔</Text>
-                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{olcumAni(payload, post)}</Text>
+                      <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted }}>{buyDateStr}</Text>
+                      <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted }}>➔</Text>
+                      <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted }}>{olcumAni(payload, post)}</Text>
                     </View>
                   </View>
                 </View>
@@ -449,7 +449,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
       {isEditing ? (
         <View style={{ marginBottom: 16 }}>
           <TextInput
-            style={[styles.caption, { backgroundColor: colors.surfacePressed, padding: 12, borderRadius: 8, marginBottom: 8 }]}
+            style={[styles.caption, { backgroundColor: colors.surfacePressed, padding: 12, borderRadius: 10, marginBottom: 8 }]}
             multiline
             autoFocus
             value={editCaption}
@@ -458,11 +458,11 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
             placeholderTextColor={colors.inkMuted}
           />
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-            <TouchableOpacity onPress={() => { setIsEditing(false); setEditCaption(localCaption); }} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: colors.surfacePressed }}>
-              <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.ink }}>İptal</Text>
+            <TouchableOpacity onPress={() => { setIsEditing(false); setEditCaption(localCaption); }} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: colors.surfacePressed }}>
+              <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.ink }}>İptal</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleEditSave} disabled={isUpdating} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: colors.accent }}>
-              {isUpdating ? <ActivityIndicator size="small" color="white" /> : <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: 'white' }}>Kaydet</Text>}
+            <TouchableOpacity onPress={handleEditSave} disabled={isUpdating} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: colors.accent }}>
+              {isUpdating ? <ActivityIndicator size="small" color="white" /> : <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: 'white' }}>Kaydet</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -528,15 +528,15 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
             <TouchableOpacity 
               onPress={() => setShowToast(false)} 
               activeOpacity={0.7}
-              style={{ width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.inkMuted, letterSpacing: 1 }}>KAPAT</Text>
+              style={{ width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.inkMuted, letterSpacing: 1 }}>KAPAT</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
               onPress={() => { setShowToast(false); if (onPressUser && user?.username) onPressUser(user.username); }} 
               activeOpacity={0.7}
-              style={{ width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.accent, alignItems: 'center' }}>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: 'white', letterSpacing: 1 }}>PROFİLDE GÖR</Text>
+              style={{ width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' }}>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: 'white', letterSpacing: 1 }}>PROFİLDE GÖR</Text>
             </TouchableOpacity>
 
           </View>
@@ -601,7 +601,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
                     <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                       <ShieldCheck size={14} color={colors.accent} />
-                      <Text style={{ fontFamily: fonts.bold, fontSize: 11, color: colors.accent, letterSpacing: 0.5 }}>YÖNETİCİ</Text>
+                      <Text style={{ fontFamily: fonts.bold, fontSize: 12, color: colors.accent, letterSpacing: 0.5 }}>YÖNETİCİ</Text>
                     </View>
                     <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); setIsConfirmingAdminDelete(true); }} disabled={isUpdating}>
                       <Trash2 size={20} color={colors.loss} />
@@ -629,14 +629,14 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
           <View style={styles.menuCard}>
             <Trash2 size={28} color={colors.loss} style={{ alignSelf: 'center', marginBottom: 12 }} />
             <Text style={styles.menuTitle}>Gönderiyi sil</Text>
-            <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted, textAlign: 'center', marginBottom: 16 }}>
+            <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted, textAlign: 'center', marginBottom: 16 }}>
               @{user?.username ?? 'kullanıcı'} adlı kişinin gönderisi kalıcı olarak silinecek. Bu işlem geri alınamaz.
             </Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.surfacePressed, borderRadius: 12 }]} onPress={() => setIsConfirmingAdminDelete(false)}>
+              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.surfacePressed, borderRadius: 14 }]} onPress={() => setIsConfirmingAdminDelete(false)}>
                 <Text style={styles.menuText}>Vazgeç</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.loss, borderRadius: 12 }]} onPress={() => { setIsConfirmingAdminDelete(false); void handleAdminDelete(); }}>
+              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.loss, borderRadius: 14 }]} onPress={() => { setIsConfirmingAdminDelete(false); void handleAdminDelete(); }}>
                 <Text style={[styles.menuText, { color: '#FFF' }]}>Sil</Text>
               </TouchableOpacity>
             </View>
@@ -654,7 +654,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
               edilemeyen bir bandır. Sunucu da boş sebebi reddediyor.
             */}
             <TextInput
-              style={{ backgroundColor: colors.surfacePressed, borderRadius: 12, padding: 14, color: colors.ink, fontFamily: fonts.regular, minHeight: 72, textAlignVertical: 'top', marginBottom: 14 }}
+              style={{ backgroundColor: colors.surfacePressed, borderRadius: 14, padding: 14, color: colors.ink, fontFamily: fonts.regular, minHeight: 72, textAlignVertical: 'top', marginBottom: 14 }}
               value={banReason}
               onChangeText={setBanReason}
               placeholder="Ban sebebi"
@@ -663,10 +663,10 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
               maxLength={280}
             />
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.surfacePressed, borderRadius: 12 }]} onPress={() => setIsBanning(false)}>
+              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.surfacePressed, borderRadius: 14 }]} onPress={() => setIsBanning(false)}>
                 <Text style={styles.menuText}>Vazgeç</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.loss, borderRadius: 12 }]} onPress={() => void submitBan()} disabled={isUpdating}>
+              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.loss, borderRadius: 14 }]} onPress={() => void submitBan()} disabled={isUpdating}>
                 <Text style={[styles.menuText, { color: '#FFF' }]}>{isUpdating ? 'Banlanıyor…' : 'Banla'}</Text>
               </TouchableOpacity>
             </View>
@@ -692,15 +692,15 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
             <TouchableOpacity 
               onPress={() => setIsConfirmingDelete(false)} 
               activeOpacity={0.7}
-              style={{ width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: colors.inkMuted, letterSpacing: 1 }}>VAZGEÇ</Text>
+              style={{ width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.inkMuted, letterSpacing: 1 }}>VAZGEÇ</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
               onPress={() => { setIsConfirmingDelete(false); handleDelete(); }} 
               activeOpacity={0.7}
-              style={{ width: '100%', paddingVertical: 14, borderRadius: 12, backgroundColor: colors.loss, alignItems: 'center' }}>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: 'white', letterSpacing: 1 }}>SİL</Text>
+              style={{ width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.loss, alignItems: 'center' }}>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: 'white', letterSpacing: 1 }}>SİL</Text>
             </TouchableOpacity>
 
           </View>
@@ -717,23 +717,23 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   userInfo: { flexDirection: 'row', gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfacePressed, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
-  name: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, marginBottom: 2 },
+  name: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 2 },
   time: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkMuted },
   modalOverlay: { flex: 1, backgroundColor: colors.backdrop, justifyContent: 'flex-end' },
   menuCard: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  menuTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.ink, marginBottom: 16 },
+  menuTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.ink, marginBottom: 16 },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, gap: 12 },
   menuText: { fontFamily: fonts.medium, fontSize: 16, color: colors.ink },
-  badge: { backgroundColor: colors.gainSoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: colors.gainSoft },
-  badgeText: { fontFamily: fonts.medium, fontSize: 11, color: colors.gain },
+  badge: { backgroundColor: colors.gainSoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: colors.gainSoft },
+  badgeText: { fontFamily: fonts.medium, fontSize: 12, color: colors.gain },
 
   // Modern Pnl Box
-  modernPnlBox: { backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modernPnlBox: { backgroundColor: colors.surfaceRaised, borderRadius: 14, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modernPnlLabel: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginBottom: 4 },
-  modernPnlValue: { fontFamily: fonts.bold, fontSize: 24 },
+  modernPnlValue: { fontFamily: fonts.bold, fontSize: 26 },
 
   // Caption
-  caption: { fontFamily: fonts.regular, fontSize: 15, color: colors.ink, lineHeight: 22, marginBottom: 16 },
+  caption: { fontFamily: fonts.regular, fontSize: 16, color: colors.ink, lineHeight: 22, marginBottom: 16 },
 
   // Portfolio list (keeps functionality)
   positionsList: { gap: 12, marginBottom: 16, marginTop: -4 },
@@ -741,8 +741,8 @@ const styles = StyleSheet.create({
        Tema koyulaşırsa/açılırsa ayraç da onunla gider. */
     borderBottomColor: colors.border },
   positionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  positionIcon: { width: 36, height: 36, borderRadius: 8, backgroundColor: colors.surfacePressed, justifyContent: 'center', alignItems: 'center' },
-  positionIconText: { fontFamily: fonts.bold, fontSize: 13, color: colors.inkMuted, textTransform: 'uppercase' },
+  positionIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surfacePressed, justifyContent: 'center', alignItems: 'center' },
+  positionIconText: { fontFamily: fonts.bold, fontSize: 14, color: colors.inkMuted, textTransform: 'uppercase' },
   positionName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
   positionSymbol: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted },
   positionRight: { alignItems: 'flex-end' },
@@ -752,6 +752,6 @@ const styles = StyleSheet.create({
   // Footer Actions
   interactionFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  actionText: { fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted },
+  actionText: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted },
 });
 

@@ -78,18 +78,18 @@ const styles = StyleSheet.create({
   },
   message: {
     color: '#f5f4f3',
-    fontSize: 15,
+    fontSize: 16,
     marginBottom: 16,
   },
   stackBox: {
     maxHeight: 260,
     backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 12,
   },
   stack: {
     color: 'rgba(245,244,243,0.7)',
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'monospace',
   },
   hint: {

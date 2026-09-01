@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: colors.fieldFill,
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 2,
   },
   option: {
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.hairline,
   },
   label: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: fonts.bold,
     color: colors.inkFaint,
   },

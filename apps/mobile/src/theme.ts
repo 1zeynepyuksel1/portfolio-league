@@ -181,6 +181,51 @@ export const fonts = {
  * değer gruplama üretmez, yalnızca tutarsız görünür. 12'ye karşı 30
  * gözle ayırt edilebiliyor.
  */
+/**
+ * YAZI ÖLÇEĞİ — ölçüldü: uygulamada 25 FARKLI boyut vardı.
+ *
+ *     8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 24 26 28 30 32 42 44 46 48 64
+ *
+ * Bir tasarım sisteminde bu sayı 6-8 olur. Her ekran kendi değerini
+ * seçmişti; 13px ile 14px yan yana gelince kimse "iki farklı boyut var"
+ * demez ama ÖZENSİZ hisseder. Ritmi olmayan bir arayüz "şablondan
+ * çıkmış" görünür — ve bunun tek sebebi budur.
+ *
+ * ⚠️ GÖVDE METNİ DE KÜÇÜKTÜ. En sık kullanılan boyut 13'tü (80 yerde),
+ * 11 ve 12 de çok yaygındı. Erişilebilirlik kılavuzları gövde için
+ * 16px taban öneriyor ve 12px altını anti-desen sayıyor. Ölçek bunu
+ * bir kademe yukarı çekiyor.
+ *
+ * ⚠️ ADIMLAR ARASI FARK YUKARI DOĞRU AÇILIYOR (12→14→16→20→26→34→44).
+ * Eşit aralıklı bir ölçek (12,14,16,18,20…) hiyerarşi üretmez: başlık
+ * ile gövde birbirine yakın kalır. Büyüyen aralık, göze "bu daha
+ * önemli" dedirtiyor.
+ */
+export const type = {
+  /** Rozet, birim, ikincil sayaç. */
+  micro: 10,
+  /** Etiket, sütun başlığı, yardımcı metin. */
+  caption: 12,
+  /** Gövde — en sık kullanılan. */
+  body: 14,
+  /** Vurgulu gövde, satır başlığı. */
+  emphasis: 16,
+  /** Bölüm başlığı. */
+  title: 20,
+  /** Ekran başlığı. */
+  headline: 26,
+  /** Büyük sayı. */
+  display: 34,
+  /** Bakiye gibi tek ve baskın sayı. */
+  hero: 44,
+} as const;
+
+/**
+ * KÖŞE YARIÇAPI — ölçüldü: 18 farklı değer vardı (1'den 20'ye).
+ *
+ * ⚠️ 12 İLE 14 ARASINDAKİ FARK GÖZLE SEÇİLMEZ ama yan yana duran iki
+ * kutuda "bir şey tutmuyor" hissi bırakır. Dört kademe yetiyor.
+ */
 export const spacing = {
   gutter: 26,
   bottom: 24,
@@ -197,6 +242,25 @@ export const spacing = {
 } as const;
 
 export const radius = {
+  /** Rozet, küçük etiket. */
+  xs: 6,
+  /** Düğme, giriş alanı. */
+  sm: 10,
+  /** Kart, kutu. */
+  md: 14,
+  /** Modal, büyük yüzey. */
+  lg: 20,
+  /** Daire — avatar, simge yuvası. */
+  full: 999,
+
+  /*
+    ⚠️ AŞAĞIDAKİ ÜÇÜ ESKİDEN BERİ VAR VE KORUNDU.
+
+    Kimlik ekranlarının hap biçimli düğmeleri bu değerlere göre
+    tasarlandı; ölçeğe zorlamak o ekranların oranını bozardı.
+    Yeni kod yukarıdaki kademeleri kullanmalı, bunlar mevcut
+    çağıranlar için duruyor.
+  */
   field: 12,
   pill: 29,
   pillSmall: 28,
@@ -214,11 +278,28 @@ export const sectionLabel = {
   color: colors.inkFaint,
 } as const;
 
+/*
+  ⚠️ SÜTUN GENİŞLİKLERİ YAZI ÖLÇEĞİYLE BİRLİKTE BÜYÜDÜ.
+
+  Tablo sütunları SABİT genişlikte ve içlerindeki metin 13px'ten 14px'e,
+  11px'ten 12px'e çıktı. Yaklaşık %8 daha geniş yazı, aynı kutuya
+  sığmayabilirdi:
+
+      "110.953,35 ₺" · DM Mono 13px -> ~94px   (104'e sığıyordu)
+      "110.953,35 ₺" · DM Mono 14px -> ~101px  (kırpılma sınırında)
+
+  ⚠️ BU, YAZI ÖLÇEĞİ DEĞİŞTİRMENİN GÖRÜNMEYEN BEDELİ. Sabit genişlikli
+  bir kutuda yazıyı büyütmek, tek başına yapılırsa sayının sonunu
+  kırpar — ve kırpılan şey PARA olduğu için kullanıcı yanlış tutar
+  okur. Ölçek değiştiren herkes bu kutulara da bakmak zorunda.
+
+  Oranlar korunarak büyütüldü (%9).
+*/
 export const rowMetrics = {
-  paddingVertical: 13,
+  paddingVertical: 14,
   logoSize: 32,
-  changeWidth: 62,
-  valueWidth: 104,
+  changeWidth: 68,
+  valueWidth: 114,
   sparkWidth: 46,
   sparkHeight: 22,
 } as const;

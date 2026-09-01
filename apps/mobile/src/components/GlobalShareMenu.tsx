@@ -136,7 +136,7 @@ export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onCl
                       </View>
                       <View style={{alignItems: 'flex-end'}}>
                         <Text style={styles.assetSymbol}>{item.symbol}</Text>
-                        <Text style={{fontFamily: fonts.medium, fontSize: 13, color: parseFloat(item.changePercent24h || '0') >= 0 ? colors.gain : colors.loss}}>
+                        <Text style={{fontFamily: fonts.medium, fontSize: 14, color: parseFloat(item.changePercent24h || '0') >= 0 ? colors.gain : colors.loss}}>
                           {parseFloat(item.changePercent24h || '0') > 0 ? '+' : ''}{item.changePercent24h}%
                         </Text>
                       </View>
@@ -240,17 +240,17 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: colors.backdrop, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  headerTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.ink },
+  headerTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.ink },
   optionsList: { gap: 12, paddingBottom: 20 },
-  optionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfacePressed, padding: 16, borderRadius: 16 },
-  iconBox: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  optionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfacePressed, padding: 16, borderRadius: 20 },
+  iconBox: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   optionTexts: { flex: 1 },
   optionTitle: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 4 },
-  optionSub: { fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted },
+  optionSub: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted },
   assetPicker: { paddingBottom: 20 },
-  backBtn: { fontFamily: fonts.medium, fontSize: 15, color: colors.accent },
+  backBtn: { fontFamily: fonts.medium, fontSize: 16, color: colors.accent },
   assetRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  assetName: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
+  assetName: { fontFamily: fonts.semibold, fontSize: 16, color: colors.ink },
   assetSymbol: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted }
 });
 

@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   postCard: {
     backgroundColor: colors.surfaceRaised,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 16,
@@ -272,15 +272,15 @@ const styles = StyleSheet.create({
   postBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   postBadgeText: {
     fontFamily: fonts.bold,
-    fontSize: 11,
+    fontSize: 12,
   },
   innerBox: {
     backgroundColor: colors.surface, // Daha koyu zemin (arka planla aynı)
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -291,17 +291,17 @@ const styles = StyleSheet.create({
   },
   innerBoxLabel: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.inkMuted,
     marginBottom: 4,
   },
   innerBoxValue: {
     fontFamily: fonts.bold,
-    fontSize: 24,
+    fontSize: 26,
   },
   postText: {
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.inkBright,
     lineHeight: 22,
     marginBottom: 20,
@@ -342,14 +342,14 @@ const styles = StyleSheet.create({
   },
   placeholderTitle: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: 26,
     color: colors.ink,
     marginBottom: 12,
     textAlign: 'center',
   },
   placeholderText: {
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.inkMuted,
     textAlign: 'center',
     lineHeight: 22,

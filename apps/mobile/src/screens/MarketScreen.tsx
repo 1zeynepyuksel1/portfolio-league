@@ -407,10 +407,10 @@ const styles = StyleSheet.create({
   liveDot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
+    borderRadius: 6,
     backgroundColor: colors.gain,
   },
-  liveText: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkMuted },
+  liveText: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkMuted },
 
   searchWrap: {
     flexDirection: 'row',
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingHorizontal: 14,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surfaceSunken,
     borderWidth: 1,
     borderColor: colors.border,
@@ -464,28 +464,28 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   rowNames: { flex: 1 },
-  rowName: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink },
+  rowName: { fontFamily: fonts.semibold, fontSize: 16, color: colors.ink },
   // Kapalı işareti soluk sarı: uyarı değil DURUM bilgisi. Kırmızı
   // yapsaydık "hata" gibi, yeşil yapsaydık "iyi" gibi okunurdu.
   rowClosed: { color: colors.warn },
 
   rowMeta: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.inkFaint,
     marginTop: 2,
   },
   rowRight: { alignItems: 'flex-end' },
-  rowPrice: { fontFamily: fonts.monoBold, fontSize: 15, color: colors.ink },
-  chevron: { fontSize: 18, color: colors.inkDisabled },
+  rowPrice: { fontFamily: fonts.monoBold, fontSize: 16, color: colors.ink },
+  chevron: { fontSize: 20, color: colors.inkDisabled },
 
   empty: { alignItems: 'center', paddingVertical: 40 },
-  emptyText: { fontFamily: fonts.regular, fontSize: 13, color: colors.inkFaint },
+  emptyText: { fontFamily: fonts.regular, fontSize: 14, color: colors.inkFaint },
 
   banner: {
     margin: spacing.screen,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,

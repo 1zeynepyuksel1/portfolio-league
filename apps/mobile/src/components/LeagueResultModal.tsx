@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   iconWrapGold: { backgroundColor: 'rgba(245, 158, 11, 0.12)' },
   period: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.inkMuted,
     marginBottom: 6,
   },
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   detailStrong: { fontFamily: fonts.bold, color: colors.ink },
-  twr: { fontFamily: fonts.bold, fontSize: 30, marginTop: 14, marginBottom: 22 },
+  twr: { fontFamily: fonts.bold, fontSize: 34, marginTop: 14, marginBottom: 22 },
   button: {
     backgroundColor: colors.accent,
     paddingVertical: 14,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     alignItems: 'center',
   },
-  buttonText: { fontFamily: fonts.bold, fontSize: 15, color: '#FFF' },
+  buttonText: { fontFamily: fonts.bold, fontSize: 16, color: '#FFF' },
   buttonRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   buttonDone: { backgroundColor: colors.gain },
   secondary: {

@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.5,
     color: colors.inkFaint,
     marginBottom: 8,
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   dropdownButtonLabel: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 10,
     color: colors.inkFaint,
     position: 'absolute',
     left: 12,
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   optionCell: {
     width: 44,
     height: 38,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   },
   optionRow: {
     height: 38,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.inkMuted,
   },
   optionTextSelected: {

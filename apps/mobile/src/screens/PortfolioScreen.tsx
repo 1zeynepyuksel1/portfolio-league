@@ -1070,7 +1070,7 @@ export function PortfolioScreen({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
   flatList: { flex: 1 },
-  backText: { color: colors.gain, fontSize: 15, fontFamily: fonts.semibold },
+  backText: { color: colors.gain, fontSize: 16, fontFamily: fonts.semibold },
   listContent: { paddingBottom: 20 },
   chartSection: {
     paddingHorizontal: spacing.screen,
@@ -1081,7 +1081,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceSunken,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1099,7 +1099,7 @@ const styles = StyleSheet.create({
   rangeButton: {
     paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1128,7 +1128,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: fonts.bold,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.ink,
     textAlign: 'center',
   },
@@ -1148,7 +1148,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 9,
   },
-  retryText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.inkBright },
+  retryText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.inkBright },
 
   topRow: {
     flexDirection: 'row',
@@ -1180,16 +1180,16 @@ const styles = StyleSheet.create({
     gap: 14,
     marginTop: 12,
   },
-  delta: { fontFamily: fonts.monoBold, fontSize: 13 },
+  delta: { fontFamily: fonts.monoBold, fontSize: 14 },
   deltaLabel: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1.1,
     color: colors.inkFaint,
   },
   rateNote: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.inkFaint,
     marginTop: 8,
   },
@@ -1201,7 +1201,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     marginHorizontal: spacing.screen,
     // Yeni bölüm başlıyor: geniş boşluk.
@@ -1221,13 +1221,13 @@ const styles = StyleSheet.create({
   },
   bonusSubtitle: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.inkMuted,
     marginTop: 4,
   },
   bonusButton: {
     backgroundColor: colors.gain,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
@@ -1240,7 +1240,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfacePressed,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 8,
     minWidth: 80,
@@ -1277,7 +1277,7 @@ const styles = StyleSheet.create({
 
   warning: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.warn,
     paddingHorizontal: spacing.screen,
     paddingTop: 12,
@@ -1292,7 +1292,7 @@ const styles = StyleSheet.create({
   },
   headCell: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.5,
     color: colors.inkFaint,
   },
@@ -1317,11 +1317,11 @@ const styles = StyleSheet.create({
   rowName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
   rowQuantity: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.inkFaint,
     marginTop: 2,
   },
-  rowNetText: { fontFamily: fonts.mono, fontSize: 11, marginTop: 2 },
+  rowNetText: { fontFamily: fonts.mono, fontSize: 12, marginTop: 2 },
   netUp: { color: colors.gain },
   netDown: { color: colors.loss },
 
@@ -1337,7 +1337,7 @@ const styles = StyleSheet.create({
   },
 
   empty: { alignItems: 'center', paddingVertical: 48, gap: 6 },
-  emptyTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.inkBright },
+  emptyTitle: { fontFamily: fonts.semibold, fontSize: 16, color: colors.inkBright },
   emptyText: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkFaint },
 
   expand: {
@@ -1357,7 +1357,7 @@ const styles = StyleSheet.create({
   },
   sectionAction: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.4,
     color: colors.inkBright,
   },
@@ -1389,23 +1389,23 @@ const styles = StyleSheet.create({
   },
   orderDetailsText: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 12,
     color: colors.inkMuted,
   },
   orderSideBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     width: 34,
   },
   orderSideText: {
     fontFamily: fonts.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 0.8,
   },
-  orderName: { flex: 1, fontFamily: fonts.semibold, fontSize: 13, color: colors.ink },
+  orderName: { flex: 1, fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
   orderTime: { fontFamily: fonts.regular, fontSize: 10, color: colors.inkDisabled },
 
 });

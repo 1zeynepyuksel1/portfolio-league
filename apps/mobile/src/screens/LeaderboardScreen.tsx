@@ -453,7 +453,7 @@ export function LeaderboardScreen({
                   <Text style={styles.rankText}>{item.rank}</Text>
                 </View>
 
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfacePressed, justifyContent: 'center', alignItems: 'center', marginRight: 12, overflow: 'hidden' }}>
+                <View style={{ width: 36, height: 36, borderRadius: 20, backgroundColor: colors.surfacePressed, justifyContent: 'center', alignItems: 'center', marginRight: 12, overflow: 'hidden' }}>
                     {renderAvatar(item)}
                   </View>
                   <View style={styles.userInfo}>
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 11,
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
     borderColor: colors.border,
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   tabText: {
     color: colors.inkMuted,
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: 14,
   },
   tabTextActive: {
     // ⚠️ Açık zeminde beyaz metin okunmaz. Ters zemin ters metin ister.
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.error,
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
   },
   emptyContainer: {
@@ -624,12 +624,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: fonts.bold,
     color: colors.ink,
   },
   emptyText: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.inkMuted,
     textAlign: 'center',
     marginTop: 6,
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: colors.ink,
     fontFamily: fonts.bold,
-    fontSize: 18,
+    fontSize: 20,
   },
   medalBadge: {
     position: 'absolute',
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
   podiumName: {
     color: colors.ink,
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: 14,
     marginTop: 10,
     textAlign: 'center',
   },
@@ -764,7 +764,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.fieldFill,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginVertical: 4,
@@ -789,12 +789,12 @@ const styles = StyleSheet.create({
   userName: {
     color: colors.ink,
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: 16,
   },
   twrBadge: {
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   twrBadgePositive: {
     backgroundColor: colors.gainSoft,
