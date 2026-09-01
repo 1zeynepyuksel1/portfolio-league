@@ -479,25 +479,72 @@ export function PriceChart({
       </Svg>
       </View>
 
-      {/* Fiyat seviyeleri — sağda, ızgara çizgileriyle hizalı */}
-      {!flat &&
-        levels.map((value, i) => (
-          <Text
-            key={`p${i}`}
-            style={[
-              styles.priceLabel,
-              // -6: metnin dikey ortası çizgiye denk gelsin
-              { top: yOf(value) - 6, width: AXIS_WIDTH - 4 },
-            ]}
-          >
-            {formatAxisPrice(value)}
-          </Text>
-        ))}
+      {/*
+        Fiyat seviyeleri — sağda, ızgara çizgileriyle hizalı.
 
-      {/* Zaman ekseni — altta */}
+        ⚠️ AYNI METNİ İKİ KEZ BASMIYORUZ — VE BU GÖRÜNEN BİR KUSURDU.
+
+        Beş seviye sabit sayıda üretiliyor. Değerler birbirine çok
+        yakınsa (portföy gün içinde neredeyse hiç oynamadıysa)
+        `formatAxisPrice` beşini de aynı metne yuvarlıyordu:
+
+            2.1B
+            2.1B
+            2.1B      <- ekranda böyle görünüyordu
+            2.1B
+            2.1B
+
+        Tekrar eden etiket SIFIR bilgi taşır; üstelik grafiği bozuk
+        gösterir. Aynı metin ikinci kez düştüğünde artık çizilmiyor —
+        ızgara çizgisi duruyor, yalnızca yazı atlanıyor.
+      */}
+      {!flat &&
+        levels.map((value, i) => {
+          const metin = formatAxisPrice(value);
+          const oncekiAyni =
+            i > 0 && formatAxisPrice(levels[i - 1] as number) === metin;
+          if (oncekiAyni) return null;
+
+          return (
+            <Text
+              key={`p${i}`}
+              style={[
+                styles.priceLabel,
+                // -6: metnin dikey ortası çizgiye denk gelsin
+                { top: yOf(value) - 6, width: AXIS_WIDTH - 4 },
+              ]}
+            >
+              {metin}
+            </Text>
+          );
+        })}
+
+      {/*
+        Zaman ekseni — altta.
+
+        ⚠️ AYNI TARİH DÖRT KEZ YAZILIYORDU. Veri tek güne sıkıştığında
+        (yeni hesap, ya da 1 haftalık aralıkta tek günlük geçmiş) dört
+        etiketin dördü de "1 Eyl" oluyordu. Fiyat eksenindeki hatanın
+        aynısı: tekrar eden etiket bilgi taşımaz.
+
+        Tekrarlar atlanıyor; geriye anlamlı olanlar kalıyor. Hepsi
+        aynıysa tek bir tarih görünüyor — ki doğrusu da bu: o grafik
+        gerçekten tek bir güne ait.
+      */}
       {labelIndices.map((index, i) => {
         const point = points[index];
         if (point === undefined) return null;
+
+        const metin = formatAxisLabel(point.ts, bucketSeconds);
+        const oncekiIndex = labelIndices[i - 1];
+        const oncekiNokta =
+          oncekiIndex === undefined ? undefined : points[oncekiIndex];
+        if (
+          oncekiNokta !== undefined &&
+          formatAxisLabel(oncekiNokta.ts, bucketSeconds) === metin
+        ) {
+          return null;
+        }
 
         // İlk etiket sola, son etiket sağa yaslanıyor; ortadakiler
         // noktalarının üstünde ortalanıyor. Yaslamasaydık uçtakiler
@@ -512,7 +559,7 @@ export function PriceChart({
 
         return (
           <Text key={`t${i}`} style={[styles.timeLabel, anchor]}>
-            {formatAxisLabel(point.ts, bucketSeconds)}
+            {metin}
           </Text>
         );
       })}

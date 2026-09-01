@@ -571,21 +571,49 @@ export function PortfolioScreen({
               )}
             />
 
-            <View style={styles.deltaRow}>
-              <Text
-                style={[
-                  styles.delta,
-                  { color: gaining ? colors.gain : colors.loss },
-                ]}
-              >
-                {gaining ? '+' : ''}
-                {money(portfolio.profitCents, portfolio.profitUsdCents)}
-              </Text>
+            {/*
+              ⚠️ EKRANDA "+—" YAZIYORDU.
 
-              <ChangeText percent={portfolio.twrPercent} />
+              İşaret koşulsuz basılıyordu: `gaining ? '+' : ''`. Dolar
+              görünümünde sunucu `profitUsdCents` göndermediğinde `money`
+              tire döndürüyor ve ekranda `+—` çıkıyordu — bir sayı değil,
+              bozuk bir dizgi.
 
-              <Text style={styles.deltaLabel}>HAFTALIK GETİRİ</Text>
-            </View>
+              ⚠️ "BİLİNMİYOR" İLE "SIFIR" AYRI ŞEYLER. Tire "hesaplanamadı"
+              demek; başına artı koymak ona olmayan bir yön atfediyordu.
+              Değer yoksa renk de nötr: yeşil/kırmızı bir İDDİADIR.
+            */}
+            {(() => {
+              const tutar = money(
+                portfolio.profitCents,
+                portfolio.profitUsdCents,
+              );
+              const bilinmiyor = tutar === '—';
+
+              return (
+                <View style={styles.deltaRow}>
+                  <Text
+                    style={[
+                      styles.delta,
+                      {
+                        color: bilinmiyor
+                          ? colors.inkFaint
+                          : gaining
+                            ? colors.gain
+                            : colors.loss,
+                      },
+                    ]}
+                  >
+                    {bilinmiyor ? '' : gaining ? '+' : ''}
+                    {tutar}
+                  </Text>
+
+                  <ChangeText percent={portfolio.twrPercent} />
+
+                  <Text style={styles.deltaLabel}>HAFTALIK GETİRİ</Text>
+                </View>
+              );
+            })()}
 
             {currency === 'usd' && portfolio.usdTryRate != null && (
               <Text style={styles.rateNote}>
@@ -880,9 +908,16 @@ export function PortfolioScreen({
                         styles.orderSideBadge,
                         {
                           backgroundColor:
+                            /*
+                              ⚠️ ELLE YAZILMIŞ RENKLER TOKEN'A ÇEKİLDİ.
+                              rgba(52,194,138) ve rgba(229,72,77) temanın
+                              yeşil/kırmızısı DEĞİLDİ — yakın ama farklı
+                              tonlar. Aynı ekranda iki ayrı yeşil vardı ve
+                              tema değişse bunlar değişmezdi.
+                            */
                             order.side === 'buy'
-                              ? 'rgba(52, 194, 138, 0.12)'
-                              : 'rgba(229, 72, 77, 0.12)',
+                              ? colors.gainSoft
+                              : colors.lossSoft,
                         },
                       ]}
                     >
@@ -987,9 +1022,10 @@ export function PortfolioScreen({
                     styles.orderSideBadge,
                     {
                       backgroundColor:
+                        // Yukarıdaki ile aynı gerekçe: tema rengine bağlandı.
                         order.side === 'buy'
-                          ? 'rgba(52, 194, 138, 0.12)'
-                          : 'rgba(229, 72, 77, 0.12)',
+                          ? colors.gainSoft
+                          : colors.lossSoft,
                     },
                   ]}
                 >
@@ -1122,7 +1158,22 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
 
-  totalBlock: { paddingHorizontal: spacing.screen, paddingTop: 14 },
+  /*
+    ⚠️ BAKİYE BLOĞU BİRİNCİL — ALTINDAKİ BOŞLUK BUNU SÖYLÜYOR.
+
+    Eskiden bölümler arası boşluklar 14 / 18 / 18 / 20 idi; sekiz bölüm
+    de eşit ağırlıkta duruyordu. Kullanıcı bu ekrana "param ne durumda"
+    diye geliyor — bakiye ve getiri birincil, gerisi destek.
+
+    `spacing.section` (30) hero'yu geri kalandan ayırıyor; grafik ile
+    dağılım `spacing.group` (12) ile birbirine yapışıyor çünkü ikisi
+    aynı soruyu cevaplıyor: "portföyüm nasıl dağılmış ve nasıl gitti".
+  */
+  totalBlock: {
+    paddingHorizontal: spacing.screen,
+    paddingTop: 14,
+    paddingBottom: spacing.section,
+  },
   deltaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1143,7 +1194,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  allocation: { paddingHorizontal: spacing.screen, paddingTop: 18 },
+  // Grafikle aynı gruba ait: dar boşluk.
+  allocation: { paddingHorizontal: spacing.screen, paddingTop: spacing.group },
 
   bonusBanner: {
     backgroundColor: colors.surfaceRaised,
@@ -1152,7 +1204,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginHorizontal: spacing.screen,
-    marginTop: 18,
+    // Yeni bölüm başlıyor: geniş boşluk.
+    marginTop: spacing.section,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

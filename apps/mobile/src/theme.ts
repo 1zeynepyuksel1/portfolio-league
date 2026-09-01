@@ -44,9 +44,24 @@ export const colors = {
   gain: '#10b981',
   loss: '#ef4444',
   warn: '#f59e0b',
-  gold: '#f59e0b',
+  /*
+    ⚠️ `gold` İLE `warn` AYNI HEX'Tİ (#f59e0b) — İKİ AYRI ANLAM, TEK RENK.
+
+    "Şampiyon oldun" ile "dikkat et" ekranda ayırt edilemiyordu. Renk bir
+    anlam taşıyıcısı; iki zıt anlamı aynı renge bağlamak o taşıyıcıyı
+    işlevsiz bırakır.
+
+    Altın artık daha sarı ve daha parlak (#f5b53f), uyarı turuncuda
+    kalıyor. Yan yana konduklarında ayrılıyorlar.
+  */
+  gold: '#f5b53f',
   silver: '#cbd5e1',
-  bronze: '#8b5cf6',
+  /*
+    ⚠️ `bronze` MORDU (#8b5cf6). Sıralama ekranında 3. sıra rozeti mor
+    çiziliyordu; altın/gümüş/mor bir madalya seti değil. Gerçek bronza
+    çevrildi — `PostCard` zaten elle #B45309 yazıyordu, artık ikisi aynı.
+  */
+  bronze: '#b45309',
   accent: '#3b82f6',
   error: '#ef4444',
   inverse: '#E9E9EA',
@@ -56,7 +71,7 @@ export const colors = {
   gainSoft: 'rgba(16, 185, 129, 0.15)',
   lossSoft: 'rgba(239, 68, 68, 0.15)',
   warnSoft: 'rgba(245, 158, 11, 0.15)',
-  goldSoft: 'rgba(245, 158, 11, 0.15)',
+  goldSoft: 'rgba(245, 181, 63, 0.15)',
   silverSoft: 'rgba(203, 213, 225, 0.15)',
   bronzeSoft: 'rgba(139, 92, 246, 0.15)',
 
@@ -80,17 +95,62 @@ export const colors = {
   borderStrong: '#3A3A3E',
 } as const;
 
+/**
+ * Yazı aileleri.
+ *
+ * ⚠️ `mono*` GERÇEKTEN MONO DEĞİLDİ — DÖRDÜ DE Space Grotesk'e BAKIYORDU.
+ *
+ * `App.tsx` DM Mono'yu yüklüyor (400 ve 500) ama tablo onu hiç
+ * kullanmıyordu. Yani paket iki fazla font ailesi taşıyor, sayılar da
+ * orantılı yazıyla diziliyordu.
+ *
+ * ⚠️ NEDEN ÖNEMLİ — BU EKRANIN ASIL FİKRİ BU. Orantılı yazıda her
+ * rakamın genişliği farklı ('1' dar, '8' geniş). Alt alta gelen tutarlar
+ * bu yüzden kayıyor:
+ *
+ *     orantılı        mono
+ *     2.095,91        2.095,91
+ *      1.847,03       1.847,03      <- basamaklar hizalı
+ *
+ * Bir yatırım uygulamasını profesyonel gösteren en ucuz tek değişiklik.
+ *
+ * ⚠️ `monoSemibold` ve `monoBold` DE 500'E BAKIYOR — çünkü DM Mono'nun
+ * yalnızca 400 ve 500 ağırlıkları yükleniyor. Var olmayan bir ağırlığa
+ * işaret etseydik React Native sessizce sistem fontuna düşerdi ve
+ * hizalama kaybolurdu; en ağır MEVCUT ağırlığa bağlamak dürüst.
+ * Daha kalın gerekirse `App.tsx`'e DM Mono 500+ eklenmeli.
+ */
 export const fonts = {
   regular: 'SpaceGrotesk_400Regular',
   medium: 'SpaceGrotesk_500Medium',
   semibold: 'SpaceGrotesk_600SemiBold',
   bold: 'SpaceGrotesk_700Bold',
-  mono: 'SpaceGrotesk_400Regular',
-  monoMedium: 'SpaceGrotesk_500Medium',
-  monoSemibold: 'SpaceGrotesk_600SemiBold',
-  monoBold: 'SpaceGrotesk_700Bold',
+  mono: 'DMMono_400Regular',
+  monoMedium: 'DMMono_500Medium',
+  monoSemibold: 'DMMono_500Medium',
+  monoBold: 'DMMono_500Medium',
 } as const;
 
+/**
+ * Boşluklar.
+ *
+ * ⚠️ `group` VE `section` EKLENDİ — ÇÜNKÜ BOŞLUK HİYERARŞİ KURAR.
+ *
+ * Ekranlarda bölümler arası boşluklar elle yazılıyordu: 14, 18, 18, 20.
+ * Hepsi birbirine yakın olunca göz hiçbir gruplama görmüyor — sekiz
+ * bölüm de eşit ağırlıkta duruyor ve kullanıcı neye önce bakacağını
+ * bilemiyor.
+ *
+ * Yakınlık ilkesi: birbirine AİT şeyler yakın, AYRI şeyler uzak durur.
+ * İki kademe yetiyor:
+ *
+ *     group   (12)  aynı fikrin parçaları — grafik ile dağılımı
+ *     section (30)  ayrı fikirler — bakiye ile geri kalanı
+ *
+ * ⚠️ ARADAKİ FARK BÜYÜK OLMAK ZORUNDA. 18'e karşı 22 gibi yakın iki
+ * değer gruplama üretmez, yalnızca tutarsız görünür. 12'ye karşı 30
+ * gözle ayırt edilebiliyor.
+ */
 export const spacing = {
   gutter: 26,
   bottom: 24,
@@ -100,6 +160,10 @@ export const spacing = {
   md: 16,
   lg: 24,
   xl: 32,
+  /** Aynı gruba ait bloklar arası. */
+  group: 12,
+  /** Ayrı bölümler arası. */
+  section: 30,
 } as const;
 
 export const radius = {

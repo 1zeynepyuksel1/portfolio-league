@@ -4,3 +4,9 @@ dist/
 .env.local
 .expo/
 .aider*
+
+# Kisisel agent yapilandirmasi ve kurulan beceriler.
+# Repoya girmiyor: 3,7 MB veri ve kisiye ozel arac secimi.
+# Ekibin ortak calismasi icin gerekli degil.
+.claude/
+skills-lock.json
