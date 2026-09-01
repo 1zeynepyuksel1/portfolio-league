@@ -73,7 +73,25 @@ export const colors = {
   warnSoft: 'rgba(245, 158, 11, 0.15)',
   goldSoft: 'rgba(245, 181, 63, 0.15)',
   silverSoft: 'rgba(203, 213, 225, 0.15)',
-  bronzeSoft: 'rgba(139, 92, 246, 0.15)',
+  /*
+    ⚠️ `bronze` DÜZELTİLDİ AMA `bronzeSoft` MOR KALMIŞTI.
+
+    Renk ile onun yumuşak eşi AYRI iki satırda yaşıyor; birini
+    değiştirip diğerini unutmak sessiz bir tutarsızlık üretiyor —
+    simge bronz, arkasındaki zemin mor.
+
+    Bu, "aynı bilgiyi iki yerde tutmanın" bedeli. Şimdilik elle hizalı;
+    doğrusu yumuşak tonu ana renkten TÜRETMEK olurdu.
+  */
+  bronzeSoft: 'rgba(180, 83, 9, 0.15)',
+  /*
+    ⚠️ MOR ARTIK KENDİ ADIYLA VAR. `ProfileScreen`'de arkadaş sayacı
+    #8B5CF6 yazıyordu — bronzun eski mor değeriyle aynı hex. İkisi
+    alakasız ama aynı sayı olduğu için birini değiştiren diğerini de
+    bozuyordu. Mor bir MADALYA değil, bir kategori rengi.
+  */
+  violet: '#8b5cf6',
+  violetSoft: 'rgba(139, 92, 246, 0.12)',
 
   axisLine: '#2B2B2E',
   axisText: '#79797F',
@@ -92,6 +110,18 @@ export const colors = {
   volumeBar: 'rgba(121, 121, 127, 0.14)',
   chartLabel: 'rgba(121, 121, 127, 0.16)',
   accentSoft: 'rgba(59, 130, 246, 0.15)',
+  /*
+    ⚠️ MODAL PERDESİ — ÜÇ FARKLI KOYULUK VARDI: 0.5, 0.6, 0.7.
+
+    Altı ayrı dosyada elle yazılmıştı. Kullanıcı arka arkaya iki modal
+    açtığında arkadaki ekran farklı koyulukta kararıyordu; sebebi
+    görünmüyor ama "bir şey tutarsız" hissi bırakıyor.
+
+    ⚠️ 0.6 SEÇİLDİ, ORTALAMA OLDUĞU İÇİN DEĞİL: en çok kullanılan
+    değer oydu (beş yerde). Zaten çoğunluğun bulunduğu yere hizalamak,
+    en az sayıda ekranı değiştiriyor.
+  */
+  backdrop: 'rgba(0, 0, 0, 0.6)',
   borderStrong: '#3A3A3E',
 } as const;
 

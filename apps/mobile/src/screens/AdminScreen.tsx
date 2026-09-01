@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   error: { fontFamily: fonts.medium, color: colors.loss, textAlign: 'center', marginBottom: 8 },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: colors.backdrop,
     justifyContent: 'center',
     padding: 24,
   },

@@ -512,7 +512,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
       )}
       {/* CUSTOM PIN SUCCESS MODAL */}
       <Modal visible={showToast} transparent animationType="fade" onRequestClose={() => setShowToast(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <View style={{ flex: 1, backgroundColor: colors.backdrop, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <View style={{ backgroundColor: colors.surface, width: '100%', maxWidth: 360, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
             
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(99, 102, 241, 0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
@@ -676,7 +676,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
 
       {/* CUSTOM DELETE CONFIRMATION MODAL */}
       <Modal visible={isConfirmingDelete} transparent animationType="fade" onRequestClose={() => setIsConfirmingDelete(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <View style={{ flex: 1, backgroundColor: colors.backdrop, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <View style={{ backgroundColor: colors.surface, width: '100%', maxWidth: 360, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
             
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(244, 63, 94, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfacePressed, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
   name: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, marginBottom: 2 },
   time: { fontFamily: fonts.regular, fontSize: 12, color: colors.inkMuted },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, backgroundColor: colors.backdrop, justifyContent: 'flex-end' },
   menuCard: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   menuTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.ink, marginBottom: 16 },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, gap: 12 },
