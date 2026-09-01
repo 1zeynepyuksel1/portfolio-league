@@ -3,6 +3,7 @@ import { posts } from './schema.js';
 import { users } from '../db/schema.js';
 import { eq, desc, sql } from 'drizzle-orm';
 import { getPortfolio } from '../portfolio/service.js';
+import { toUtcIso } from '../lib/pg-time.js';
 
 export async function getTradedAssets(userId: string) {
   const result: any = await db.execute(sql`
@@ -25,14 +26,30 @@ export async function getSingleAssetPreview(userId: string, assetKey: string) {
 
   // Get first buy date for this asset
   const buyRes: any = await db.execute(sql`
-    SELECT MIN(o.executed_at) as first_buy
+    SELECT MIN(o.executed_at)::text as first_buy
     FROM orders o
     JOIN assets a ON o.asset_id = a.id
     WHERE o.user_id = ${userId} AND a.symbol = ${assetKey} AND o.side = 'buy'
   `);
   
   const rows = Array.isArray(buyRes) ? buyRes : (buyRes.rows || []);
-  const firstBuyDate = rows.length > 0 && rows[0].first_buy ? new Date(rows[0].first_buy as string).toISOString() : new Date().toISOString();
+  /*
+    ⚠️ `::text` VE `toUtcIso` BİRLİKTE ÇALIŞIYOR — biri olmadan diğeri eksik.
+
+    Eskiden `new Date(rows[0].first_buy)` yazıyordu. Kolon DİLİMSİZ
+    `timestamp`, veritabanı UTC yazıyor; `new Date()` ise dilim işareti
+    olmayan metni YEREL sayıyor. Sonuç: her alış tarihi 3 saat erken.
+    Yalnızca gün gösterildiği için bugüne kadar görünmedi.
+
+    `::text` sürücünün araya girip kendi yorumunu yapmasını engelliyor —
+    bazı çağrılarda `Date`, bazılarında `string` döndürüyordu ve iki
+    durumun düzeltmesi TERS yönde. Ayrıntı: `lib/pg-time.ts`.
+
+    ⚠️ Alış bulunamazsa artık `null` dönüyor, "bugün" değil. Eskisi veri
+    yokluğunu "bugün alınmış" diye gösteriyordu; ekran yanlış olduğunu
+    anlayamazdı.
+  */
+  const firstBuyDate = rows.length > 0 ? toUtcIso(rows[0].first_buy as string | null) : null;
 
   return {
     asset_key: assetKey,
@@ -49,7 +66,7 @@ export async function getSingleAssetPreview(userId: string, assetKey: string) {
 export async function getPortfolioPreview(userId: string) {
   // Get all first buy dates for user's assets
   const buyRes: any = await db.execute(sql`
-    SELECT a.symbol, MIN(o.executed_at) as first_buy
+    SELECT a.symbol, MIN(o.executed_at)::text as first_buy
     FROM orders o
     JOIN assets a ON o.asset_id = a.id
     WHERE o.user_id = ${userId} AND o.side = 'buy'
@@ -60,7 +77,7 @@ export async function getPortfolioPreview(userId: string) {
   const buyDatesMap = new Map();
   for (const row of rows) {
     if (row.symbol && row.first_buy) {
-      buyDatesMap.set(row.symbol as string, new Date(row.first_buy as string).toISOString());
+      buyDatesMap.set(row.symbol as string, toUtcIso(row.first_buy as string));
       
     }
   }
@@ -70,10 +87,21 @@ export async function getPortfolioPreview(userId: string) {
   const positions = agg.positions.map(p => ({
     symbol: p.symbol,
     name: p.name,
-    icon_url: null,
+    /*
+      ⚠️ `icon_url` KALDIRILDI — HER ZAMAN `null` İDİ.
+
+      Ekran `pos.icon_url ? <Image/> : <harf rozeti>` diye yazıyordu ve
+      alan hiç doldurulmadığı için rozet dalı DAİMA kazanıyordu. Logolar
+      "gelmiyor" değildi; hiç gönderilmiyordu.
+
+      Yerine sunucudan URL göndermek yerine istemcideki `AssetLogo`
+      kullanılıyor: logolar zaten pakette, ağdan indirmeye gerek yok ve
+      tanınmayan sembol için yedeği var.
+    */
     pnl_percent: p.profitPercent || "0.00",
     pnl_amount: p.profitCents.toString(),
-    buy_date: buyDatesMap.get(p.symbol) || new Date().toISOString()
+    /** ⚠️ Alış bulunamazsa `null` — "bugün" uydurmuyoruz. */
+    buy_date: buyDatesMap.get(p.symbol) ?? null
   }));
 
   return {

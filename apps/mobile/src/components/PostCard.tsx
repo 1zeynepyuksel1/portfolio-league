@@ -9,6 +9,7 @@ import { Globe, Users, TrendingUp, TrendingDown, Heart, MessageSquare, MoreVerti
 import { createAvatar } from '@dicebear/core';
 import { shapes } from '@dicebear/collection';
 import { SvgXml } from 'react-native-svg';
+import { AssetLogo } from './AssetLogo';
 
 const localAvatars: Record<string, any> = {
   meerkat: require('../../assets/avatars/meerkat.png'),
@@ -30,6 +31,37 @@ type Props = {
   isPreview?: boolean;
 };
 
+
+/**
+ * Paylasim kartindaki "ne zaman alindi" etiketi — TARIH VE SAAT.
+ *
+ * ⚠️ SAAT EKLEMEK GORUNMEZ BIR HATAYI GORUNUR YAPTI.
+ *
+ * Sunucu bu tarihi ham SQL ile cekiyordu ve dilimsiz zaman damgasini
+ * yerel saat sayiyordu — her tarih 3 saat erken geliyordu. Yalnizca GUN
+ * gosterildigi icin fark edilmiyordu; kayma gunu ancak gece yarisina
+ * yakin kayitlarda degistirir. Saat eklenince her kartta gorunur olacakti.
+ * Once sunucu duzeltildi (`lib/pg-time.ts`), sonra saat eklendi.
+ *
+ * ⚠️ `null` GECERLI BIR DEGER. Alis tarihi bulunamayan pozisyon icin
+ * sunucu artik "bugun" uydurmuyor, `null` donuyor. Burada da tarih yerine
+ * cizgi konuyor — yanlis bir tarih gostermektense bosluk daha durust.
+ */
+const TARIH_SAAT = new Intl.DateTimeFormat('tr-TR', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+function tarihSaat(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  // ⚠️ Gecersiz tarih sessizce "Invalid Date" yazar; once yakala.
+  if (Number.isNaN(d.getTime())) return null;
+  return TARIH_SAAT.format(d);
+}
 
 function timeAgo(dateString: string) {
   if (!dateString) return '';
@@ -178,7 +210,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
             <Text style={[styles.modernPnlValue, { color: isDisplayPositive ? colors.gain : colors.loss }]}>{displayValue}</Text>
             {isPnl && (
               <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 6 }}>
-                {payload.is_market ? 'Son 24 Saat' : (isSingleAsset && payload.buy_date ? `${new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(payload.buy_date))} ➔ Bugün` : '')}
+                {payload.is_market ? 'Son 24 Saat' : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} ➔ Bugün` : '')}
               </Text>
             )}
           </View>
@@ -196,11 +228,22 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
           {payload.positions.map((pos: any, idx: number) => {
             const posCents = BigInt(pos.pnl_amount || '0');
             const posIsPos = posCents >= 0n;
-            const buyDateStr = pos.buy_date ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(pos.buy_date)) : 'Geçmiş';
+            const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
             return (
               <View key={pos.symbol || idx} style={styles.positionRow}>
                 <View style={styles.positionLeft}>
-                  {pos.icon_url ? <Image source={{ uri: pos.icon_url }} style={{ width: 36, height: 36, borderRadius: 8 }} /> : <View style={styles.positionIcon}><Text style={styles.positionIconText}>{pos.symbol?.slice(0,2)}</Text></View>}
+                  {/*
+                    ⚠️ ONCEDEN `pos.icon_url` VARSA GORSEL, YOKSA HARF ROZETI
+                    yaziyordu — ve sunucu o alani HER ZAMAN `null` gonderiyordu.
+                    Yani harf rozeti dali daima kazaniyordu; logolar
+                    "gelmiyor" degildi, hic istenmiyordu.
+
+                    `AssetLogo` zaten var ve kripto/hisse/doviz/maden dortlusunu
+                    tek gorunumde topluyor. Sunucudan URL beklemek yerine onu
+                    kullaniyoruz: logolar pakette, ag istegi yok ve taninmayan
+                    sembol icin kendi yedegi var.
+                  */}
+                  <AssetLogo symbol={pos.symbol} size={36} />
                   <View>
                     <Text style={styles.positionName}>{pos.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>

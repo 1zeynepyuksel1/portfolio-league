@@ -13,6 +13,82 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 39. Logolar ve 3 saatlik zaman kayması — 1 Eyl 2026
+
+**Değişti:** `lib/pg-time.ts` (yeni) · `lib/pg-time.test.ts` (yeni, 5 test) ·
+`behavior/repository.ts` · `posts/service.ts` · `PostCard.tsx` ·
+`GlobalShareMenu.tsx`
+
+#### Logolar — "gelmiyordu" değil, hiç istenmiyordu
+
+```tsx
+pos.icon_url ? <Image src={pos.icon_url}/> : <harf rozeti>
+```
+
+Sunucu `icon_url`'i **her zaman `null`** gönderiyordu (`posts/service.ts`'te
+sabit yazılıydı). Yani koşulun ilk dalı hiç çalışmadı, harf rozeti daima
+kazandı. Ekranda "iki harflik gri kutu" gören biri bunu bir ağ/veri sorunu
+sanıyor; oysa istek hiç yapılmıyordu.
+
+⚠️ **`AssetLogo` zaten vardı ve HİÇBİR EKRANDA kullanılmıyordu** — yalnızca
+`DesignKit.tsx` içinde. Kripto/hisse/döviz/maden dörtlüsünü tek görünümde
+topluyor ve tanımadığı sembol için yedeği var. Sunucudan URL beklemek
+yerine o kullanıldı: logolar zaten pakette, ağ isteği yok.
+
+Aynı eksik paylaşım menüsünün varlık seçicilerinde de vardı — orada logo
+hiç konmamıştı.
+
+#### Saat isteği bir hatanın üstünü açtı
+
+"Tarih yanına saat de olsun" küçük bir istekti. Eklemeden önce verinin
+doğru olup olmadığına bakıldı — değildi:
+
+```
+ham deger  : "2026-08-26 09:45:19.888652"   <- metin, dilim işareti YOK
+ESKİ KOD   : 2026-08-26T06:45:19Z           <- 3 saat erken
+YENİ KOD   : 2026-08-26T09:45:19Z           <- doğru
+```
+
+⚠️ **HATANIN GÖRÜNÜRLÜĞÜ EKRANA BAĞLIYDI.** Yalnızca gün gösterilirken
+kayma çoğu kayıtta fark edilmez; günü ancak yerel 03:00'ten önceki
+kayıtlarda değiştirir. Saat eklenseydi **her kartta** yanlış görünecekti.
+Yani "şimdiye kadar şikâyet gelmedi" hatanın yokluğunu göstermiyordu.
+
+⚠️ **KAYMA HER YERDE DEĞİL — ÖNCE YANLIŞ SANDIM.** Drizzle'ın kendi
+`select`'i doğru okuyor (`createdAt` ölçüldü, doğru çıktı). Bozuk olan
+yalnızca **ham `db.execute`** yolu: o dilimsiz metni olduğu gibi döndürüyor
+ve `new Date()` onu yerel sayıyor. Ölçüm beni düzeltti; sürücünün tamamını
+değiştirmeye gerek yokmuş.
+
+⚠️ **ÇÖZÜM İKİ PARÇALI, biri olmadan diğeri eksik:** sorguda `::text`
+(sürücü araya girip kendi yorumunu yapmasın) + `toUtcIso` (metni UTC say).
+Sürücü aynı kolonu bir çağrıda `string`, başka çağrıda `Date` döndürüyor ve
+iki durumun düzeltmesi **ters yönde** — bu yüzden biçim sorguda sabitlendi.
+
+⚠️ **`toUtcDate` `behavior/repository.ts` içinde SAKLIYDI.** Tuzak orada
+uzun uzun belgelenmişti ama `posts/service.ts` aynı hatayı yapmaya devam
+ediyordu — kimse düzeltmenin başka bir modülün içinde durduğunu bilmiyordu.
+`lib/pg-time.ts`'e taşındı.
+
+⚠️ **Eksik tarih artık `null`, "bugün" değil.** Eski kod alış bulunamayınca
+`new Date()` koyuyordu; ekranda "bugün alınmış" yazıyordu ve yanlış olduğu
+anlaşılmıyordu. Veri yokluğunu uydurma veriye çevirmek, boş bırakmaktan
+her zaman kötü.
+
+#### Test mutasyonla sınandı
+
+5 test yazıldı, sonra `toUtcDate` bilerek `new Date(text)` yapıldı: **4 test
+kırmızıya döndü.** Geçen bir test, sınadığı şeyi bozana kadar hiçbir şey
+kanıtlamaz.
+
+⚠️ Testler yerel saat diliminden bağımsız: "beklenen 09:45" yazılsaydı
+yalnızca Türkiye'de geçerdi. Mutlak an (`toISOString`) karşılaştırılıyor.
+
+**Soru:** `::text` yerine kolonları `timestamptz` yapmak da çözerdi.
+Neden yapmadık, ve o yol hangi yeni tuzağı getirirdi?
+
+---
+
 ### 38. `posts` tablosu neden silindi — drizzle.config'in gizli yetkisi — 1 Eyl 2026
 
 **Değişti:** `apps/api/drizzle.config.ts` (tek satır + gerekçe yorumu)

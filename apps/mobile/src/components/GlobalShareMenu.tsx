@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, SafeAreaView } from 'react-native';
 import { SharePostModal, ShareScope } from './SharePostModal';
+import { AssetLogo } from './AssetLogo';
 import { TrendingUp, TrendingDown, Coins, Sparkles, X, ChevronRight, Calendar } from 'lucide-react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
@@ -124,7 +125,15 @@ export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onCl
                   keyExtractor={item => item.symbol}
                   renderItem={({item}) => (
                     <TouchableOpacity style={styles.assetRow} onPress={() => { setShareScope({ type: 'market_asset', assetKey: item.symbol, assetName: item.name, changePercent: parseFloat(item.changePercent24h || '0') }); }}>
-                      <Text style={styles.assetName}>{item.name}</Text>
+                      {/*
+                        ⚠️ Secici satirlarinda logo HIC YOKTU — eksik veri
+                        degil, eksik bileşendi. `AssetLogo` sembolu tek
+                        basina aliyor, sunucudan ek alan gerekmiyor.
+                      */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <AssetLogo symbol={item.symbol} size={28} />
+                        <Text style={styles.assetName}>{item.name}</Text>
+                      </View>
                       <View style={{alignItems: 'flex-end'}}>
                         <Text style={styles.assetSymbol}>{item.symbol}</Text>
                         <Text style={{fontFamily: fonts.medium, fontSize: 13, color: parseFloat(item.changePercent24h || '0') >= 0 ? colors.gain : colors.loss}}>
@@ -146,7 +155,10 @@ export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onCl
                   keyExtractor={item => item.symbol}
                   renderItem={({item}) => (
                     <TouchableOpacity style={styles.assetRow} onPress={() => { setShareScope({ type: 'single_asset', assetKey: item.symbol }); }}>
-                      <Text style={styles.assetName}>{item.name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                        <AssetLogo symbol={item.symbol} size={28} />
+                        <Text style={styles.assetName}>{item.name}</Text>
+                      </View>
                       <Text style={styles.assetSymbol}>{item.symbol}</Text>
                     </TouchableOpacity>
                   )}
