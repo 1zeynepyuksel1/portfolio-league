@@ -10,12 +10,35 @@ import {
   revokeRefreshToken,
   rotateRefreshToken,
   updateVerificationCode,
-  updateUserPassword,
+  updateUserPasswordById,
+  findUserSecurity,
+  updateSecurityQuestion,
 } from './repository.js';
 import type { LoginBody } from './login.schema.js';
 import type { RegisterBody } from './register.schema.js';
 import type { RefreshBody } from './refresh.schema.js';
-import type { ResetPasswordBody } from './reset-password.schema.js';
+import {
+  normalizeAnswer,
+  type ResetWithAnswerBody,
+  type SetSecurityQuestionBody,
+} from './security-question.schema.js';
+import { hit } from '../lib/rate-limit.js';
+
+/*
+  ⚠️ SINIRLAR NEDEN FARKLI: iki ucun riski aynı değil.
+
+  Soru sorma (`sq-lookup`) yalnızca "bu adres kayıtlı mı"yı açık ediyor —
+  can sıkıcı ama hesap ele geçirmiyor. Cevap denemesi (`sq-reset`) doğrudan
+  hesabın kapısı; orada sınır çok daha dar.
+
+  ⚠️ 5 DENEME / 15 DAKİKA rastgele seçilmedi: "ilk evcil hayvanınızın adı"
+  gibi bir soru için makul cevap uzayı birkaç yüz. Saatte 20 deneme ile
+  200 ihtimali taramak 10 saat sürer; sınırsızken saniyeler sürerdi.
+*/
+const SORU_SORMA_LIMITI = 10;
+const SORU_PENCERESI_MS = 15 * 60 * 1000;
+const CEVAP_DENEME_LIMITI = 5;
+const CEVAP_PENCERESI_MS = 15 * 60 * 1000;
 import {
   createAccessToken,
   createRefreshToken,
@@ -207,7 +230,22 @@ export async function resendVerificationCode(userId: string) {
 export async function loginUser(input: LoginBody) {
   const user = await findUserForLogin(input.email);
 
-  if (!user || !(await argon2.verify(user.passwordHash, input.password))) {
+  /*
+    ⚠️ `passwordHash === null` = SADECE GOOGLE İLE KAYITLI HESAP.
+
+    Bu kontrol olmadan `argon2.verify(null, ...)` çalışma anında patlardı
+    ve kullanıcı "şifre yanlış" yerine 500 görürdü. TypeScript kolonu
+    null yapılabilir hâle getirdiğimizde tam olarak burayı gösterdi.
+
+    ⚠️ HATA MESAJI YİNE "geçersiz kimlik" — "bu hesap Google ile açılmış"
+    DEMİYORUZ. Söyleseydik, bir e-postanın kayıtlı olup olmadığını ve
+    hangi yolla açıldığını herkese anlatan bir uç olurdu.
+  */
+  if (
+    !user ||
+    user.passwordHash === null ||
+    !(await argon2.verify(user.passwordHash, input.password))
+  ) {
     throw new InvalidCredentialsError();
   }
 
@@ -270,18 +308,137 @@ export class SameAsOldPasswordError extends Error {
   }
 }
 
-export async function resetUserPassword(input: ResetPasswordBody) {
-  const user = await findUserForLogin(input.email);
+/**
+ * Güvenlik sorusu kurulmamış hesap — sıfırlama yapılamıyor.
+ *
+ * ⚠️ Bu hata KASITEN ayrı: "cevap yanlış" demek yanıltıcı olurdu, çünkü
+ * ortada doğrulanacak bir cevap yok. Kullanıcı neden takıldığını bilmeli.
+ */
+export class NoSecurityQuestionError extends Error {
+  constructor() {
+    super(
+      'Bu hesapta güvenlik sorusu tanımlı değil. Giriş yaptıktan sonra profil ayarlarından bir soru belirleyebilirsin.',
+    );
+    this.name = 'NoSecurityQuestionError';
+  }
+}
 
-  if (!user) {
-    throw new UserNotFoundError();
+/** Güvenlik sorusunun cevabı yanlış. */
+export class WrongSecurityAnswerError extends Error {
+  constructor() {
+    super('Güvenlik sorusunun cevabı yanlış.');
+    this.name = 'WrongSecurityAnswerError';
+  }
+}
+
+/** Çok fazla deneme yapıldı. */
+export class TooManyAttemptsError extends Error {
+  constructor(public readonly retryAfterSeconds: number) {
+    super(
+      `Çok fazla deneme yapıldı. ${retryAfterSeconds} saniye sonra tekrar dene.`,
+    );
+    this.name = 'TooManyAttemptsError';
+  }
+}
+
+/**
+ * 1. adım — e-postaya ait güvenlik sorusunu döndürür.
+ *
+ * ⚠️ BU UÇ, BİR E-POSTANIN KAYITLI OLDUĞUNU AÇIK EDİYOR (kullanıcı
+ * sayımı). Kaçınılmaz: soruyu göstermek için hesabın var olduğunu kabul
+ * etmek zorundayız. Kabul edilen bir bedel, ve karşılığında iki önlem:
+ *
+ *   1. HIZ SINIRI — liste hâlinde adres taramayı pratik olmaktan çıkarıyor
+ *   2. Soru metni dışında HİÇBİR ŞEY dönmüyor — ad, kullanıcı adı yok
+ *
+ * Alternatif (her zaman sahte bir soru göstermek) sayımı engellerdi ama
+ * gerçek kullanıcıyı hiç bilmediği bir soruyla baş başa bırakırdı.
+ */
+export async function getSecurityQuestion(email: string) {
+  const limit = hit(`sq-lookup:${email}`, SORU_SORMA_LIMITI, SORU_PENCERESI_MS);
+  if (!limit.ok) throw new TooManyAttemptsError(limit.retryAfterSeconds);
+
+  const user = await findUserSecurity(email);
+
+  if (!user) throw new UserNotFoundError();
+  if (user.securityQuestion === null || user.securityAnswerHash === null) {
+    throw new NoSecurityQuestionError();
   }
 
-  const isSame = await argon2.verify(user.passwordHash, input.password);
-  if (isSame) {
-    throw new SameAsOldPasswordError();
+  return { question: user.securityQuestion };
+}
+
+/**
+ * 2. adım — cevabı doğrular ve şifreyi değiştirir.
+ *
+ * ⚠️ BU FONKSİYON BİR GÜVENLİK AÇIĞINI KAPATIYOR.
+ *
+ * Önceki hâli yalnızca `{ email, password }` alıyordu ve kimliği HİÇ
+ * doğrulamıyordu: bir e-posta adresini bilen herkes o hesabın şifresini
+ * değiştirebiliyordu. Uçta `requireAccessToken` yoktu, jeton yoktu, eski
+ * şifre sorulmuyordu. Tek kontrol "yeni şifre eskisiyle aynı mı" idi —
+ * yani saldırgana "bildiğin şifreyi değil, başka bir şey yaz" diyordu.
+ *
+ * Artık cevap doğrulanmadan hiçbir yazma işlemi olmuyor.
+ */
+export async function resetUserPassword(input: ResetWithAnswerBody) {
+  /*
+    ⚠️ HIZ SINIRI EN BAŞTA — veritabanına gitmeden önce.
+    Sonra koysaydık, sınıra takılan istek yine de sorgu çalıştırırdı ve
+    hız sınırı veritabanını korumazdı.
+  */
+  const limit = hit(`sq-reset:${input.email}`, CEVAP_DENEME_LIMITI, CEVAP_PENCERESI_MS);
+  if (!limit.ok) throw new TooManyAttemptsError(limit.retryAfterSeconds);
+
+  const user = await findUserSecurity(input.email);
+
+  if (!user) throw new UserNotFoundError();
+  if (user.securityQuestion === null || user.securityAnswerHash === null) {
+    throw new NoSecurityQuestionError();
+  }
+
+  const answerOk = await argon2.verify(
+    user.securityAnswerHash,
+    normalizeAnswer(input.answer),
+  );
+  if (!answerOk) throw new WrongSecurityAnswerError();
+
+  /*
+    ⚠️ "Eski şifreyle aynı" kontrolü ARTIK CEVAPTAN SONRA.
+    Önce yapılsaydı, cevabı bilmeyen biri bile bir şifre denemesi
+    göndererek "bu, hesabın mevcut şifresi mi?" sorusunu sorabilirdi —
+    şifre doğrulama ucu hâline gelirdi.
+
+    ⚠️ Google-only hesapta `passwordHash` null: karşılaştıracak eski şifre
+    yok, kontrol atlanıyor ve sıfırlama hesaba şifre EKLİYOR.
+  */
+  if (user.passwordHash !== null) {
+    const isSame = await argon2.verify(user.passwordHash, input.password);
+    if (isSame) throw new SameAsOldPasswordError();
   }
 
   const passwordHash = await argon2.hash(input.password);
-  await updateUserPassword(input.email, passwordHash);
+  await updateUserPasswordById(user.id, passwordHash);
+}
+
+/**
+ * Giriş yapmış kullanıcı güvenlik sorusunu kurar / değiştirir.
+ *
+ * ⚠️ CEVAP `argon2` İLE HASH'LENİYOR — ŞİFREYLE AYNI FONKSİYON.
+ * Düz metin saklasaydık veritabanı sızıntısında cevaplar okunurdu ve
+ * insanlar aynı cevabı başka servislerde de kullandığı için zarar bu
+ * uygulamanın dışına taşardı.
+ */
+export async function setSecurityQuestion(
+  userId: string,
+  input: SetSecurityQuestionBody,
+) {
+  const answerHash = await argon2.hash(normalizeAnswer(input.answer));
+  const updated = await updateSecurityQuestion({
+    userId,
+    question: input.question.trim(),
+    answerHash,
+  });
+
+  if (!updated) throw new UserNotFoundError();
 }

@@ -26,7 +26,27 @@ type Props = {
 
 const MIN_PASSWORD_LENGTH = 8;
 
+/**
+ * ⚠️ BU EKRAN İKİ ADIMLI OLMAK ZORUNDA — VE SEBEBİ KOZMETİK DEĞİL.
+ *
+ * Eski hâli e-posta + yeni şifre alıp doğrudan gönderiyordu ve sunucu
+ * kimliği HİÇ doğrulamıyordu: bir e-posta adresini bilen herkes o hesabı
+ * ele geçirebiliyordu. Sunucu düzeltildi; ekran da akışı takip ediyor.
+ *
+ *   1. adım -> e-posta yaz, hesabın güvenlik SORUSUNU getir
+ *   2. adım -> soruyu CEVAPLA + yeni şifreyi belirle
+ *
+ * ⚠️ İKİNCİ ADIMDA CEVAP VE ŞİFRE TEK İSTEKTE GİDİYOR. "Önce cevabı
+ * doğrula, sonra şifre al" daha akıcı olurdu ama araya bir sıfırlama
+ * jetonu koymayı gerektirirdi; yoksa ikinci istek hiçbir şeye dayanmaz ve
+ * ilk günkü açık geri gelirdi.
+ */
+type Adim = 'email' | 'answer';
+
 export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
+  const [adim, setAdim] = useState<Adim>('email');
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -41,12 +61,41 @@ export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
     };
   }
 
-  async function handleSubmit() {
+  /** 1. adım — e-postayı gönder, güvenlik sorusunu getir. */
+  async function soruyuGetir() {
     const mail = email.trim();
-
     const mailError = checkEmail(mail);
     if (mailError !== null) {
       setError(mailError);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiFetch<{ question: string }>(
+        '/auth/forgot-password/question',
+        { method: 'POST', body: JSON.stringify({ email: mail }) },
+      );
+      setQuestion(res.question);
+      setAdim('answer');
+    } catch (err) {
+      /*
+        ⚠️ Sunucunun mesajı OLDUĞU GİBİ gösteriliyor, kendi metnimizle
+        değiştirilmiyor. Üç ayrı durum var — hesap yok, güvenlik sorusu
+        kurulmamış, çok fazla deneme — ve üçünde kullanıcının yapması
+        gereken şey farklı. Hepsini "bir hata oluştu"ya indirseydik
+        kullanıcı ne yapacağını bilemezdi.
+      */
+      setError(err instanceof Error ? err.message : 'Soru alınamadı.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** 2. adım — cevabı ve yeni şifreyi birlikte gönder. */
+  async function sifreyiSifirla() {
+    if (answer.trim().length < 2) {
+      setError('Güvenlik sorusunun cevabını yaz.');
       return;
     }
 
@@ -61,12 +110,19 @@ export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
     }
 
     setLoading(true);
-
     try {
-      await apiFetch<{ success: boolean; message: string }>('/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify({ email: mail, password, confirmPassword }),
-      });
+      await apiFetch<{ success: boolean; message: string }>(
+        '/auth/reset-password',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            email: email.trim(),
+            answer,
+            password,
+            confirmPassword,
+          }),
+        },
+      );
 
       setSuccessMsg('Şifreniz başarıyla sıfırlandı. Giriş sayfasına yönlendiriliyorsunuz...');
       setTimeout(() => {
@@ -100,7 +156,9 @@ export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
           <View style={styles.hero}>
             <Text style={styles.title}>Şifrenizi{'\n'}sıfırlayın.</Text>
             <Text style={styles.subtitle}>
-              Yeni şifrenizi belirleyin ve onaylayın.
+              {adim === 'email'
+                ? 'Hesabınızın güvenlik sorusunu getirmek için e-postanızı yazın.'
+                : 'Güvenlik sorusunu cevaplayın ve yeni şifrenizi belirleyin.'}
             </Text>
           </View>
 
@@ -113,30 +171,43 @@ export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
               autoCapitalize="none"
               autoComplete="email"
               textContentType="emailAddress"
-              editable={!loading && successMsg === ''}
+              editable={adim === 'email' && !loading && successMsg === ''}
             />
 
-            <Field
-              placeholder="Yeni şifre (en az 8 karakter)"
-              value={password}
-              onChangeText={edit(setPassword)}
-              isPassword
-              autoCapitalize="none"
-              autoComplete="new-password"
-              textContentType="newPassword"
-              editable={!loading && successMsg === ''}
-            />
+            {adim === 'answer' && (
+              <>
+                <Text style={styles.questionLabel}>{question}</Text>
+                <Field
+                  placeholder="Cevabın"
+                  value={answer}
+                  onChangeText={edit(setAnswer)}
+                  autoCapitalize="none"
+                  editable={!loading && successMsg === ''}
+                />
 
-            <Field
-              placeholder="Yeni şifre tekrarı"
-              value={confirmPassword}
-              onChangeText={edit(setConfirmPassword)}
-              isPassword
-              autoCapitalize="none"
-              autoComplete="new-password"
-              textContentType="newPassword"
-              editable={!loading && successMsg === ''}
-            />
+                <Field
+                  placeholder="Yeni şifre (en az 8 karakter)"
+                  value={password}
+                  onChangeText={edit(setPassword)}
+                  isPassword
+                  autoCapitalize="none"
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  editable={!loading && successMsg === ''}
+                />
+
+                <Field
+                  placeholder="Yeni şifre tekrarı"
+                  value={confirmPassword}
+                  onChangeText={edit(setConfirmPassword)}
+                  isPassword
+                  autoCapitalize="none"
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  editable={!loading && successMsg === ''}
+                />
+              </>
+            )}
 
             {error !== '' && <ErrorRow message={error} />}
             {successMsg !== '' && (
@@ -145,8 +216,18 @@ export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
 
             <View style={styles.ctaWrap}>
               <PrimaryButton
-                label={loading ? 'Sıfırlanıyor…' : 'Şifreyi sıfırla'}
-                onPress={() => void handleSubmit()}
+                label={
+                  adim === 'email'
+                    ? loading
+                      ? 'Aranıyor…'
+                      : 'Devam et'
+                    : loading
+                      ? 'Sıfırlanıyor…'
+                      : 'Şifreyi sıfırla'
+                }
+                onPress={() =>
+                  void (adim === 'email' ? soruyuGetir() : sifreyiSifirla())
+                }
                 loading={loading || successMsg !== ''}
               />
             </View>
@@ -180,6 +261,12 @@ export function ForgotPasswordScreen({ onSuccess, onGoToLogin }: Props) {
 }
 
 const styles = StyleSheet.create({
+  questionLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    color: colors.ink,
+    marginBottom: 4,
+  },
   root: { flex: 1, backgroundColor: colors.surface },
   flex: { flex: 1 },
   scroll: {

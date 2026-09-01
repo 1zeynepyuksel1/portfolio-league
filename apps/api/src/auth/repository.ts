@@ -263,3 +263,64 @@ export async function updateUserPassword(email: string, passwordHash: string) {
 
   return updated;
 }
+
+/**
+ * Şifre sıfırlama için gereken güvenlik alanları.
+ *
+ * ⚠️ AYRI BİR FONKSİYON, `findUserForLogin`'e EKLENMEDİ.
+ *
+ * Giriş akışının güvenlik sorusu hash'ine ihtiyacı yok. Aynı sorguya
+ * eklemek onu her girişte belleğe taşırdı; hiçbir yerde kullanılmayan
+ * bir sırrı dolaştırmak, kazayla loglanma ihtimalini bedava artırır.
+ */
+export async function findUserSecurity(email: string) {
+  const [row] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      passwordHash: users.passwordHash,
+      securityQuestion: users.securityQuestion,
+      securityAnswerHash: users.securityAnswerHash,
+    })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/** Güvenlik sorusunu ve hash'lenmiş cevabını yazar. */
+export async function updateSecurityQuestion(input: {
+  userId: string;
+  question: string;
+  answerHash: string;
+}) {
+  const [updated] = await db
+    .update(users)
+    .set({
+      securityQuestion: input.question,
+      securityAnswerHash: input.answerHash,
+    })
+    .where(eq(users.id, input.userId))
+    .returning({ id: users.id });
+
+  return updated ?? null;
+}
+
+/**
+ * Şifreyi KULLANICI KİMLİĞİYLE günceller — e-postayla değil.
+ *
+ * ⚠️ `updateUserPassword` e-posta alıyor ve o imza sıfırlama akışında
+ * tehlikeli: doğrulamayı bir e-posta üzerinde yapıp güncellemeyi başka
+ * bir e-postayla çalıştırmak mümkün olurdu. Kimlikle çalışan bu sürümde
+ * "kimi doğruladıysak onu güncelliyoruz" bağı kopmuyor.
+ */
+export async function updateUserPasswordById(userId: string, passwordHash: string) {
+  const [updated] = await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.id, userId))
+    .returning({ id: users.id });
+
+  return updated ?? null;
+}

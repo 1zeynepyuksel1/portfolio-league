@@ -52,6 +52,18 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
     const [editAlloc, setEditAlloc] = useState('private');
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState('');
+  /*
+    ⚠️ GÜVENLİK SORUSU AYRI BİR İSTEKLE KAYDEDİLİYOR, profil PATCH'iyle
+    değil. Sebep: cevabı sunucuda `argon2` ile hash'lemek gerekiyor ve o
+    iş `PUT /auth/security-question` ucunda. Profil ucuna eklemek, kimlik
+    sırlarını genel profil güncellemesinin içine karıştırmak olurdu.
+
+    ⚠️ MEVCUT CEVAP HİÇ GERİ GELMİYOR — hash'in geri çevrilmesi mümkün
+    değil ve olmamalı. Alanlar her açılışta boş; kullanıcı değiştirmek
+    isterse ikisini de yeniden yazar.
+  */
+  const [editQuestion, setEditQuestion] = useState('');
+  const [editAnswer, setEditAnswer] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => { setToastMessage({ text, type }); setTimeout(() => setToastMessage(null), 3000); };
@@ -107,6 +119,20 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
     try {
       await apiFetch('/users/me', { method: 'PATCH', body: JSON.stringify({ firstName: editFirstName, lastName: editLastName, password: editPassword ? editPassword : undefined, allocationVisibility: editAlloc }) });
       if (editIsPublic !== profile?.isPublic) { await apiFetch('/users/me/visibility', { method: 'PATCH', body: JSON.stringify({ isPublic: editIsPublic }) }); }
+
+      /*
+        ⚠️ İKİSİ BİRDEN DOLU DEĞİLSE HİÇ GÖNDERİLMİYOR.
+
+        Yalnızca soruyu değiştirip cevabı boş bırakan biri, hesabını
+        cevabı bilinmeyen bir soruyla kilitlerdi: sıfırlama akışı çalışır
+        ama hiçbir cevap tutmaz. İkisi tek bir bütün.
+      */
+      if (editQuestion.trim() !== '' && editAnswer.trim() !== '') {
+        await apiFetch('/auth/security-question', { method: 'PUT', body: JSON.stringify({ question: editQuestion.trim(), answer: editAnswer.trim() }) });
+        setEditQuestion(''); setEditAnswer('');
+      } else if (editQuestion.trim() !== '' || editAnswer.trim() !== '') {
+        throw new Error('Güvenlik sorusu için hem soruyu hem cevabı doldur.');
+      }
       await load(); setShowSettings(false); setEditPassword('');
     } catch (err) { setSettingsError(err instanceof Error ? err.message : 'Ayarlar kaydedilemedi.'); } finally { setSavingSettings(false); }
   };
@@ -361,6 +387,31 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 </View>
               </View>
 
+
+              <View style={{ marginTop: 8, marginBottom: 32 }}>
+                <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink }}>Güvenlik Sorusu</Text>
+                <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted, marginTop: 4, marginBottom: 12 }}>
+                  Şifreni unutursan hesabına yalnızca bu sorunun cevabıyla erişebilirsin. Kurmazsan şifre sıfırlama çalışmaz.
+                </Text>
+                <TextInput
+                  value={editQuestion}
+                  onChangeText={setEditQuestion}
+                  placeholder="Soru (örn. İlk evcil hayvanının adı neydi?)"
+                  placeholderTextColor={colors.inkMuted}
+                  style={{ backgroundColor: colors.surfacePressed, borderRadius: 12, padding: 14, color: colors.ink, fontFamily: fonts.regular, marginBottom: 10 }}
+                />
+                <TextInput
+                  value={editAnswer}
+                  onChangeText={setEditAnswer}
+                  placeholder="Cevap"
+                  placeholderTextColor={colors.inkMuted}
+                  autoCapitalize="none"
+                  style={{ backgroundColor: colors.surfacePressed, borderRadius: 12, padding: 14, color: colors.ink, fontFamily: fonts.regular }}
+                />
+                <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 8 }}>
+                  Cevap sunucuda şifrelenerek saklanır, kimse göremez. Büyük/küçük harf ve baştaki boşluklar önemsiz.
+                </Text>
+              </View>
 
             {settingsError ? <Text style={{ color: colors.loss, marginBottom: 16, textAlign: 'center' }}>{settingsError}</Text> : null}
             <TouchableOpacity onPress={handleSaveSettings} disabled={savingSettings} style={{ backgroundColor: colors.accent, padding: 16, borderRadius: 12, alignItems: 'center' }}>

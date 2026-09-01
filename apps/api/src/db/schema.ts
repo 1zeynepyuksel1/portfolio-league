@@ -21,12 +21,76 @@ import {
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
+  /*
+    ⚠️ `notNull` KALDIRILDI — SADECE GOOGLE İLE GİREN KULLANICI İÇİN.
+
+    Yalnızca Google ile kayıt olan birinin şifresi YOKTUR. Eskiden rastgele
+    bir şifre üretip hash'lemek de mümkündü ama o "şifresi var" yalanını
+    söylerdi: "şifremi unuttum" akışı o hesabı kabul eder, kullanıcı asla
+    bilemeyeceği bir şifreyi sıfırlamaya çalışırdı.
+
+    `null` dürüst: bu hesabın şifre yolu yok.
+
+    ⚠️ BUNUN BEDELİ: şifre karşılaştıran HER YER artık null'ı elemek
+    zorunda. `auth/service.ts` içindeki giriş ve sıfırlama akışları bunu
+    açıkça kontrol ediyor.
+  */
+  passwordHash: text('password_hash'),
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
   username: text('username').notNull().unique(),
   isEmailVerified: boolean('is_email_verified').default(false).notNull(),
   verificationCode: text('verification_code'),
+
+  /*
+    ⚠️ ROL: enum DEĞİL, metin — ve bu bilinçli.
+
+    PostgreSQL enum'una değer eklemek ayrı bir migration ister ve enum'u
+    SİLMEK bu projede zaten bir kez tabloyu götürdü (0013). Rol listesi
+    ileride büyüyebilir ('moderator' gibi); metin + varsayılan, esnek ve
+    geri dönüşü kolay.
+
+    ⚠️ VARSAYILAN 'user' VE `notNull` — YETKİ ASLA "belirsiz" OLMAMALI.
+    Kolon boş bırakılabilseydi `role === 'admin'` kontrolü null için false
+    dönerdi (şans eseri doğru), ama `role !== 'user'` yazan biri yanlışlıkla
+    herkesi yetkili sayardı. Belirsizlik yetki kodunda en tehlikeli şey.
+  */
+  role: text('role').default('user').notNull(),
+
+  /*
+    ⚠️ BAN: boolean DEĞİL, ZAMAN DAMGASI.
+
+    `is_banned` boolean olsaydı "ne zaman banlandı" bilgisi kaybolurdu ve
+    itiraz geldiğinde bakacak bir şey olmazdı. `null` = banlı değil,
+    dolu = o andan itibaren banlı. Aynı kolon hem durumu hem geçmişi
+    taşıyor.
+  */
+  bannedAt: timestamp('banned_at'),
+  banReason: text('ban_reason'),
+
+  /*
+    ⚠️ GÜVENLİK SORUSU — CEVAP HASH'LENİYOR, DÜZ METİN DEĞİL.
+
+    Cevap ikinci bir şifredir: veritabanı sızarsa düz metin cevaplar hem bu
+    uygulamada hem — insanlar aynı cevabı her yerde verdiği için — başka
+    servislerde hesap açar. Şifreyle aynı `argon2` fonksiyonundan geçiyor.
+
+    ⚠️ SORU METNİ HASH'LENMİYOR, çünkü kullanıcıya SORULMASI gerekiyor.
+    Gizli olan cevap, soru değil.
+  */
+  securityQuestion: text('security_question'),
+  securityAnswerHash: text('security_answer_hash'),
+
+  /*
+    ⚠️ GOOGLE KİMLİĞİ — e-posta DEĞİL, Google'ın `sub` alanı.
+
+    E-postaya bağlasaydık, biri Google hesabının e-postasını değiştirdiğinde
+    bağ kopardı. `sub` Google'da o kullanıcı için kalıcı ve değişmiyor.
+
+    ⚠️ `unique`: iki yerel hesap aynı Google hesabına bağlanamaz. Olsaydı
+    "Google ile giriş" hangi hesabı açacağını bilemezdi.
+  */
+  googleId: text('google_id').unique(),
   isPublic: boolean('is_public').default(true).notNull(),
     allocationVisibility: text('allocation_visibility').default('private').notNull(),
   avatarSeed: text('avatar_seed'),
@@ -248,6 +312,17 @@ export const leagueEntries = pgTable(
     endValueCents: bigint('end_value_cents', { mode: 'bigint' }).notNull(),
     twrPct: numeric('twr_pct', { precision: 10, scale: 4 }).notNull().default('0.0000'),
     rank: integer('rank'),
+    /*
+      ⚠️ "SONUÇ GÖSTERİLDİ Mİ" SUNUCUDA TUTULUYOR, TELEFONDA DEĞİL.
+
+      Telefonun yerel deposunda tutsaydık: uygulamayı silip kuran ya da
+      ikinci cihazdan giren kullanıcı aynı kutlamayı tekrar görürdü.
+      Daha kötüsü, kutlamayı gördüğünü sunucu bilemezdi.
+
+      Boolean yerine yine zaman damgası: `null` = görmedi, dolu = ne zaman
+      gördü. Aynı gerekçe `users.banned_at`'te de var.
+    */
+    resultSeenAt: timestamp('result_seen_at'),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => [

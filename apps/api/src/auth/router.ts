@@ -1,9 +1,20 @@
-import { Router } from 'express';
+/*
+  ⚠️ `Response` EXPRESS'TEN AÇIKÇA ALINIYOR — yoksa TypeScript onu
+  tarayıcının global `Response` tipine bağlar ve `res.status()` /
+  `res.setHeader()` "bu ifade çağrılabilir değil" hatası verir. Hata
+  mesajı sebebi hiç söylemiyor; bir kez görüp bilmek gerekiyor.
+*/
+import { Router, type Response } from 'express';
+import { requireAccessToken } from './middleware.js';
 import { loginBodySchema } from './login.schema.js';
 import { refreshBodySchema } from './refresh.schema.js';
 import { registerBodySchema } from './register.schema.js';
 import { resendCodeSchema, verifyEmailSchema } from './verify.schema.js';
-import { resetPasswordBodySchema } from './reset-password.schema.js';
+import {
+  resetWithAnswerSchema,
+  securityQuestionLookupSchema,
+  setSecurityQuestionSchema,
+} from './security-question.schema.js';
 import {
   EmailAlreadyInUseError,
   UsernameAlreadyInUseError,
@@ -18,6 +29,11 @@ import {
   resendVerificationCode,
   verifyUserEmail,
   resetUserPassword,
+  getSecurityQuestion,
+  setSecurityQuestion,
+  NoSecurityQuestionError,
+  WrongSecurityAnswerError,
+  TooManyAttemptsError,
   UserNotFoundError,
   SameAsOldPasswordError,
 } from './service.js';
@@ -271,8 +287,45 @@ authRouter.post('/logout', async (request, response) => {
   return response.status(204).send();
 });
 
+/*
+  ⚠️ BU BLOK BİR HESAP ELE GEÇİRME AÇIĞINI KAPATIYOR.
+
+  Eski `/reset-password` ucu `{ email, password, confirmPassword }` alıyor
+  ve şifreyi DEĞİŞTİRİYORDU. `requireAccessToken` yoktu, jeton yoktu, eski
+  şifre sorulmuyordu. Yani bir e-posta adresini bilen herkes o hesabın
+  şifresini değiştirebiliyordu.
+
+  Akış artık iki adım:
+
+    1. POST /auth/forgot-password/question  { email }     -> { question }
+    2. POST /auth/reset-password  { email, answer, password, confirmPassword }
+
+  Cevap doğrulanmadan hiçbir yazma yapılmıyor.
+*/
+
+authRouter.post('/forgot-password/question', async (request, response) => {
+  const parsed = securityQuestionLookupSchema.safeParse(request.body);
+
+  if (!parsed.success) {
+    return response.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Geçerli bir e-posta adresi giriniz.',
+        details: parsed.error.flatten(),
+      },
+    });
+  }
+
+  try {
+    const result = await getSecurityQuestion(parsed.data.email);
+    return response.status(200).json(result);
+  } catch (error) {
+    return handleSecurityError(error, response, 'forgot-password/question');
+  }
+});
+
 authRouter.post('/reset-password', async (request, response) => {
-  const parsedBody = resetPasswordBodySchema.safeParse(request.body);
+  const parsedBody = resetWithAnswerSchema.safeParse(request.body);
 
   if (!parsedBody.success) {
     return response.status(400).json({
@@ -292,31 +345,93 @@ authRouter.post('/reset-password', async (request, response) => {
       message: 'Şifreniz başarıyla güncellendi.',
     });
   } catch (error) {
-    if (error instanceof UserNotFoundError) {
-      return response.status(404).json({
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: error.message,
-        },
-      });
-    }
+    return handleSecurityError(error, response, 'reset-password');
+  }
+});
 
-    if (error instanceof SameAsOldPasswordError) {
-      return response.status(400).json({
-        error: {
-          code: 'SAME_AS_OLD_PASSWORD',
-          message: error.message,
-        },
-      });
-    }
+/**
+ * Güvenlik sorusunu kurma / değiştirme — GİRİŞ YAPMIŞ KULLANICI.
+ *
+ * ⚠️ `requireAccessToken` BURADA ZORUNLU. Olmasaydı, saldırgan kurbanın
+ * güvenlik sorusunu KENDİ bildiği bir soruyla değiştirip sonra sıfırlama
+ * akışını çalıştırırdı — kapattığımız açığın birebir aynısı, arka kapıdan.
+ */
+authRouter.put('/security-question', requireAccessToken, async (request, response) => {
+  const parsed = setSecurityQuestionSchema.safeParse(request.body);
 
-    logUnexpected('reset-password', error);
-
-    return response.status(500).json({
+  if (!parsed.success) {
+    return response.status(400).json({
       error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Şifre sıfırlanırken beklenmeyen bir hata oluştu.',
+        code: 'VALIDATION_ERROR',
+        message: 'Güvenlik sorusu bilgileri geçersiz.',
+        details: parsed.error.flatten(),
       },
     });
   }
+
+  try {
+    await setSecurityQuestion(response.locals.userId as string, parsed.data);
+    return response.status(200).json({ success: true });
+  } catch (error) {
+    return handleSecurityError(error, response, 'security-question');
+  }
 });
+
+/**
+ * Güvenlik akışlarının ortak hata çevirisi.
+ *
+ * ⚠️ TEK YERDE: üç uç da aynı hataları fırlatıyor. Her uçta ayrı ayrı
+ * çevirseydik biri eksik kalır ve o uç 500 dönerdi — hata mesajları
+ * güvenlik akışında kullanıcıyı yönlendiren tek şey.
+ */
+function handleSecurityError(error: unknown, response: Response, etiket: string) {
+  if (error instanceof TooManyAttemptsError) {
+    /*
+      ⚠️ 429 + `Retry-After` — doğru durum kodu ÖNEMLİ. 400 dönseydik
+      istemci "girdim yanlış" sanıp kullanıcıya cevabını tekrar
+      yazdırırdı; oysa sorun cevap değil, beklemesi gerektiği.
+    */
+    response.setHeader('Retry-After', String(error.retryAfterSeconds));
+    return response.status(429).json({
+      error: {
+        code: 'TOO_MANY_ATTEMPTS',
+        message: error.message,
+        retryAfterSeconds: error.retryAfterSeconds,
+      },
+    });
+  }
+
+  if (error instanceof WrongSecurityAnswerError) {
+    return response.status(400).json({
+      error: { code: 'WRONG_SECURITY_ANSWER', message: error.message },
+    });
+  }
+
+  if (error instanceof NoSecurityQuestionError) {
+    return response.status(409).json({
+      error: { code: 'NO_SECURITY_QUESTION', message: error.message },
+    });
+  }
+
+  if (error instanceof UserNotFoundError) {
+    return response.status(404).json({
+      error: { code: 'USER_NOT_FOUND', message: error.message },
+    });
+  }
+
+  if (error instanceof SameAsOldPasswordError) {
+    return response.status(400).json({
+      error: { code: 'SAME_AS_OLD_PASSWORD', message: error.message },
+    });
+  }
+
+  logUnexpected(etiket, error);
+
+  return response.status(500).json({
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: 'Beklenmeyen bir hata oluştu.',
+    },
+  });
+}
+
