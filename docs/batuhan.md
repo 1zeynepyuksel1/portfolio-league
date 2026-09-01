@@ -13,6 +13,63 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 38. `posts` tablosu neden silindi — drizzle.config'in gizli yetkisi — 1 Eyl 2026
+
+**Değişti:** `apps/api/drizzle.config.ts` (tek satır + gerekçe yorumu)
+
+**Belirti:** Paylaş ekranı açılıyor, "Paylaş"a basınca hata. Akış ekranı boş.
+`/posts` altındaki HER uç 400 dönüyor.
+
+**Sebep — ve bu bir tasarım tuzağı, dikkatsizlik değil:**
+
+```
+posts tablosu       ->  src/posts/schema.ts       (tanımlı)
+drizzle.config.ts   ->  schema: './src/db/schema.ts'   (tek dosya)
+```
+
+drizzle-kit migration üretirken **iki şeyin farkını** alıyor:
+`config'te sayılan şema` ile `veritabanının o anki hâli`. `posts` config'te
+sayılmadığı için drizzle-kit onu hiç görmedi — ve veritabanında "şemada
+karşılığı olmayan bir tablo" bulunca doğru davranışı yaptı:
+
+```sql
+DROP TABLE IF EXISTS "posts" CASCADE;   -- 0013_stale_ricochet.sql, 1. satır
+```
+
+Tablo ve üç enum (`post_type`, `post_scope`, `post_visibility`) gitti.
+Doğrulandı: `information_schema` sorgusu `TABLOLAR: []` döndürüyor.
+
+⚠️ **`schema` alanı bir "okuma ayarı" değil, SİLME YETKİSİ.** Buraya
+eklenmeyen her tablo, bir sonraki `db:generate`'te silinme adayıdır.
+Yeni bir `pgTable` dosyası açan herkes aynı anda config'i de güncellemek
+zorunda — yoksa kimse fark etmeden veri gider.
+
+⚠️ **Hata sessiz değildi ama GÖRÜNMEZDİ:** migration "başarıyla uygulandı",
+testler geçti (posts'un testi yok), typecheck temiz (TypeScript
+veritabanına bakmaz). Yalnızca ekranı açan kullanıcı görüyor.
+
+**Düzeltme:** `schema` artık dizi — iki dosyayı da sayıyor.
+Kopya klasörde sınandı: drizzle-kit artık `posts 8 columns` diye okuyor ve
+ürettiği migration **yalnızca CREATE** içeriyor, hiçbir yıkıcı ifade yok.
+
+⚠️ **YARIM BIRAKILDI — BİLEREK.** Tabloyu geri getiren migration'ı ben
+yazmadım: migration'ların sahibi Zeynep (CLAUDE.md). Zaten bu arızanın
+kendisi iki kişinin aynı numarayı üretmesinden çıktı; ikinci kez aynı
+hatayı yapmanın anlamı yok. `npm run -w apps/api db:generate` + `db:migrate`
+Zeynep'te.
+
+**Ayrıca — ikinci, daha küçük hata:** paylaşımda "Dönem Seç" adımı SÜS.
+`GET /posts/share-preview/portfolio?period=week` isteği gidiyor ama
+`router.ts` isteği `_req` diye alıyor ve `getPortfolioPreview(userId)`'yi
+dönemsiz çağırıyor; `createPost` da `_periodParams`'ı kullanmıyor. Hafta /
+ay / tüm zamanlar — üçü de aynı sonucu verecek.
+
+**Soru:** `posts` tablosunu `src/db/schema.ts`'e taşımak mı daha iyi, yoksa
+config listesini güncel tutmak mı? İkisinin de bir bedeli var — hangisi
+unutulmaya daha dayanıklı?
+
+---
+
 ### 37. Zeynep'in model değişikliği ve yetenek yoklaması — 1 Eyl 2026
 
 **Değişti:** `behavior/gemini.ts` · `narrator.ts` · `chat.ts` · `.env`
