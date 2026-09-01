@@ -84,6 +84,7 @@ type RequestsResponse = {
 export function FriendsScreen({
   onClose,
   onSelectUser,
+  mode = 'league',
 }: {
   onClose?: () => void;
     mode?: 'league' | 'profile';
