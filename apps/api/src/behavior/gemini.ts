@@ -90,7 +90,36 @@ const API_KEY = process.env.GEMINI_API_KEY ?? null;
  * her hata `null`'a çevriliyor. Sabit sürüm eskiyebilir; eskimesi görünür
  * bir sorundur, kendiliğinden bozulması değil.
  */
-const MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.6-flash';
+const MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+
+/*
+  ⚠️ `gemini-3.6-flash`'TAN GERİ ALINDI — VE SEBEBİ ÖLÇÜM.
+
+  Zeynep 1 Eyl'de varsayılanı `3.6`'ya aldı ve `thinkingConfig`'i
+  kaldırdı; sebebi haklıydı, `3.6` o ayarı 400 ile reddediyor.
+
+  Ama düşünme kapatılamayınca süre patlıyor. Gerçek uçtan, tam bağlamla
+  ölçüldü (POST /me/behavior/chat):
+
+    gemini-3.6-flash          25,09 s -> ZAMAN AŞIMI (503)
+                              22,60 s -> OK
+                               3,85 s -> OK
+                              21,05 s -> OK
+
+    düşünme kapalı modeller    1,3 - 1,6 s, hepsi başarılı
+
+  20 saniyelik bir sohbet cevabı kullanılabilir değil; üstelik dördün
+  biri tamamen düştü.
+
+  ⚠️ ÖNEMLİ AYRIM: `3.6` KISA istemle 3 saniyede dönüyor. İlk ölçümüm
+  öyleydi ve "sorun yok" sandım. Sorun uzun bağlamda çıkıyor — portföy,
+  20 işlem ve uzun yönerge binince düşünme uzuyor. Yani modeli gerçek
+  istemle ölçmek şart; "merhaba" testi yanıltıyor.
+
+  `thinkingConfig` geri geldi ama artık KOŞULLU: yetenek yoklanıyor
+  (aşağıda `callModel`), yani `3.6`'ya dönülse bile kod kırılmıyor —
+  sadece yavaşlıyor.
+*/
 
 /**
  * SUNUCU GENELİ HIZ SINIRI — dakikada kaç model çağrısı.
@@ -176,7 +205,27 @@ export async function callModel<T>(call: ModelCall): Promise<T | null> {
   try {
     const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-    const response = await ai.models.generateContent({
+    /*
+      ⚠️ DÜŞÜNME KAPATILMAYA ÇALIŞILIYOR, KAPATILAMAZSA DEVAM EDİLİYOR.
+
+      Modeller bu ayarda ayrışıyor:
+        gemini-2.5-flash / 3.1-flash-lite  ->  thinkingBudget: 0 kabul
+        gemini-3.6-flash                   ->  400 INVALID_ARGUMENT
+
+      Ölçüldü (gerçek uç, tam bağlamla): düşünme kapalıyken 1,3-1,6 sn;
+      3.6'da kapatılamadığı için 3,8 - 25,1 sn arası ve biri zaman
+      aşımına uğradı.
+
+      ⚠️ MODEL LİSTESİ TUTMUYORUZ. "3.6 ise şunu yapma" diye dallanmak,
+      her yeni modelde bir dal daha demek ve o dallar eskidiğinde kimse
+      fark etmez. Bunun yerine YETENEK YOKLANIYOR: ayarı gönder, model
+      reddederse aynı isteği ayarsız tekrarla.
+
+      Bedeli bir fazladan gidiş-dönüş, o da yalnızca desteklemeyen
+      modellerde ve yalnızca 400 hatasında (kota/ağ hataları bu dala
+      girmiyor, aşağıdaki `catch`'e düşüyor).
+    */
+    const temel = {
       model: MODEL,
       contents: call.contents,
       config: {
@@ -191,6 +240,10 @@ export async function callModel<T>(call: ModelCall): Promise<T | null> {
         temperature: 0.3,
 
         /*
+          ⚠️ DÜŞÜNME AYARI YUKARIDA, ÇAĞRININ İÇİNDE — ve sebebi
+          modellerin bu ayarda ayrışması. Aşağıdaki not neden
+          kapatmak istediğimizi anlatıyor.
+
           ⚠️ DÜŞÜNME KAPALI — VE BU BİR HATA AYIKLAMA OTURUMUNUN BEDELİYDİ.
 
           Gemini cevaptan ÖNCE "düşünüyor" ve o düşünme token'ları
@@ -208,7 +261,23 @@ export async function callModel<T>(call: ModelCall): Promise<T | null> {
         maxOutputTokens: call.maxOutputTokens,
         abortSignal: AbortSignal.timeout(call.timeoutMs),
       },
-    });
+    };
+
+    let response;
+
+    try {
+      response = await ai.models.generateContent({
+        ...temel,
+        config: { ...temel.config, thinkingConfig: { thinkingBudget: 0 } },
+      });
+    } catch (e) {
+      // Yalnızca "bu argüman geçersiz" hatasında ayarsız tekrar dene.
+      // Başka her hata (kota, ağ, zaman aşımı) dışarıdaki catch'e gitsin.
+      if (!/INVALID_ARGUMENT|thinking/i.test((e as Error).message)) throw e;
+
+      console.warn('[behavior/gemini] model thinkingBudget kabul etmiyor, ayarsız deneniyor');
+      response = await ai.models.generateContent(temel);
+    }
 
     return parseJson<T>(response.text);
   } catch (error) {

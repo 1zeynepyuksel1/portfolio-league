@@ -182,7 +182,23 @@ export async function narrate(
     systemInstruction: SYSTEM_INSTRUCTION,
     contents: `Ölçülen bulgular:\n${summary}`,
     responseSchema: RESPONSE_SCHEMA,
-    maxOutputTokens: 400,
+    /*
+      ⚠️ 400'DEN 1200'E ÇIKARILDI — VE SEBEBİ MODEL DEĞİŞİKLİĞİ.
+
+      `gemini-3.6-flash` `thinkingBudget: 0`'ı REDDEDİYOR (400
+      INVALID_ARGUMENT), yani düşünmeyi artık kapatamıyoruz. Ölçüldü:
+      285-310 token düşünmeye gidiyor. 400'lük bütçeyle çıktıya ~100
+      token kalıyordu — bugün yetti ama pay çok ince.
+
+      ⚠️ ÇÖZÜM MODEL-ÖZEL AYAR DEĞİL, CÖMERT BÜTÇE. "3.6 ise şunu yap"
+      diye dallanmak, her yeni modelde bir dal daha demek — ve o dallar
+      eskidiğinde kimse fark etmez. Bütçeyi düşünmenin asla boğamayacağı
+      kadar açmak, model seçiminden BAĞIMSIZ çalışıyor.
+
+      Kullanılmayan bütçe ücretlendirilmiyor: fatura üretilen token'a
+      göre, ayrılan sınıra göre değil.
+    */
+    maxOutputTokens: 1200,
     timeoutMs: TIMEOUT_MS,
   });
 
