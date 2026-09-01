@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { apiFetch } from '../api/client';
 import { BehaviorChat } from './BehaviorChat';
 import { colors, fonts } from '../theme';
+import { SkeletonCard, SkeletonRow } from './Skeleton';
 
 /**
  * BehaviorCard — kullanıcının kendi yatırım alışkanlıkları.
@@ -143,10 +144,25 @@ export function BehaviorCard() {
   }
 
   if (data === null) {
+    /*
+      ⚠️ DÖNEN ÇEMBER YERİNE İSKELET — VE SEBEBİ SADECE GÖRÜNÜŞ DEĞİL.
+
+      `ActivityIndicator` "bekle" diyordu ama NE beklendiğini
+      söylemiyordu. Daha kötüsü: 40 piksel yer kaplıyor, sonra içerik
+      300 piksel gelip ekranı ZIPLATIYORDU. Kullanıcı tam bir şeye
+      dokunacakken düzen kayıyordu.
+
+      İskelet baştan doğru yüksekliği tutuyor ve gelecek şeyin biçimini
+      gösteriyor: bir yorum kartı, altında üç bulgu satırı.
+    */
     return (
       <View style={styles.section}>
         <Text style={styles.label}>ALIŞKANLIKLARIN</Text>
-        <ActivityIndicator color={colors.inkFaint} />
+        <SkeletonCard lines={2} />
+        <View style={{ height: 12 }} />
+        <SkeletonRow />
+        <SkeletonRow />
+        <SkeletonRow />
       </View>
     );
   }

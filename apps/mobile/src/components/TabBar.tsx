@@ -153,7 +153,24 @@ export function TabBar({
             style={styles.tab}
             onPress={() => onChange(tab.key)}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={tab.label}
           >
+            {/*
+              ⚠️ AKTİF SEKME YALNIZCA RENKLE BELLİ OLUYORDU — VE BU
+              YETERSİZ.
+
+              Renk tek başına bir gösterge olamaz: renk körlüğü olan
+              kullanıcı mavi ile griyi ayırt edemez, ve güneşte ekranda
+              zaten ikisi de soluk görünür. Erişilebilirlik kılavuzunun
+              temel kuralı: bilgi asla YALNIZCA renkle taşınmaz.
+
+              Üstteki ince çizgi ikinci bir işaret — biçim. Renk
+              görünmese bile hangi sekmede olduğun belli.
+            */}
+            <View style={[styles.indicator, on && styles.indicatorOn]} />
+
             <View>
               <Icon color={color} />
               {!!badgeCount && badgeCount > 0 && (
@@ -185,11 +202,36 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    /*
+      ⚠️ EN AZ 44 PİKSEL YÜKSEKLİK. Dokunma hedefleri için kabul edilen
+      alt sınır bu; altına inince kullanıcı ıskalıyor ve "uygulama
+      tepki vermiyor" diye algılıyor. Simge 26, etiket 10 piksel;
+      ikisi arasındaki boşlukla birlikte zaten yaklaşıyordu ama açıkça
+      garantiye alındı.
+    */
+    minHeight: 44,
+    paddingTop: 6,
   },
+  /*
+    Aktif sekmenin üstündeki ince çizgi. Pasifken de yer kaplıyor
+    (saydam) — yoksa aktif sekme diğerlerinden 3 piksel aşağı kayar ve
+    çubuk her dokunuşta oynardı.
+  */
+  indicator: {
+    position: 'absolute',
+    top: 0,
+    width: 22,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+  },
+  indicatorOn: { backgroundColor: colors.accent },
   coachIcon: { width: 26, height: 26 },
   label: {
     fontFamily: fonts.medium,
-    fontSize: 10,
+    // ⚠️ 10 -> 11: beş sekmeye düşünce yer açıldı. 10 piksel etiket
+    // okunabilirlik sınırının altındaydı.
+    fontSize: 11,
     marginTop: 4,
     color: colors.inkFaint,
   },
