@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, Alert, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, Alert, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, DeviceEventEmitter } from 'react-native';
 import { X, Share2, Globe, Users } from 'lucide-react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
@@ -29,6 +29,7 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
   const [sharing, setSharing] = useState(false);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [caption, setCaption] = useState('');
+    const [errorText, setErrorText] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'friends_only'>('public');
 
   useEffect(() => {
@@ -85,8 +86,13 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
   }
 
   async function handleShare() {
-    if (!scope || !preview) return;
+    if (!scope || !preview) {
+      Alert.alert('Hata', 'Önizleme verisi eksik.');
+      return;
+    }
+    setErrorText('');
     setSharing(true);
+    
     try {
       let type = '';
       let targetKey = null;
@@ -99,16 +105,12 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
       } else if (scope.type === 'portfolio') {
         type = 'pnl_share';
         periodParams = { period: scope.period };
-      } else if (scope.type === 'horoscope') {
-        type = 'horoscope_share';
-        clientPayload = preview;
       } else if (scope.type === 'market_asset') {
         type = 'pnl_share';
         targetKey = scope.assetKey;
         clientPayload = preview;
-      } else if (scope.type === 'wheel') {
-        type = 'wheel_share';
-        clientPayload = preview;
+      } else {
+        type = 'pnl_share';
       }
 
       await apiFetch('/posts', {
@@ -124,9 +126,12 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
         })
       });
 
+      Alert.alert('Başarılı', 'Gönderin paylaşıldı!');
+      DeviceEventEmitter.emit('refreshProfile');
       onSuccess();
     } catch (err: any) {
-      Alert.alert('Hata', err.message || 'Paylaşılamadı.');
+      setErrorText(err.message || 'Gönderi paylaşılamadı.');
+      if (Platform.OS === 'web') alert(err.message || 'Gönderi paylaşılamadı.'); else Alert.alert('Paylaşım Hatası', err.message || 'Gönderi paylaşılamadı.');
     } finally {
       setSharing(false);
     }
@@ -154,7 +159,7 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
           {loading || !preview ? (
             <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>
           ) : (
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps='always'>
               <View style={styles.previewBox}>
                 <PostCard post={postObj} user={user} isPreview={true} />
               </View>
@@ -187,21 +192,23 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
                   <Text style={[styles.visText, visibility === 'friends_only' && styles.visTextActive]}>Sadece Arkadaşlar</Text>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
-          )}
-
-          {!loading && !!preview && (
-            <View style={styles.footer}>
-              <TouchableOpacity style={styles.shareBtn} onPress={handleShare} disabled={sharing}>
-                {sharing ? <ActivityIndicator color="#fff" /> : (
-                  <>
-                    <Share2 size={20} color="#fff" />
-                    <Text style={styles.shareBtnText}>Paylaş</Text>
-                  </>
+            
+                {!loading && !!preview && (
+                  <View style={[styles.footer, { marginTop: 20, borderTopWidth: 0, paddingHorizontal: 0 }]}>
+                    <TouchableOpacity style={styles.shareBtn} onPress={handleShare} disabled={sharing}>
+                      {sharing ? <ActivityIndicator color="#fff" /> : (
+                        <>
+                          <Share2 size={20} color="#fff" />
+                          <Text style={styles.shareBtnText}>Paylaş</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    {errorText ? <Text style={{ color: colors.loss, marginTop: 12, textAlign: 'center', fontFamily: fonts.medium }}>{errorText}</Text> : null}
+                  </View>
                 )}
-              </TouchableOpacity>
-            </View>
-          )}
+              </ScrollView>
+            )}
+
         </SafeAreaView>
       </KeyboardAvoidingView>
     </View>

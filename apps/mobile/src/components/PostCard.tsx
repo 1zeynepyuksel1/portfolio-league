@@ -140,7 +140,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
   const [dummyLikes] = useState(() => Math.floor(Math.random() * 200) + 12);
   const [dummyComments] = useState(() => Math.floor(Math.random() * 20) + 2);
 
-  if (deleted) return null;
+  if (deleted || post.type === 'horoscope_share' || post.type === 'wheel_share') return null;
 
   return (
     <View style={styles.card}>
