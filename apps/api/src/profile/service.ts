@@ -1,6 +1,6 @@
 import { db } from '../db/client.js';
 import { userAchievements } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { findCurrentOpenLeague, countLeagueParticipants } from '../leagues/repository.js';
 import { syncUserLeagueEntry } from '../leagues/twr-engine.js';
 import { getPortfolio } from '../portfolio/service.js';
@@ -108,6 +108,8 @@ export type PublicProfile = {
   pending: PendingDirection;
   /** Bekleyen GELEN istek. Yalnızca kendi profilinde dolu. */
   pendingRequests: number;
+  lastWeekRank?: number | null;
+  lastWeekLeagueName?: string | null;
 };
 
 export class ProfileNotFoundError extends Error {
@@ -161,8 +163,42 @@ export async function getPublicProfile(
 
   const isSelf = owner.id === viewerId;
   const isFriend = isSelf ? false : await areFriends(viewerId, owner.id);
+  let lastWeekRank: number | null = null;
+  let lastWeekLeagueName: string | null = null;
+
+  try {
+    const lastClosed = await db
+      .select({ id: leaguePeriods.id, name: leaguePeriods.name })
+      .from(leaguePeriods)
+      .where(eq(leaguePeriods.status, 'closed'))
+      .orderBy(desc(leaguePeriods.endsAt))
+      .limit(1);
+
+    if (lastClosed.length > 0) {
+      const pastEntry = await db
+        .select({ rank: leagueEntries.rank })
+        .from(leagueEntries)
+        .where(
+          and(
+            eq(leagueEntries.userId, owner.id),
+            eq(leagueEntries.periodId, lastClosed[0]!.id)
+          )
+        );
+      
+      const r = pastEntry[0]?.rank;
+      if (r && r <= 3) {
+        lastWeekRank = r;
+        lastWeekLeagueName = lastClosed[0]?.name || null;
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching last closed league rank:', err);
+  }
+
 
   const base = {
+    lastWeekRank,
+    lastWeekLeagueName,
     username: owner.username,
     firstName: owner.firstName,
     lastName: owner.lastName,

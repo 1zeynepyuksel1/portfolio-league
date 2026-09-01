@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DeviceEventEmitter } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, Pressable, View, Modal, SafeAreaView, Platform, StatusBar as RNStatusBar, Image } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
 import { apiFetch } from '../api/client';
@@ -40,6 +41,8 @@ type PublicProfile = {
   twrPercent: string | null; rank: number | null; totalParticipants: number | null;
   achievementsCount?: number; allocation: ProfileSlice[]; pending: 'outgoing' | 'incoming' | null;
   friendCount: number; pendingRequests: number;
+  lastWeekRank?: number | null;
+  lastWeekLeagueName?: string | null;
 };
 
 export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSelectUser, currentUserId }: { username: string; onClose?: () => void; onOpenFriends?: () => void; onLogout?: () => void; onSelectUser?: (username: string) => void; currentUserId?: string; }) {
@@ -89,6 +92,38 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   const [editQuestion, setEditQuestion] = useState('');
   const [editAnswer, setEditAnswer] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [showCrownPopup, setShowCrownPopup] = useState(false);
+
+  useEffect(() => {
+    if (profile?.isSelf && profile.lastWeekRank && profile.lastWeekRank <= 3 && profile.lastWeekLeagueName) {
+      const key = `seen_crown_${profile.lastWeekLeagueName}`;
+      AsyncStorage.getItem(key).then(seen => {
+        if (!seen) {
+          setShowCrownPopup(true);
+          AsyncStorage.setItem(key, 'true');
+        }
+      });
+    }
+  }, [profile?.isSelf, profile?.lastWeekRank, profile?.lastWeekLeagueName]);
+
+  const handleShareCrown = async () => {
+    if (!profile) return;
+    try {
+      await apiFetch('/posts', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'crown_share',
+          content: `${profile.lastWeekLeagueName} haftasını ${profile.lastWeekRank}. sırada tamamladım!`,
+          payload: { rank: profile.lastWeekRank, leagueName: profile.lastWeekLeagueName },
+          visibility: 'public'
+        })
+      });
+      alert('Başarıyla paylaşıldı!');
+    } catch (e) {
+      alert('Paylaşılırken hata oluştu.');
+    }
+  };
+
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => { setToastMessage({ text, type }); setTimeout(() => setToastMessage(null), 3000); };
 
@@ -222,20 +257,12 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
               )}
             </View>
 
-            {/*
-              ⚠️ TAÇ AVATARIN ÜSTÜNE MUTLAK KONUMLA BİNİYOR, satır akışına
-              girmiyor. Akışa girseydi yer kaplardı ve taçlı/taçsız
-              kullanıcıların adları farklı hizalanırdı.
-
-              ⚠️ Yalnızca SON KAPANAN ligin birincisinde çıkıyor. Açık
-              ligin lideri henüz şampiyon değil; sıralama hafta bitene
-              kadar değişir ve taç her gün el değiştirirdi.
-            */}
-            {isChampion(champion, profile.username) && (
-              <View style={{ position: 'absolute', left: 40, top: -6, backgroundColor: colors.surface, borderRadius: 12, padding: 3 }}>
-                <Crown size={18} color={colors.gold} strokeWidth={2.5} fill={colors.gold} />
-              </View>
-            )}
+            {/* CROWN LOGIC based on lastWeekRank */}
+              {profile.lastWeekRank && profile.lastWeekRank <= 3 ? (
+                <View style={{ position: 'absolute', left: 40, top: -6, backgroundColor: colors.surface, borderRadius: 12, padding: 3, zIndex: 99 }}>
+                  <Crown size={18} color={profile.lastWeekRank === 1 ? colors.gold : profile.lastWeekRank === 2 ? '#94A3B8' : '#B45309'} strokeWidth={2.5} fill={profile.lastWeekRank === 1 ? colors.gold : profile.lastWeekRank === 2 ? '#94A3B8' : '#B45309'} />
+                </View>
+              ) : null}
 
             <View style={{ marginLeft: 16 }}>
               <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.firstName} {profile.lastName}</Text>

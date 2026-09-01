@@ -1,0 +1,1 @@
+﻿import { db } from './src/db/client.js'; import { portfolioSnapshots } from './src/db/schema.js'; import { eq } from 'drizzle-orm'; async function check() { const snaps = await db.select().from(portfolioSnapshots).where(eq(portfolioSnapshots.userId, '2904c63a-bedb-43ab-aea4-1f61f8c1aa60')); console.log(snaps); process.exit(0); } check();
