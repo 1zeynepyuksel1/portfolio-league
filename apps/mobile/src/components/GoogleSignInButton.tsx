@@ -44,7 +44,11 @@ type Props = {
 };
 
 export function GoogleSignInButton({ onSuccess, onError, disabled }: Props) {
+  const isConfigured = !!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   const [gonderiliyor, setGonderiliyor] = useState(false);
+
+  // Erken donus ile butonu gizle ve cokmeleri engelle
+  if (!isConfigured) return null;
 
   /*
     ⚠️ ÜÇ AYRI İSTEMCİ KİMLİĞİ — VE BU GOOGLE'IN KURALI, BİZİM TERCİHİMİZ
@@ -60,9 +64,9 @@ export function GoogleSignInButton({ onSuccess, onError, disabled }: Props) {
     `EXPO_PUBLIC_*` pakete gömülüyor ve paketi açan herkes okuyabiliyor.
   */
   const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'missing',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'missing',
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'missing',
   });
 
   useEffect(() => {
