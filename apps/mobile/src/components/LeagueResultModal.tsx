@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Crown, Trophy } from 'lucide-react-native';
+import { Crown, Share2, Trophy } from 'lucide-react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 
@@ -34,6 +34,8 @@ type Result = {
 
 export function LeagueResultModal() {
   const [result, setResult] = useState<Result>(null);
+  const [paylasiliyor, setPaylasiliyor] = useState(false);
+  const [paylasildi, setPaylasildi] = useState(false);
 
   useEffect(() => {
     /*
@@ -49,6 +51,54 @@ export function LeagueResultModal() {
   if (result === null) return null;
 
   const birinci = result.rank === 1;
+  /*
+    ⚠️ TAÇ İLK ÜÇE, SONRASINA KUPA — ve bu kural ÜÇ YERDE AYNI olmalı:
+
+        LeagueResultModal   (burası)
+        PostCard            akıştaki paylaşım kartı
+        ProfileScreen       profil fotoğrafındaki rozet
+
+    Burası eskiden yalnızca 1.'ye taç veriyordu, diğer ikisi ilk üçe.
+    Aynı kullanıcı kutlamada kupa, profilinde taç görüyordu — kural
+    tek yerde yaşamadığı için ikisi ayrı düştü.
+
+    ⚠️ Dördüncüden sonrasına taç YOK. Dokuzuncu olan birine taç çizmek
+    ödülü değersizleştirir; kupa "katıldın ve bitirdin" diyor, taç
+    "kazandın" diyor.
+  */
+  const madalya = result.rank >= 1 && result.rank <= 3;
+
+  /**
+   * Sonucu akışa paylaşır.
+   *
+   * ⚠️ DERECE GÖNDERİLMİYOR. İstek yalnızca `{ type: 'crown_share' }`
+   * taşıyor; sıralamayı sunucu kendi verisinden okuyup yazıyor.
+   * Buradan `rank` gönderseydik, isteği elle atan herkes istediği
+   * dereceyi iddia edebilirdi.
+   *
+   * ⚠️ PAYLAŞTIKTAN SONRA MODAL KAPANMIYOR. Kapatsaydık kullanıcı
+   * paylaşımın gerçekten olup olmadığını göremezdi; düğme "Paylaşıldı"ya
+   * dönüp yerinde kalıyor, kapatma kararı kullanıcının.
+   */
+  async function paylas() {
+    setPaylasiliyor(true);
+    try {
+      await apiFetch('/posts', {
+        method: 'POST',
+        body: JSON.stringify({ type: 'crown_share', visibility: 'public', caption: '' }),
+      });
+      setPaylasildi(true);
+    } catch {
+      /*
+        ⚠️ Sessiz değil ama gürültülü de değil: düğme eski hâline
+        dönüyor, kullanıcı tekrar deneyebiliyor. Kutlama ekranında
+        kırmızı bir hata kutusu açmak anın havasını bozardı.
+      */
+      setPaylasiliyor(false);
+      return;
+    }
+    setPaylasiliyor(false);
+  }
 
   async function kapat() {
     const periodId = result?.periodId;
@@ -68,9 +118,13 @@ export function LeagueResultModal() {
     <Modal visible transparent animationType="fade" onRequestClose={() => void kapat()}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <View style={[styles.iconWrap, birinci && styles.iconWrapGold]}>
-            {birinci ? (
-              <Crown size={40} color={colors.gold} strokeWidth={2} />
+          <View style={[styles.iconWrap, madalya && styles.iconWrapGold]}>
+            {madalya ? (
+              <Crown
+                size={40}
+                color={result.rank === 1 ? colors.gold : result.rank === 2 ? '#94A3B8' : '#B45309'}
+                strokeWidth={2}
+              />
             ) : (
               <Trophy size={36} color={colors.accent} strokeWidth={2} />
             )}
@@ -108,8 +162,30 @@ export function LeagueResultModal() {
             {result.twrPercent}%
           </Text>
 
-          <TouchableOpacity style={styles.button} onPress={() => void kapat()}>
-            <Text style={styles.buttonText}>Tamam</Text>
+          {/*
+            ⚠️ PAYLAŞ ÜSTTE, TAMAM ALTTA. Kutlama ekranının amacı paylaşım;
+            "Tamam" kaçış yolu. Sıralamayı tersine çevirseydik asıl eylem
+            ikincil görünürdü.
+          */}
+          <TouchableOpacity
+            style={[styles.button, paylasildi && styles.buttonDone]}
+            onPress={() => void paylas()}
+            disabled={paylasiliyor || paylasildi}
+          >
+            <View style={styles.buttonRow}>
+              {!paylasildi && <Share2 size={17} color="#FFF" />}
+              <Text style={styles.buttonText}>
+                {paylasildi
+                  ? 'Akışta paylaşıldı'
+                  : paylasiliyor
+                    ? 'Paylaşılıyor…'
+                    : 'Akışta paylaş'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondary} onPress={() => void kapat()}>
+            <Text style={styles.secondaryText}>Tamam</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -174,4 +250,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { fontFamily: fonts.bold, fontSize: 15, color: '#FFF' },
+  buttonRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  buttonDone: { backgroundColor: colors.gain },
+  secondary: {
+    paddingVertical: 12,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  secondaryText: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted },
 });

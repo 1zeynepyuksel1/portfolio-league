@@ -158,6 +158,38 @@ export async function getMyLeagueResult(userId: string) {
 }
 
 /** Kutlama gösterildi — bir daha çıkmasın. */
+/**
+ * Son kapanan ligdeki sonucum — PAYLAŞIM için.
+ *
+ * ⚠️ `getMyLeagueResult`'tan tek farkı: "görüldü" damgasına BAKMIYOR.
+ *
+ * Kutlama bir kez gösterilip kapanıyor. Ama kullanıcı kutlamayı
+ * kapattıktan sonra da paylaşmak isteyebilir; `resultSeenAt` dolu diye
+ * `null` dönseydik "paylaş" düğmesi ikinci açılışta sessizce çalışmaz
+ * hâle gelirdi.
+ *
+ * ⚠️ İKİ AYRI FONKSİYON, TEK BAYRAK DEĞİL. `getMyLeagueResult(userId,
+ * ignoreSeen)` gibi bir parametre eklemek daha az kod olurdu; olmadı
+ * çünkü o bayrağın yanlış geçildiği gün kutlama HER açılışta çıkmaya
+ * başlar ve sebebi çağrı yerinde saklı kalır.
+ */
+export async function getLeagueResultForShare(userId: string) {
+  const period = await findLastClosedLeague();
+  if (period === null) return null;
+
+  const entry = await findEntryForResult(period.id, userId);
+  if (entry === null || entry.rank === null) return null;
+
+  const totalParticipants = await countLeagueParticipants(period.id);
+
+  return {
+    periodName: period.name,
+    rank: entry.rank,
+    totalParticipants,
+    twrPercent: (parseFloat(entry.twrPct) * 100).toFixed(2),
+  };
+}
+
 export async function markLeagueResultSeen(userId: string, periodId: string) {
   await markResultSeen(periodId, userId);
 }

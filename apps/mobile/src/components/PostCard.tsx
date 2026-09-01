@@ -5,7 +5,7 @@ import { Platform, DeviceEventEmitter } from 'react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 import { formatCents } from '../lib/format';
-import { Globe, Users, TrendingUp, TrendingDown, Heart, MessageSquare, MoreVertical, Trash2, Edit2, Pin, AlertTriangle, EyeOff, ShieldCheck, Ban, Crown } from 'lucide-react-native';
+import { Globe, Users, TrendingUp, TrendingDown, Heart, MessageSquare, MoreVertical, Trash2, Edit2, Pin, AlertTriangle, EyeOff, ShieldCheck, Ban, Crown, Trophy } from 'lucide-react-native';
 import { createAvatar } from '@dicebear/core';
 import { shapes } from '@dicebear/collection';
 import { SvgXml } from 'react-native-svg';
@@ -232,7 +232,12 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
 
   const payload = post.payload || {};
   const isPnl = post.type === 'pnl_share';
-    const isCrown = post.type === 'crown_share';
+  /*
+    ⚠️ Lig sonucu paylaşımı. Payload'ı SUNUCU yazıyor (`posts/service.ts`)
+    — istemciden gelen bir derece iddiası kaydedilmiyor, o yüzden buradaki
+    sayılara güvenilebilir.
+  */
+  const isCrown = post.type === 'crown_share';
   const isFortune = false; // removed
   const isWheel = false; // removed
   const isSingleAsset = post.scope === 'single_asset' || payload.is_market || payload.asset_key !== undefined;
@@ -251,7 +256,11 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
 
   let badgeText = 'Gönderi';
   if (isPnl) badgeText = payload.is_market ? 'Piyasa' : 'Kâr/Zarar';
-    if (isCrown) badgeText = 'Şampiyon';
+  /*
+    ⚠️ 'Şampiyon' DEĞİL 'Lig Sonucu'. Kutlama artık HER dereceye
+    çıkıyor; 9. olan birinin kartında "Şampiyon" yazması yanlış olurdu.
+  */
+  if (isCrown) badgeText = 'Lig Sonucu';
   // if (isFortune) badgeText removed
   // if (isWheel) badgeText removed
 
@@ -259,6 +268,14 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
   const [dummyLikes] = useState(() => Math.floor(Math.random() * 200) + 12);
   const [dummyComments] = useState(() => Math.floor(Math.random() * 20) + 2);
 
+  /*
+    ⚠️ `crown_share` BU LİSTEDE YOK — ve olmamalı.
+
+    Fal ve çark paylaşımları arayüzden kaldırıldığı için gizleniyor.
+    Lig sonucu paylaşımı ise YENİ ve gerçekten çiziliyor; listeye
+    eklenseydi akışta hiç görünmez, kullanıcı "paylaştım ama yok"
+    derdi.
+  */
   if (deleted || post.type === 'horoscope_share' || post.type === 'wheel_share') return null;
 
   return (
@@ -292,19 +309,61 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
       {/* 2. Main Box Area (Pnl / Horoscope / Wheel) */}
 
         {/* CROWN POST UI */}
-        {isCrown && (
-          <View style={{ backgroundColor: payload.rank === 1 ? 'rgba(245, 158, 11, 0.1)' : payload.rank === 2 ? 'rgba(148, 163, 184, 0.1)' : 'rgba(180, 83, 9, 0.1)', padding: 24, borderRadius: 20, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: payload.rank === 1 ? 'rgba(245, 158, 11, 0.3)' : payload.rank === 2 ? 'rgba(148, 163, 184, 0.3)' : 'rgba(180, 83, 9, 0.3)' }}>
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: payload.rank === 1 ? colors.gold : payload.rank === 2 ? '#94A3B8' : '#B45309', justifyContent: 'center', alignItems: 'center', marginBottom: 16, shadowColor: payload.rank === 1 ? colors.gold : payload.rank === 2 ? '#94A3B8' : '#B45309', shadowOpacity: 0.4, shadowRadius: 12, elevation: 6 }}>
-               <Crown size={32} color="#fff" strokeWidth={2.5} fill="#fff" />
+        {isCrown && (() => {
+          /*
+            ⚠️ ÜÇÜNCÜDEN SONRASI DA VAR — ÖNCEKİ HÂLİ BUNU ATLIYORDU.
+
+            Kart `rank === 1 ? altın : rank === 2 ? gümüş : bronz` diye
+            yazılmıştı. Üçlü koşulun SON dalı yakalayıcıdır: 7. olan da
+            9. olan da "Bronz Taç Sahibi!" görürdü. Madalya üçe kadar
+            anlamlı; sonrası için ayrı bir dil gerekiyor.
+
+            ⚠️ ALAN ADLARI SUNUCUNUNKİYLE HİZALANDI. Kart
+            `payload.leagueName` okuyordu ama sunucu `periodName`
+            yazıyor (`leagues/service.ts`) — yani başlık BOŞ çıkıyordu.
+            Eski gönderiler için `leagueName` yedek olarak duruyor.
+          */
+          const rank: number = Number(payload.rank ?? 0);
+          const madalya = rank >= 1 && rank <= 3;
+          const renk = rank === 1 ? colors.gold : rank === 2 ? '#94A3B8' : rank === 3 ? '#B45309' : colors.accent;
+          const zemin = rank === 1 ? 'rgba(245, 158, 11, 0.1)' : rank === 2 ? 'rgba(148, 163, 184, 0.1)' : rank === 3 ? 'rgba(180, 83, 9, 0.1)' : 'rgba(59, 130, 246, 0.08)';
+          const kenar = rank === 1 ? 'rgba(245, 158, 11, 0.3)' : rank === 2 ? 'rgba(148, 163, 184, 0.3)' : rank === 3 ? 'rgba(180, 83, 9, 0.3)' : 'rgba(59, 130, 246, 0.25)';
+          const baslik = rank === 1 ? 'Altın Taç Sahibi!' : rank === 2 ? 'Gümüş Taç Sahibi!' : rank === 3 ? 'Bronz Taç Sahibi!' : `Ligi ${rank}. sırada tamamladı`;
+          const donem = payload.periodName ?? payload.leagueName ?? 'Haftalık lig';
+          const yuzde = payload.twrPercent;
+
+          return (
+          <View style={{ backgroundColor: zemin, padding: 24, borderRadius: 20, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: kenar }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: renk, justifyContent: 'center', alignItems: 'center', marginBottom: 16, shadowColor: renk, shadowOpacity: 0.4, shadowRadius: 12, elevation: 6 }}>
+              {/*
+                ⚠️ İlk üçte taç, sonrasında kupa. Dokuzuncu olan birine
+                taç çizmek ödülü değersizleştirirdi; kupa "katıldın ve
+                bitirdin" diyor, taç "kazandın" diyor.
+              */}
+              {madalya
+                ? <Crown size={32} color="#fff" strokeWidth={2.5} fill="#fff" />
+                : <Trophy size={30} color="#fff" strokeWidth={2.5} />}
             </View>
             <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink, marginBottom: 8, textAlign: 'center' }}>
-              {payload.rank === 1 ? 'Altın Taç Sahibi!' : payload.rank === 2 ? 'Gümüş Taç Sahibi!' : 'Bronz Taç Sahibi!'}
+              {baslik}
             </Text>
             <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted, textAlign: 'center' }}>
-              {payload.leagueName} haftasını {payload.rank}. sırada tamamladı!
+              {donem}
+              {payload.totalParticipants !== undefined ? ` · ${payload.totalParticipants} katılımcı` : ''}
             </Text>
+            {/*
+              ⚠️ YÜZDE, TUTAR DEĞİL. Ligin ölçütü TWR; mutlak tutar
+              göstermek "kim daha zengin"e kayardı ve TWR'nin seçilme
+              sebebi tam olarak buydu.
+            */}
+            {yuzde !== undefined && (
+              <Text style={{ fontFamily: fonts.bold, fontSize: 16, marginTop: 8, color: String(yuzde).startsWith('-') ? colors.loss : colors.gain }}>
+                {String(yuzde).startsWith('-') ? '' : '+'}{yuzde}%
+              </Text>
+            )}
           </View>
-        )}
+          );
+        })()}
 
       {isPnl && (
         <View style={styles.modernPnlBox}>

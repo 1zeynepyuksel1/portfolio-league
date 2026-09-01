@@ -4,6 +4,7 @@ import { users } from '../db/schema.js';
 import { eq, desc, sql } from 'drizzle-orm';
 import { getPortfolio } from '../portfolio/service.js';
 import { toUtcIso } from '../lib/pg-time.js';
+import { getLeagueResultForShare } from '../leagues/service.js';
 
 export async function getTradedAssets(userId: string) {
   const result: any = await db.execute(sql`
@@ -124,7 +125,7 @@ export async function getPortfolioPreview(userId: string) {
   };
 }
 
-export async function createPost(userId: string, type: 'pnl_share' | 'wheel_share' | 'horoscope_share' | 'crown_share', scope: 'single_asset' | 'portfolio' | null, targetKey: string | null, _periodParams: any, caption: string, visibility: 'public' | 'friends_only', clientPayload?: any) {
+export async function createPost(userId: string, type: 'pnl_share' | 'wheel_share' | 'horoscope_share' | 'crown_share' | 'crown_share', scope: 'single_asset' | 'portfolio' | null, targetKey: string | null, _periodParams: any, caption: string, visibility: 'public' | 'friends_only', clientPayload?: any) {
   let payload: any = {};
   
   if (type === 'pnl_share') {
@@ -137,7 +138,25 @@ export async function createPost(userId: string, type: 'pnl_share' | 'wheel_shar
     } else {
       throw new Error("Geçersiz paylaşım kapsamı.");
     }
-  } else if (type === 'wheel_share' || type === 'horoscope_share' || type === 'crown_share') {
+  } else if (type === 'crown_share') {
+    /*
+      ⚠️ DERECE SUNUCUDAN OKUNUYOR, İSTEMCİDEN DEĞİL — VE BU ŞART.
+
+      Bu dal önce `clientPayload`'ı olduğu gibi kaydediyordu. Yani isteği
+      elle atan herkes "bu hafta 1. oldum" diye paylaşabilirdi; akıştaki
+      hiçbir sıralama iddiası doğrulanabilir olmazdı ve lig anlamını
+      kaybederdi.
+
+      "Fiyatı sunucu belirler" kararının sosyal taraftaki birebir
+      aynısı: DERECEYİ DE SUNUCU BELİRLER. `clientPayload` bu dalda
+      tamamen yok sayılıyor.
+    */
+    const sonuc = await getLeagueResultForShare(userId);
+    if (sonuc === null) {
+      throw new Error('Paylaşılacak bir lig sonucun yok.');
+    }
+    payload = sonuc;
+  } else if (type === 'wheel_share' || type === 'horoscope_share') {
     payload = clientPayload || {};
   } else {
     throw new Error("Geçersiz paylaşım tipi.");
