@@ -3,6 +3,8 @@ import { DeviceEventEmitter } from 'react-native';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, Pressable, View, Modal, SafeAreaView, Platform, StatusBar as RNStatusBar, Image } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
 import { apiFetch } from '../api/client';
+import { getChampion, isChampion } from '../lib/champion';
+import { Crown } from 'lucide-react-native';
 import { colors, fonts } from '../theme';
 import { TrendingUp, TrendingDown, Trophy, Award, Users, Lock, Settings, ChevronRight, X, User, Check } from 'lucide-react-native';
 import { PostCard } from '../components/PostCard';
@@ -42,6 +44,14 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   const [showAchievements, setShowAchievements] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState<string | null>(null);
+  /*
+    ⚠️ ŞAMPİYON BİLGİSİ `lib/champion.ts`'ten geliyor ve orada ÖNBELLEKLİ.
+    Burada doğrudan `apiFetch` çağırsaydık taç çizilen her ekran kendi
+    isteğini atardı — akıştaki onlarca kart dahil.
+  */
+  const [champion, setChampion] = useState<
+    { username: string; periodName: string } | null
+  >(null);
   const [toastMessage, setToastMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [confirmAvatarSeed, setConfirmAvatarSeed] = useState<string | null>(null);
@@ -108,8 +118,20 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
     } catch (err) { setError(err instanceof Error ? err.message : 'Profil yüklenemedi.'); } finally { setLoading(false); }
   }, [username]);
 
-  useEffect(() => { 
-    void load(); 
+  /*
+    ⚠️ ŞAMPİYON AYRI BİR `useEffect`'te ve `load`'a BAĞLI DEĞİL.
+
+    Alttaki efekt `load` her değiştiğinde (yani her profil açılışında)
+    çalışıyor. Şampiyonu oraya koysaydık her profil gezintisinde yeniden
+    istenirdi; oysa lig haftalık, cevap gün boyu aynı. Boş bağımlılık
+    dizisi: bileşen ömründe bir kez.
+  */
+  useEffect(() => {
+    void getChampion().then(setChampion);
+  }, []);
+
+  useEffect(() => {
+    void load();
     const sub = DeviceEventEmitter.addListener('refreshProfile', () => { void load(); });
     return () => sub.remove();
   }, [load]);
@@ -185,6 +207,22 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 <Text style={{ fontFamily: fonts.bold, fontSize: 24, color: '#FFF' }}>{profile?.firstName.slice(0, 1).toLocaleUpperCase('tr')}{profile?.lastName.slice(0, 1).toLocaleUpperCase('tr')}</Text>
               )}
             </View>
+
+            {/*
+              ⚠️ TAÇ AVATARIN ÜSTÜNE MUTLAK KONUMLA BİNİYOR, satır akışına
+              girmiyor. Akışa girseydi yer kaplardı ve taçlı/taçsız
+              kullanıcıların adları farklı hizalanırdı.
+
+              ⚠️ Yalnızca SON KAPANAN ligin birincisinde çıkıyor. Açık
+              ligin lideri henüz şampiyon değil; sıralama hafta bitene
+              kadar değişir ve taç her gün el değiştirirdi.
+            */}
+            {isChampion(champion, profile.username) && (
+              <View style={{ position: 'absolute', left: 40, top: -6, backgroundColor: colors.surface, borderRadius: 12, padding: 3 }}>
+                <Crown size={18} color={colors.gold} strokeWidth={2.5} fill={colors.gold} />
+              </View>
+            )}
+
             <View style={{ marginLeft: 16 }}>
               <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.firstName} {profile.lastName}</Text>
               <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted }}>@{profile.username}</Text>

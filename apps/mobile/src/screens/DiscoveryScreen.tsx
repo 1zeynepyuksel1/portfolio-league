@@ -9,10 +9,18 @@ import { Heart, MessageSquare, TrendingUp, TrendingDown, Gift, Plus } from 'luci
 import { GlobalShareMenu } from '../components/GlobalShareMenu';
 import { WhatIfScreen } from './WhatIfScreen';
 import { FriendsScreen } from './FriendsScreen';
+import { LeaderboardScreen } from './LeaderboardScreen';
 
-type DiscoveryTab = 'feed' | 'whatif' | 'social';
+/**
+ * ⚠️ 'league' EKLENDİ — alt çubuktaki Lig sekmesi buraya taşındı.
+ *
+ * Sıra rastgele değil: Akış en sık açılan, Lig onun hemen yanında çünkü
+ * ikisi de "başkaları ne yapıyor" sorusunun cevabı. Alsaydın ve Sosyal
+ * daha nadir kullanılıyor, sağda kalıyorlar.
+ */
+type DiscoveryTab = 'feed' | 'league' | 'whatif' | 'social';
 
-export function DiscoveryScreen({ onSelectUser, currentUser }: { onSelectUser?: (username: string) => void; currentUser?: any }) {
+export function DiscoveryScreen({ onSelectUser, currentUser, onOpenFriends }: { onSelectUser?: (username: string) => void; currentUser?: any; onOpenFriends?: () => void }) {
   const [shareMenuVisible, setShareMenuVisible] = useState(false);
 
   const [activeTab, setActiveTab] = useState<DiscoveryTab>('feed');
@@ -23,6 +31,9 @@ export function DiscoveryScreen({ onSelectUser, currentUser }: { onSelectUser?: 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topTabBar}>
           <TouchableOpacity onPress={() => setActiveTab('feed')} style={[styles.tabButton, activeTab === 'feed' && styles.tabButtonActive]}>
             <Text style={[styles.tabText, activeTab === 'feed' && styles.tabTextActive]}>Akış</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setActiveTab('league')} style={[styles.tabButton, activeTab === 'league' && styles.tabButtonActive]}>
+            <Text style={[styles.tabText, activeTab === 'league' && styles.tabTextActive]}>Lig</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setActiveTab('whatif')} style={[styles.tabButton, activeTab === 'whatif' && styles.tabButtonActive]}>
             <Text style={[styles.tabText, activeTab === 'whatif' && styles.tabTextActive]}>Alsaydın</Text>
@@ -36,12 +47,26 @@ export function DiscoveryScreen({ onSelectUser, currentUser }: { onSelectUser?: 
 
       <View style={styles.content}>
         {activeTab === 'feed' && <FeedTab onSelectUser={onSelectUser} currentUser={currentUser} />}
+        {activeTab === 'league' && (
+          <LeaderboardScreen
+            onOpenFriends={onOpenFriends ?? (() => setActiveTab('social'))}
+            onSelectUser={onSelectUser}
+          />
+        )}
         {activeTab === 'whatif' && <WhatIfScreen />}
         {activeTab === 'social' && <FriendsScreen onSelectUser={onSelectUser} />}
       </View>
+      {/*
+        ⚠️ Paylaş düğmesi yalnızca Akış sekmesinde. Lig sıralamasına ya da
+        arkadaş listesine bakarken "paylaş" düğmesi neyin paylaşılacağını
+        belirsiz bırakıyordu; düğme her zaman görünür olunca kullanıcı onu
+        bulunduğu sekmeyle ilişkilendiriyor.
+      */}
+      {activeTab === 'feed' && (
       <TouchableOpacity style={styles.fab} onPress={() => setShareMenuVisible(true)}>
         <Plus size={24} color="#FFF" />
       </TouchableOpacity>
+      )}
       <GlobalShareMenu visible={shareMenuVisible} onClose={() => setShareMenuVisible(false)}  />
     </View>
   );

@@ -26,6 +26,7 @@ import { MarketScreen } from './src/screens/MarketScreen';
 import { TradeScreen } from './src/screens/TradeScreen';
 import { AssetDetailScreen } from './src/screens/AssetDetailScreen';
 import { DiscoveryScreen } from './src/screens/DiscoveryScreen';
+import { LeagueResultModal } from './src/components/LeagueResultModal';
 import { SlideView } from './src/components/SlideView';
 import {
   apiFetch,
@@ -447,11 +448,6 @@ function AppShell() {
                */
               onSelectAsset={(symbol, name) => setDetailAsset({ symbol, name })}
             />
-          ) : activeTab === 'league' ? (
-            <LeaderboardScreen
-              onOpenFriends={() => setFriendsOpen(true)}
-              onSelectUser={(username) => setViewingProfile(username)}
-            />
           ) : activeTab === 'coach' ? (
             /*
               KOÇ — davranış göstergeleri + yapay zekâ yorumu + sohbet.
@@ -487,8 +483,32 @@ function AppShell() {
               </View>
             )
           ) : (
-            <DiscoveryScreen onSelectUser={(username) => setViewingProfile(username)} currentUser={currentUser} />
+            /*
+              ⚠️ `onOpenFriends` BURADAN GEÇİYOR — Lig ekranı Keşfet'in
+              içine taşındı ama arkadaş listesini AÇAN katman hâlâ burada
+              (`setFriendsOpen`). Keşfet kendi içinden açmaya kalksaydı
+              ikinci bir arkadaş katmanı doğardı ve ikisi ayrı durum
+              tutardı.
+            */
+            <DiscoveryScreen
+              onSelectUser={(username) => setViewingProfile(username)}
+              currentUser={currentUser}
+              onOpenFriends={() => setFriendsOpen(true)}
+            />
           )}
+
+          {/*
+            LIG SONUCU KUTLAMASI.
+
+            ⚠️ SEKMEDEN BAĞIMSIZ, EN ÜSTTE. Tek bir ekranın içine
+            koysaydık kutlama yalnızca o sekme açıkken çıkardı — oysa
+            kullanıcı uygulamayı hangi sekmede bıraktıysa orada açıyor.
+
+            ⚠️ Kendi içinde `null` dönerek kayboluyor; burada koşul yok.
+            Koşulu burada tutsaydık "gösterilecek sonuç var mı" bilgisi iki
+            yerde yaşardı ve ikisi ayrı düşerdi.
+          */}
+          <LeagueResultModal />
 
           {/*
             ALT SEKME ÇUBUĞU — tasarımın yeri burası.

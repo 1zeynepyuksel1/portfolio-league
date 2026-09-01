@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql, lte } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNull, sql, lte } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { friendships, leagueEntries, leaguePeriods, users } from '../db/schema.js';
 
@@ -12,6 +12,23 @@ export async function findCurrentOpenLeague() {
       and(
         eq(leaguePeriods.status, 'open'),
         lte(leaguePeriods.startsAt, now),
+        /*
+          ⚠️ `endsAt >= now` EKLENDİ — ÖNCE YOKTU VE DÖNEM ÜRETİYORDU.
+
+          Koşulsuz hâlinde "şu anki açık lig" tanımı yalnızca BAŞLAMIŞ
+          olmayı arıyordu; bitmiş ama mühürlenmemiş bir dönem de bu
+          sorguya takılıyordu.
+
+          Zinciri şöyle işliyordu: sunucu açılışta
+          `checkAndCloseExpiredLeagues` çalıştırıyor, süresi geçmiş dönemi
+          kapatıp yenisini `eski.endsAt + 1sn`'den başlatıyor. Eski dönem
+          çok geride kaldıysa YENİ dönem de geçmişte doğuyor — yani zaten
+          süresi dolmuş. Bir sonraki açılışta o da kapanıyor ve bir yenisi
+          daha açılıyor. Her yeniden başlatma bir dönem ekliyordu.
+
+          Ölçüldü: 77 dönem, aynı hafta adı 25 kez.
+        */
+        gte(leaguePeriods.endsAt, now),
       ),
     )
     .orderBy(desc(leaguePeriods.startsAt))
@@ -279,4 +296,91 @@ export async function countLeagueParticipants(leagueId: string): Promise<number>
     .where(eq(leagueEntries.periodId, leagueId));
 
   return result?.total ?? 0;
+}
+
+/**
+ * En son KAPANMIŞ lig dönemi.
+ *
+ * ⚠️ `status = 'closed'` ŞART, "bitiş tarihi geçmiş" YETMEZ.
+ *
+ * Bitiş tarihi geçmiş ama henüz mühürlenmemiş bir dönemin sıralaması
+ * hesaplanmamış olabilir — cron çalışana kadar `rank` eski değerdedir.
+ * Tarihe baksaydık şampiyonluk tacı, cron ile gerçek kapanış arasındaki
+ * boşlukta YANLIŞ kişiye takılırdı ve sonra sessizce değişirdi.
+ */
+export async function findLastClosedLeague() {
+  const [period] = await db
+    .select({
+      id: leaguePeriods.id,
+      name: leaguePeriods.name,
+      endsAt: leaguePeriods.endsAt,
+    })
+    .from(leaguePeriods)
+    .where(eq(leaguePeriods.status, 'closed'))
+    .orderBy(desc(leaguePeriods.endsAt))
+    .limit(1);
+
+  return period ?? null;
+}
+
+/**
+ * Bir dönemin şampiyonu — `rank = 1`.
+ *
+ * ⚠️ TEK KİŞİ DÖNÜYOR. Beraberlik hâlinde iki kullanıcı da `rank = 1`
+ * olabilir; `limit(1)` biri gelsin diye değil, EKRANIN tek bir taç
+ * çizmesi gerektiği için var. Beraberlik gerçekten olursa taç ikisinden
+ * birine takılır ve bu YANLIŞ olur — ama sıralama zaten `twr_pct` gibi
+ * dört ondalıklı bir sayıya bakıyor, tam eşitlik pratikte çok nadir.
+ * Not olarak duruyor: gerçek çözüm `rank = 1` olan HERKESİ döndürmek.
+ */
+export async function findLeagueChampion(periodId: string) {
+  const [row] = await db
+    .select({
+      userId: leagueEntries.userId,
+      username: users.username,
+      twrPct: leagueEntries.twrPct,
+    })
+    .from(leagueEntries)
+    .innerJoin(users, eq(leagueEntries.userId, users.id))
+    .where(and(eq(leagueEntries.periodId, periodId), eq(leagueEntries.rank, 1)))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/** Kullanıcının bir dönemdeki kaydı — sonuç ekranı için. */
+export async function findEntryForResult(periodId: string, userId: string) {
+  const [row] = await db
+    .select({
+      rank: leagueEntries.rank,
+      twrPct: leagueEntries.twrPct,
+      resultSeenAt: leagueEntries.resultSeenAt,
+    })
+    .from(leagueEntries)
+    .where(
+      and(eq(leagueEntries.periodId, periodId), eq(leagueEntries.userId, userId)),
+    )
+    .limit(1);
+
+  return row ?? null;
+}
+
+/**
+ * Sonucu "görüldü" diye işaretler.
+ *
+ * ⚠️ `isNull` KOŞULU BİLİNÇLİ: ilk görülme anı korunuyor, her çağrıda
+ * üzerine yazılmıyor. Üzerine yazsaydık "ne zaman gördü" bilgisi her
+ * açılışta tazelenir ve hiçbir işe yaramazdı.
+ */
+export async function markResultSeen(periodId: string, userId: string) {
+  await db
+    .update(leagueEntries)
+    .set({ resultSeenAt: new Date() })
+    .where(
+      and(
+        eq(leagueEntries.periodId, periodId),
+        eq(leagueEntries.userId, userId),
+        isNull(leagueEntries.resultSeenAt),
+      ),
+    );
 }

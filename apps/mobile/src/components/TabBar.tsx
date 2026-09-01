@@ -3,12 +3,24 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Wallet, LineChart, Trophy, User, Compass } from 'lucide-react-native';
 import { colors, fonts } from '../theme';
 
+/**
+ * ⚠️ 'league' BURADAN KALDIRILDI — SEKME SİLİNMEDİ, TAŞINDI.
+ *
+ * Lig artık Keşfet'in içinde bir üst sekme (`Akış · Lig · Alsaydın ·
+ * Sosyal`). Gerekçe: altı alt sekme ekranın her birine ~%16 veriyordu ve
+ * etiketler sığmıyordu; ayrıca Lig kavramsal olarak zaten sosyal tarafa
+ * ait — sıralama, arkadaşlar ve akış aynı yerde.
+ *
+ * ⚠️ TİPTEN ÇIKARMAK BİLİNÇLİ: `'league'` bir yerde hâlâ kullanılıyorsa
+ * TypeScript onu gösterir. Tipte bıraksaydık ölü bir dal sessizce
+ * kalırdı ve hiçbir zaman çizilmeyen bir sekmeye geçiş yapan kod
+ * fark edilmezdi.
+ */
 export type TabKey =
   | 'coach'
   | 'wallet'
   | 'market'
   | 'discovery'
-  | 'league'
   | 'profile';
 
 /**
@@ -34,7 +46,6 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'coach', label: 'KocAI' },
   { key: 'market', label: 'Piyasa' },
   { key: 'discovery', label: 'Keşfet' },
-  { key: 'league', label: 'Lig' },
   { key: 'wallet', label: 'Cüzdan' },
   { key: 'profile', label: 'Profil' },
 ];
@@ -116,7 +127,6 @@ const ICONS: Record<TabKey, (props: { color: string }) => ReactElement> = {
   wallet: WalletIcon,
   market: MarketIcon,
   discovery: DiscoveryIcon,
-  league: LeagueIcon,
   profile: ProfileIcon,
 };
 
