@@ -59,6 +59,16 @@ export async function getSingleAssetPreview(userId: string, assetKey: string) {
     pnl_percent: (profit?.profitPct || position?.profitPercent || "0.00"),
     pnl_amount: (profit?.profitCents || position?.profitCents || 0).toString(),
     buy_date: firstBuyDate,
+    /*
+      ⚠️ EKLENDI: portfoy onizlemesinde vardi, tekil varlikta YOKTU.
+
+      Ekran "olcum ne zaman alindi"yi once `snapshot_date`'ten okuyor.
+      Alan gonderilmeyince yedege dusuyor ve kart sabit "Bugun" yaziyordu
+      — bir ay once paylasilan gonderi de dahil. Iki onizleme ayni sekli
+      dondurmedigi surece ekranin her dalini ayri ayri denemek gerekir;
+      bu tur eksikler tam da orada saklaniyor.
+    */
+    snapshot_date: new Date().toISOString(),
     holding_days: 1
   };
 }

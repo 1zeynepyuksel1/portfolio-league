@@ -55,6 +55,31 @@ const TARIH_SAAT = new Intl.DateTimeFormat('tr-TR', {
   minute: '2-digit',
 });
 
+/**
+ * Gonderinin "su an" tarafi — yani olcumun alindigi an.
+ *
+ * ⚠️ SABIT "Bugun" YAZISI YANLISTI: bir hafta once paylasilan gonderi de
+ * "Bugun" diyordu. Akista gezen biri o karin bugun mu yoksa gecen ay mi
+ * olculdugunu bilemiyordu.
+ *
+ * ⚠️ `post.created_at` DEGIL `post.createdAt`. Sunucu gonderi satirini
+ * Drizzle ile okuyor ve Drizzle alan adlarini camelCase donduruyor;
+ * `created_at` HER ZAMAN `undefined`. Olculdu:
+ *
+ *     gonderi alan adlari: id, userId, type, scope, payload, caption,
+ *                          visibility, createdAt
+ *
+ * Yanlis ad sessizce `undefined` verir, `tarihSaat` `null` doner ve ekran
+ * yedege — yani yine "Bugun"e — duserdi. Hata gorunmez: kod calisir,
+ * ekran dolu, sadece dogru degil.
+ *
+ * ⚠️ `snapshot_date` ONCELIKLI cunku olcum ani odur; `createdAt` yalnizca
+ * yedek. Tekil varlik onizlemesi de artik `snapshot_date` gonderiyor.
+ */
+function olcumAni(payload: any, post: any): string {
+  return tarihSaat(payload?.snapshot_date ?? post?.createdAt) ?? 'Bugün';
+}
+
 function tarihSaat(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const d = new Date(iso);
@@ -210,7 +235,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
             <Text style={[styles.modernPnlValue, { color: isDisplayPositive ? colors.gain : colors.loss }]}>{displayValue}</Text>
             {isPnl && (
               <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 6 }}>
-                {payload.is_market ? `Son 24 Saat — ${tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}` : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} — ${tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}` : '')}
+                {payload.is_market ? `Son 24 Saat — ${olcumAni(payload, post)}` : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} ➔ ${olcumAni(payload, post)}` : '')}
               </Text>
             )}
           </View>
@@ -250,7 +275,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{buyDateStr}</Text>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>➔</Text>
-                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}</Text>
+                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{olcumAni(payload, post)}</Text>
                     </View>
                   </View>
                 </View>
