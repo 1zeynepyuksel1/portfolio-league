@@ -500,7 +500,14 @@ export async function answer(
     systemInstruction: SYSTEM_INSTRUCTION,
     contents,
     responseSchema: RESPONSE_SCHEMA,
-    maxOutputTokens: 500,
+    /*
+      ⚠️ 500'DEN 1500'E — `narrator.ts`'teki gerekçenin aynısı.
+
+      Sohbette pay daha da ince: yönerge uzun, üstüne portföy dağılımı,
+      son 20 işlem ve sohbet geçmişi biniyor. Uzun bağlam daha çok
+      düşünme token'ı demek.
+    */
+    maxOutputTokens: 1500,
     timeoutMs: TIMEOUT_MS,
   });
 
