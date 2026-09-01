@@ -13,6 +13,163 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 39. Logolar ve 3 saatlik zaman kayması — 1 Eyl 2026
+
+**Değişti:** `lib/pg-time.ts` (yeni) · `lib/pg-time.test.ts` (yeni, 5 test) ·
+`behavior/repository.ts` · `posts/service.ts` · `PostCard.tsx` ·
+`GlobalShareMenu.tsx`
+
+#### Logolar — "gelmiyordu" değil, hiç istenmiyordu
+
+```tsx
+pos.icon_url ? <Image src={pos.icon_url}/> : <harf rozeti>
+```
+
+Sunucu `icon_url`'i **her zaman `null`** gönderiyordu (`posts/service.ts`'te
+sabit yazılıydı). Yani koşulun ilk dalı hiç çalışmadı, harf rozeti daima
+kazandı. Ekranda "iki harflik gri kutu" gören biri bunu bir ağ/veri sorunu
+sanıyor; oysa istek hiç yapılmıyordu.
+
+⚠️ **`AssetLogo` zaten vardı ve HİÇBİR EKRANDA kullanılmıyordu** — yalnızca
+`DesignKit.tsx` içinde. Kripto/hisse/döviz/maden dörtlüsünü tek görünümde
+topluyor ve tanımadığı sembol için yedeği var. Sunucudan URL beklemek
+yerine o kullanıldı: logolar zaten pakette, ağ isteği yok.
+
+Aynı eksik paylaşım menüsünün varlık seçicilerinde de vardı — orada logo
+hiç konmamıştı.
+
+#### Saat isteği bir hatanın üstünü açtı
+
+"Tarih yanına saat de olsun" küçük bir istekti. Eklemeden önce verinin
+doğru olup olmadığına bakıldı — değildi:
+
+```
+ham deger  : "2026-08-26 09:45:19.888652"   <- metin, dilim işareti YOK
+ESKİ KOD   : 2026-08-26T06:45:19Z           <- 3 saat erken
+YENİ KOD   : 2026-08-26T09:45:19Z           <- doğru
+```
+
+⚠️ **HATANIN GÖRÜNÜRLÜĞÜ EKRANA BAĞLIYDI.** Yalnızca gün gösterilirken
+kayma çoğu kayıtta fark edilmez; günü ancak yerel 03:00'ten önceki
+kayıtlarda değiştirir. Saat eklenseydi **her kartta** yanlış görünecekti.
+Yani "şimdiye kadar şikâyet gelmedi" hatanın yokluğunu göstermiyordu.
+
+⚠️ **KAYMA HER YERDE DEĞİL — ÖNCE YANLIŞ SANDIM.** Drizzle'ın kendi
+`select`'i doğru okuyor (`createdAt` ölçüldü, doğru çıktı). Bozuk olan
+yalnızca **ham `db.execute`** yolu: o dilimsiz metni olduğu gibi döndürüyor
+ve `new Date()` onu yerel sayıyor. Ölçüm beni düzeltti; sürücünün tamamını
+değiştirmeye gerek yokmuş.
+
+⚠️ **ÇÖZÜM İKİ PARÇALI, biri olmadan diğeri eksik:** sorguda `::text`
+(sürücü araya girip kendi yorumunu yapmasın) + `toUtcIso` (metni UTC say).
+Sürücü aynı kolonu bir çağrıda `string`, başka çağrıda `Date` döndürüyor ve
+iki durumun düzeltmesi **ters yönde** — bu yüzden biçim sorguda sabitlendi.
+
+⚠️ **`toUtcDate` `behavior/repository.ts` içinde SAKLIYDI.** Tuzak orada
+uzun uzun belgelenmişti ama `posts/service.ts` aynı hatayı yapmaya devam
+ediyordu — kimse düzeltmenin başka bir modülün içinde durduğunu bilmiyordu.
+`lib/pg-time.ts`'e taşındı.
+
+⚠️ **Eksik tarih artık `null`, "bugün" değil.** Eski kod alış bulunamayınca
+`new Date()` koyuyordu; ekranda "bugün alınmış" yazıyordu ve yanlış olduğu
+anlaşılmıyordu. Veri yokluğunu uydurma veriye çevirmek, boş bırakmaktan
+her zaman kötü.
+
+#### Test mutasyonla sınandı
+
+5 test yazıldı, sonra `toUtcDate` bilerek `new Date(text)` yapıldı: **4 test
+kırmızıya döndü.** Geçen bir test, sınadığı şeyi bozana kadar hiçbir şey
+kanıtlamaz.
+
+⚠️ Testler yerel saat diliminden bağımsız: "beklenen 09:45" yazılsaydı
+yalnızca Türkiye'de geçerdi. Mutlak an (`toISOString`) karşılaştırılıyor.
+
+**Soru:** `::text` yerine kolonları `timestamptz` yapmak da çözerdi.
+Neden yapmadık, ve o yol hangi yeni tuzağı getirirdi?
+
+---
+
+### 38. `posts` tablosu neden silindi — drizzle.config'in gizli yetkisi — 1 Eyl 2026
+
+**Değişti:** `apps/api/drizzle.config.ts` (tek satır + gerekçe yorumu)
+
+**Belirti:** Paylaş ekranı açılıyor, "Paylaş"a basınca hata. Akış ekranı boş.
+`/posts` altındaki HER uç 400 dönüyor.
+
+**Sebep — ve bu bir tasarım tuzağı, dikkatsizlik değil:**
+
+```
+posts tablosu       ->  src/posts/schema.ts       (tanımlı)
+drizzle.config.ts   ->  schema: './src/db/schema.ts'   (tek dosya)
+```
+
+drizzle-kit migration üretirken **iki şeyin farkını** alıyor:
+`config'te sayılan şema` ile `veritabanının o anki hâli`. `posts` config'te
+sayılmadığı için drizzle-kit onu hiç görmedi — ve veritabanında "şemada
+karşılığı olmayan bir tablo" bulunca doğru davranışı yaptı:
+
+```sql
+DROP TABLE IF EXISTS "posts" CASCADE;   -- 0013_stale_ricochet.sql, 1. satır
+```
+
+Tablo ve üç enum (`post_type`, `post_scope`, `post_visibility`) gitti.
+Doğrulandı: `information_schema` sorgusu `TABLOLAR: []` döndürüyor.
+
+⚠️ **`schema` alanı bir "okuma ayarı" değil, SİLME YETKİSİ.** Buraya
+eklenmeyen her tablo, bir sonraki `db:generate`'te silinme adayıdır.
+Yeni bir `pgTable` dosyası açan herkes aynı anda config'i de güncellemek
+zorunda — yoksa kimse fark etmeden veri gider.
+
+⚠️ **Hata sessiz değildi ama GÖRÜNMEZDİ:** migration "başarıyla uygulandı",
+testler geçti (posts'un testi yok), typecheck temiz (TypeScript
+veritabanına bakmaz). Yalnızca ekranı açan kullanıcı görüyor.
+
+**Düzeltme — ve iki kişi aynı hatayı aynı anda buldu.**
+
+Ben `drizzle.config.ts`'in `schema` alanını diziye çevirmiştim (iki dosyayı
+da say). Zeynep aynı saatlerde başka bir yerden çözmüş:
+
+```ts
+// db/schema.ts sonuna
+export * from '../posts/schema.js';
+```
+
+⚠️ **Onunki kazandı, ve sebebi önemli.** İkisi de çalışıyor; fark
+UNUTULMAYA DAYANIKLILIK. Benim çözümümde yeni bir `pgTable` dosyası açan
+kişi İKİ yeri güncel tutmak zorunda: dosyayı yazmak ve config listesine
+eklemek. Zeynep'inkinde tek giriş noktası var — `db/schema.ts`. Zaten o
+dosyayı düzenliyorsun, `export *` satırı gözünün önünde.
+
+İki mekanizmayı birlikte tutmak da yanlıştı: aynı işi iki yerden yapan
+kod, biri bozulduğunda susar.
+
+Kanıtlandı — config tek dosyaya döndürüldükten sonra:
+
+```
+posts 8 columns 0 indexes 1 fks        <- yeniden dışa aktarımdan görüyor
+No schema changes, nothing to migrate  <- 0014 anlık görüntüsü şemayla birebir
+```
+
+İkinci satır asıl güvence: sıradaki `db:generate` artık hiçbir şey
+üretmiyor, yani ortada bekleyen başka bir `DROP` kalmamış.
+
+⚠️ **Migration'ı sonunda ben ürettim** (`0014_recreate_posts`), oysa
+CLAUDE.md sahibini Zeynep diyor. Bilinçli bir istisna: tablo silinmişti ve
+paylaşım tamamen ölüydü. Üretilen SQL yalnızca `CREATE` içeriyordu,
+uygulamadan önce okundu. Yine de kural bu: bir dahaki sefere önce sor.
+
+**Ayrıca — ikinci, daha küçük hata:** paylaşımda "Dönem Seç" adımı SÜS.
+`GET /posts/share-preview/portfolio?period=week` isteği gidiyor ama
+`router.ts` isteği `_req` diye alıyor ve `getPortfolioPreview(userId)`'yi
+dönemsiz çağırıyor; `createPost` da `_periodParams`'ı kullanmıyor. Hafta /
+ay / tüm zamanlar — üçü de aynı sonucu verecek.
+
+**Soru:** `posts` tablosunu `src/db/schema.ts`'e taşımak mı daha iyi, yoksa
+config listesini güncel tutmak mı? İkisinin de bir bedeli var — hangisi
+unutulmaya daha dayanıklı?
+
+---
+
 ### 37. Zeynep'in model değişikliği ve yetenek yoklaması — 1 Eyl 2026
 
 **Değişti:** `behavior/gemini.ts` · `narrator.ts` · `chat.ts` · `.env`

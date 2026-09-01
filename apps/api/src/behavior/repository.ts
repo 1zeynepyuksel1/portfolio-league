@@ -15,6 +15,7 @@
 
 import { sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { toUtcDate } from '../lib/pg-time.js';
 import {
   AMOUNT_SCALE,
   PRICE_SCALE,
@@ -144,29 +145,17 @@ function toBehaviorOrder(row: RawRow): BehaviorPricedOrder {
   };
 }
 
-/**
- * PostgreSQL zaman damgası metnini `Date`'e çevirir — UTC OLARAK.
- *
- * ⚠️ BU FONKSİYON OLMASA HER ŞEY ÇALIŞIR VE SESSİZCE 3 SAAT KAYARDI.
- *
- * Ham sorgu `"2026-08-26 09:45:19.888652"` döndürüyor: araya boşluk, sonda
- * DİLİM İŞARETİ YOK. `new Date()` böyle bir metni YEREL saat sayar. Kolon
- * `timestamp` (dilimsiz), cron ise UTC yazıyor — yani Türkiye'de her emir
- * 3 saat ileri okunurdu.
- *
- * Fark ölçen göstergeler (yıkama penceresi, elde tutma süresi) bundan
- * etkilenmezdi: hepsi aynı yönde kayınca çıkarmada sadeleşir. Ama
- * `detectOvertrading` "kaç ayrı günde işlem yapıldı"yı gün sınırına göre
- * sayıyor — 09:45'lik emir 06:45'e kaysa gün değişebilir. Hata yalnızca
- * ORADA ve yalnızca BAZI emirlerde görünürdü; bulunması en zor tür.
- *
- * `T` ekleyip `Z` ile bitirmek ISO 8601 biçimi veriyor ve `Date` onu
- * kesin olarak UTC kabul ediyor.
- *
- * ⚠️ Aynı tuzağın kardeşi `what-if/repository.ts` içinde belgeli: orada
- * `::timestamptz` kullanılsaydı sürücü yerel dilimi uygulayıp yine 3 saat
- * kaydıracaktı. Aynı hata, ters yönden.
- */
-function toUtcDate(text: string): Date {
-  return new Date(`${text.replace(' ', 'T')}Z`);
-}
+/*
+  ⚠️ `toUtcDate` BURADAN TAŞINDI -> `lib/pg-time.ts`.
+
+  Aynı tuzak `posts/service.ts`'te de vardı ve orada DÜZELTİLMEMİŞTİ:
+  paylaşım kartındaki alış tarihi 3 saat erken okunuyordu. Bir yerde
+  çözülüp diğerinde çözülmemesinin sebebi, düzeltmenin bu dosyanın
+  içinde saklı olmasıydı — kimse başka bir modülde arayacağını bilmiyordu.
+
+  Tuzağın tam anlatımı ve ölçümü artık `lib/pg-time.ts`'te; buradaki
+  göstergeler için önemi şu: fark ölçenler (yıkama penceresi, elde tutma
+  süresi) kaymadan etkilenmez, çünkü hepsi aynı yönde kayıp çıkarmada
+  sadeleşir. Ama `detectOvertrading` "kaç ayrı günde işlem yapıldı"yı gün
+  sınırına göre sayıyor — 09:45'lik emir 06:45'e kayınca gün değişebilir.
+*/
