@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -48,6 +49,7 @@ type Props = {
   onClose: () => void;
   /** Emir geçtikten sonra portföyün tazelenmesi için. */
   onOrderPlaced?: () => void;
+  onGoToWallet?: () => void;
 };
 
 type AssetRow = {
@@ -119,7 +121,7 @@ function newIdempotencyKey(): string {
   return `ord-${Date.now().toString(36)}-${rand()}${rand()}`;
 }
 
-export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
+export function TradeScreen({ symbol, name, onClose, onOrderPlaced, onGoToWallet }: Props) {
   const [side, setSide] = useState<Side>('buy');
   const [quantity, setQuantity] = useState('');
 
@@ -486,34 +488,64 @@ export function TradeScreen({ symbol, name, onClose, onOrderPlaced }: Props) {
         )}
 
         {/* Sonuç */}
-        {result !== null && (
-          <View style={styles.resultBox}>
-            <Text style={styles.resultTitle}>
-              {result.replayed ? '↺ Bu emir zaten işlenmişti' : '✅ Emir geçti'}
-            </Text>
-            <Row
-              label={result.side === 'buy' ? 'Alınan' : 'Satılan'}
-              value={`${formatQuantity(result.quantity)} ${result.symbol}`}
-            />
-            <Row label="Fiyat" value={formatPrice(result.priceTry)} />
-            <Row label="Komisyon" value={formatCentsString(result.feeCents)} />
-            <Row
-              label={result.side === 'buy' ? 'Ödenen' : 'Alınan'}
-              value={formatCentsString(result.netCents)}
-              strong
-            />
-            <Row
-              label="Kalan bakiye"
-              value={formatCentsString(result.balanceCents)}
-            />
-            {result.replayed && (
-              <Text style={styles.disclaimer}>
-                Aynı istek daha önce gönderilmiş. Yeni emir oluşturulmadı,
-                bakiyeniz iki kez düşmedi.
-              </Text>
-            )}
-          </View>
-        )}
+                  <Modal visible={result !== null} transparent animationType="fade">
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <View style={styles.modalIconBox}>
+                  <Text style={styles.modalIcon}>✅</Text>
+                </View>
+                <Text style={styles.modalTitle}>
+                  İşlem Başarılı!
+                </Text>
+                <Text style={styles.modalSubtitle}>
+                  {result?.side === 'buy' ? 'Alım' : 'Satım'} emriniz gerçekleşti
+                </Text>
+                
+                <View style={styles.modalDetails}>
+                  <Row
+                    label="Miktar"
+                    value={result ? `${formatQuantity(result.quantity)} ${result.symbol}` : ''}
+                  />
+                  <Row label="Fiyat" value={result ? formatPrice(result.priceTry) : ''} />
+                  <Row label="Komisyon" value={result ? formatCentsString(result.feeCents) : ''} />
+                  <View style={styles.modalDivider} />
+                  <Row
+                    label={result?.side === 'buy' ? 'Ödenen' : 'Alınan'}
+                    value={result ? formatCentsString(result.netCents) : ''}
+                    strong
+                  />
+                  <Row
+                    label="Kalan Bakiye"
+                    value={result ? formatCentsString(result.balanceCents) : ''}
+                  />
+                </View>
+                
+                {result?.replayed && (
+                  <Text style={styles.disclaimer}>
+                    Aynı istek daha önce gönderilmiş. Yeni emir oluşturulmadı,
+                    bakiyeniz iki kez düşmedi.
+                  </Text>
+                )}
+
+                <Pressable
+                  style={styles.modalPrimaryButton}
+                  onPress={() => {
+                    if (onGoToWallet) onGoToWallet();
+                    else onClose();
+                  }}
+                >
+                  <Text style={styles.modalPrimaryButtonText}>Cüzdana Git</Text>
+                </Pressable>
+                
+                <Pressable
+                  style={styles.modalSecondaryButton}
+                  onPress={() => onClose()}
+                >
+                  <Text style={styles.modalSecondaryButtonText}>Kapat</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
 
         {/*
           Piyasa kapalıysa SEBEBİ yazılıyor, sadece düğme kapatılmıyor.
@@ -758,6 +790,81 @@ const styles = StyleSheet.create({
     padding: 14,
     marginTop: 16,
     gap: 6,
+  },
+  
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: colors.fieldFill,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.gainSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalIcon: {
+    fontSize: 32,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontFamily: fonts.bold,
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 15,
+    color: colors.inkMuted,
+    marginBottom: 24,
+  },
+  modalDetails: {
+    width: '100%',
+    backgroundColor: colors.bg,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    marginBottom: 24,
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: colors.hairlineSoft,
+    marginVertical: 4,
+  },
+  modalPrimaryButton: {
+    width: '100%',
+    backgroundColor: colors.gain,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalPrimaryButtonText: {
+    color: colors.ink,
+    fontSize: 16,
+    fontFamily: fonts.bold,
+  },
+  modalSecondaryButton: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalSecondaryButtonText: {
+    color: colors.inkMuted,
+    fontSize: 16,
+    fontFamily: fonts.medium,
   },
   resultTitle: {
     color: colors.gain,
