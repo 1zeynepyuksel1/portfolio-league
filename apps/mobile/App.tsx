@@ -117,7 +117,24 @@ function AppShell() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Kimlik akışında hangi ekrandayız
-  const [authView, setAuthView] = useState<AuthView>('login');
+  /*
+    ⚠️ BAŞLANGIÇ 'welcome' — 'login' YAZIYORDU VE EKRAN HİÇ GÖRÜNMÜYORDU.
+
+    `WelcomeScreen.tsx` yazılıydı, App.tsx'te import ediliyordu ve JSX'te
+    son dal olarak duruyordu. Ama başlangıç değeri 'login' olduğu için o
+    dala HİÇ düşülmüyordu: uygulama her açılışta doğrudan giriş formunu
+    gösteriyordu.
+
+    ⚠️ Bu, bu projede ÜÇÜNCÜ kez aynı şekil: `AssetLogo` yazılmış ama
+    kullanılmıyordu, `FriendsScreen` çiziliyor sanılıyordu ama
+    erişilemezdi. Kod var olması bir şeyin GÖRÜNDÜĞÜ anlamına gelmiyor —
+    ona giden bir yol da olmalı.
+
+    ⚠️ ÇIKIŞTA 'login'e dönülüyor, 'welcome'a değil (`handleLogout`).
+    O bilinçli ve orada gerekçesi yazılı: kullanıcı markayı zaten tanıyor.
+    Karşılama yalnızca uygulamanın ilk açılışı için.
+  */
+  const [authView, setAuthView] = useState<AuthView>('welcome');
 
   // Aktif Sekme (Cüzdanım, Haftalık Lig, Arkadaşlar, Ya Alsaydın)
   const [activeTab, setActiveTab] = useState<Tab>(START_TAB);
