@@ -237,7 +237,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
           <>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
               {/* TWR */}
-              <View style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
+              <TouchableOpacity onPress={() => setShowAchievements(true)} style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
                 <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: rising ? 'rgba(16, 185, 129, 0.1)' : falling ? 'rgba(239, 68, 68, 0.1)' : 'rgba(148,163,184,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
                   {rising ? <TrendingUp size={20} color={colors.gain} /> : falling ? <TrendingDown size={20} color={colors.loss} /> : <TrendingUp size={20} color={colors.inkMuted} />}
                 </View>
@@ -247,7 +247,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 </Text>
               </View>
               {/* League */}
-              <View style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
+              <TouchableOpacity onPress={() => onOpenFriends?.()} style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
                 <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(59, 130, 246, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
                   <Trophy size={20} color={colors.accent} />
                 </View>
@@ -264,7 +264,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 </View>
                 <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>ROZET</Text>
                 <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.achievementsCount} Adet</Text>
-              </View>
+              </TouchableOpacity>
               {/* Friends */}
               <View style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
                 <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(139, 92, 246, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
@@ -272,7 +272,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 </View>
                 <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>ARKADAŞ</Text>
                 <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.friendCount || 0}</Text>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {/* Asset Allocation (Only if Self) */}
