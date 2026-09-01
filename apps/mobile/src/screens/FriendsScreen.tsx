@@ -86,6 +86,7 @@ export function FriendsScreen({
   onSelectUser,
 }: {
   onClose?: () => void;
+    mode?: 'league' | 'profile';
   /**
    * Bir arkadaşa dokununca profilini açar.
    *
@@ -243,7 +244,7 @@ export function FriendsScreen({
       {onClose !== undefined && (
         <View style={styles.backRow}>
           <TouchableOpacity onPress={onClose} hitSlop={12}>
-            <Text style={styles.backText}>‹ Lige dön</Text>
+            <Text style={styles.backText}>{mode === 'profile' ? '‹ Profile dön' : '‹ Lige dön'}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -317,7 +318,8 @@ export function FriendsScreen({
         </View>
 
         {/* 2. Sekmeler (Arkadaşlarım vs İstekler) */}
-      <View style={styles.subTabContainer}>
+      {mode !== 'profile' && (
+<View style={styles.subTabContainer}>
         <TouchableOpacity
           style={[styles.subTabButton, activeTab === 'list' && styles.subTabButtonActive]}
           onPress={() => {
@@ -431,14 +433,11 @@ export function FriendsScreen({
                   </Text>
                 </View>
 
-                {removeId ? (
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => handleRemove(removeId)}
-                  >
-                    <Text style={styles.removeButtonText}>Çıkar</Text>
-                  </TouchableOpacity>
-                ) : null}
+                {removeId && mode !== 'profile' ? (
+<TouchableOpacity style={styles.removeButton} onPress={() => handleRemove(removeId)}>
+<Text style={styles.removeButtonText}>Çıkar</Text>
+</TouchableOpacity>
+) : null}
               </TouchableOpacity>
             );
           }}

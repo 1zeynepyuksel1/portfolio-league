@@ -275,42 +275,42 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
           <>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
               {/* TWR */}
-              <View style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: rising ? 'rgba(16, 185, 129, 0.1)' : falling ? 'rgba(239, 68, 68, 0.1)' : 'rgba(148,163,184,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-                  {rising ? <TrendingUp size={20} color={colors.gain} /> : falling ? <TrendingDown size={20} color={colors.loss} /> : <TrendingUp size={20} color={colors.inkMuted} />}
+                <View style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: rising ? 'rgba(16, 185, 129, 0.1)' : falling ? 'rgba(239, 68, 68, 0.1)' : 'rgba(148,163,184,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                    {rising ? <TrendingUp size={20} color={colors.gain} /> : falling ? <TrendingDown size={20} color={colors.loss} /> : <TrendingUp size={20} color={colors.inkMuted} />}
+                  </View>
+                  <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>HAFTALIK TWR</Text>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: rising ? colors.gain : falling ? colors.loss : colors.ink }}>
+                    {twr === null ? '—' : formatPercent(twr, true)}
+                  </Text>
                 </View>
-                <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>HAFTALIK TWR</Text>
-                <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: rising ? colors.gain : falling ? colors.loss : colors.ink }}>
-                  {twr === null ? '—' : formatPercent(twr, true)}
-                </Text>
-              </View>
-              {/* League */}
-              <View style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(59, 130, 246, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-                  <Trophy size={20} color={colors.accent} />
+                {/* League */}
+                <View style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(59, 130, 246, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                    <Trophy size={20} color={colors.accent} />
+                  </View>
+                  <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>LİG SIRASI</Text>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>
+                    {profile.rank === null ? '—' : `#${profile.rank}`}
+                    {profile.totalParticipants ? <Text style={{ fontSize: 12, color: colors.inkMuted }}> / {profile.totalParticipants}</Text> : null}
+                  </Text>
                 </View>
-                <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>LİG SIRASI</Text>
-                <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>
-                  {profile.rank === null ? '—' : `#${profile.rank}`}
-                  {profile.totalParticipants ? <Text style={{ fontSize: 12, color: colors.inkMuted }}> / {profile.totalParticipants}</Text> : null}
-                </Text>
-              </View>
-              {/* Badges */}
-              <View style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(245, 158, 11, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-                  <Award size={20} color={colors.bronze} />
-                </View>
-                <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>ROZET</Text>
-                <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.achievementsCount} Adet</Text>
-              </View>
-              {/* Friends */}
-              <View style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(139, 92, 246, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-                  <Users size={20} color="#8B5CF6" />
-                </View>
-                <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>ARKADAŞ</Text>
-                <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.friendCount || 0}</Text>
-              </View>
+                {/* Badges */}
+                <TouchableOpacity onPress={() => setShowAchievements(true)} style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(245, 158, 11, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                    <Award size={20} color={colors.bronze} />
+                  </View>
+                  <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>ROZET</Text>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.achievementsCount} Adet</Text>
+                </TouchableOpacity>
+                {/* Friends */}
+                <TouchableOpacity onPress={() => onOpenFriends?.()} style={{ flex: 1, minWidth: '45%', backgroundColor: colors.surfaceRaised, borderRadius: 12, padding: 16 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(139, 92, 246, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                    <Users size={20} color="#8B5CF6" />
+                  </View>
+                  <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>ARKADAŞ</Text>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.friendCount || 0}</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Asset Allocation (Only if Self) */}

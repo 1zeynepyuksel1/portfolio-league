@@ -165,6 +165,7 @@ function AppShell() {
    * açılıyor, kapanınca lige dönüyor.
    */
   const [friendsOpen, setFriendsOpen] = useState(false);
+  const [friendsMode, setFriendsMode] = useState<'league' | 'profile'>('league');
 
   /**
    * BAŞKASININ profili. `null` = kapalı.
@@ -472,7 +473,7 @@ function AppShell() {
               <ProfileScreen
                 username={currentUser.username}
                 currentUserId={currentUser.id}
-                onOpenFriends={() => setFriendsOpen(true)}
+                onOpenFriends={() => { setFriendsMode('profile'); setFriendsOpen(true); }}
                 onLogout={() => void handleLogout()}
               />
             ) : (
@@ -493,7 +494,15 @@ function AppShell() {
             <DiscoveryScreen
               onSelectUser={(username) => setViewingProfile(username)}
               currentUser={currentUser}
-              onOpenFriends={() => setFriendsOpen(true)}
+              /*
+                ⚠️ `friendsMode` BURADA 'league' — Zeynep'in eklediği ayrım
+                korunuyor. Arkadaş katmanı iki yerden açılıyor ve iki yerde
+                farklı davranıyor: profilden açılınca salt okunur, ligden
+                açılınca sıralamaya yönelik. Lig ekranı artık Keşfet'in
+                içinde ama katmanı açan yer değişmedi, dolayısıyla kip de
+                'league' kalmalı.
+              */
+              onOpenFriends={() => { setFriendsMode('league'); setFriendsOpen(true); }}
             />
           )}
 
@@ -532,6 +541,7 @@ function AppShell() {
           {friendsOpen && (
             <SlideView direction="bottom">
               <FriendsScreen
+                mode={friendsMode}
                 onClose={() => setFriendsOpen(false)}
                 onSelectUser={(username) => setViewingProfile(username)}
               />
