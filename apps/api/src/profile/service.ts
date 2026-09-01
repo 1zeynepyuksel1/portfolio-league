@@ -61,6 +61,17 @@ export type PublicProfile = {
   isPublic: boolean;
   allocationVisibility: string;
   /**
+   * Rol — YALNIZCA KENDİ PROFİLİNDE dolu, başkasınınkinde her zaman 'user'.
+   *
+   * ⚠️ Başkasının rolünü sızdırmıyoruz. "Kim yönetici" bilgisi saldırgana
+   * hangi hesabı hedefleyeceğini söyler; ele geçirilecek en değerli hesabı
+   * herkese ilan etmenin bir faydası yok.
+   *
+   * ⚠️ Bu alan bir YETKİ DEĞİL, yalnızca arayüzün düğmeyi çizip
+   * çizmeyeceği. Gerçek kontrol `/admin/*` uçlarındaki `requireAdmin`.
+   */
+  role: string;
+  /**
    * Detay görülebiliyor mu.
    *
    * ⚠️ `false` DÖNMEK "KULLANICI YOK" DEMEK DEĞİL. Kullanıcının var olduğu
@@ -161,6 +172,7 @@ export async function getPublicProfile(
     isFriend,
     isPublic: owner.isPublic,
     allocationVisibility: owner.allocationVisibility,
+    role: isSelf ? owner.role : 'user',
   };
 
   // ⚠️ Yalnızca kendi profilinde sayılıyor: başkasının arkadaş sayısı

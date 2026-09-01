@@ -5,6 +5,7 @@ import { behaviorRouter } from './behavior/router.js';
 import { meRouter } from './auth/me.router.js';
 import { bonusRouter } from './bonus/router.js';
 import { postsRouter } from './posts/router.js';
+import { adminRouter } from './admin/router.js';
 import { friendsRouter } from './friends/router.js';
 import { leaguesRouter } from './leagues/router.js';
 import { marketRouter } from './market/router.js';
@@ -60,6 +61,13 @@ app.use('/me', behaviorRouter);
 app.use('/users', profileRouter);
 app.use('/bonus', bonusRouter);
 app.use('/posts', postsRouter);
+/*
+  ⚠️ Yetki kontrolü BURADA DEĞİL, router'ın kendi içinde
+  (`adminRouter.use(requireAccessToken, requireAdmin)`). Burada
+  yazsaydık iki yer arasında bölünürdü ve okuyan kişi hangisinin
+  geçerli olduğunu aramak zorunda kalırdı.
+*/
+app.use('/admin', adminRouter);
 app.use('/friends', friendsRouter);
 app.use('/leagues', leaguesRouter);
 app.use('/assets', marketRouter);

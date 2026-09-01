@@ -32,6 +32,21 @@ export async function findUserForLogin(email: string) {
       username: users.username,
       passwordHash: users.passwordHash,
       isEmailVerified: users.isEmailVerified,
+      /*
+        ⚠️ BAN DURUMU GİRİŞ SORGUSUNA EKLENDİ.
+
+        Ban kontrolü `requireAccessToken`'da zaten var ve token'ı anında
+        geçersiz kılıyor. Ama GİRİŞ ayrı bir kapı: banlı kullanıcı giriş
+        yapabiliyor, geçerli görünen bir token alıyor ve sonra her
+        ekranda 403 görüyordu. Ölçüldü — giriş HTTP 200 dönüyordu.
+
+        Teknik olarak güvenli (token hiçbir işe yaramıyor) ama
+        kullanılabilirlik açısından bozuk: kullanıcı içeri girdiğini
+        sanıp neden hiçbir şeyin çalışmadığını anlamıyordu. Girişte
+        durdurmak hem dürüst hem anlaşılır.
+      */
+      bannedAt: users.bannedAt,
+      banReason: users.banReason,
     })
     .from(users)
     .where(eq(users.email, email))
@@ -44,6 +59,8 @@ export async function findUserForLogin(email: string) {
     email: user.email,
     passwordHash: user.passwordHash,
     isEmailVerified: user.isEmailVerified,
+    bannedAt: user.bannedAt,
+    banReason: user.banReason,
     displayName: `${user.firstName} ${user.lastName}`,
     username: user.username,
   };

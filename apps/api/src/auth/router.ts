@@ -20,6 +20,7 @@ import {
   UsernameAlreadyInUseError,
   EmailNotVerifiedError,
   InvalidCredentialsError,
+  AccountBannedError,
   InvalidRefreshTokenError,
   InvalidVerificationCodeError,
   loginUser,
@@ -216,6 +217,20 @@ authRouter.post('/login', async (request, response) => {
       return response.status(401).json({
         error: {
           code: 'INVALID_CREDENTIALS',
+          message: error.message,
+        },
+      });
+    }
+
+    /*
+      ⚠️ 403, 401 DEĞİL. 401 "kim olduğunu kanıtlayamadın" demek ve
+      istemci şifreyi yeniden sorar; oysa kimlik doğru, YETKİ yok.
+      403 ile istemci doğru davranıyor: mesajı gösterip duruyor.
+    */
+    if (error instanceof AccountBannedError) {
+      return response.status(403).json({
+        error: {
+          code: 'ACCOUNT_BANNED',
           message: error.message,
         },
       });

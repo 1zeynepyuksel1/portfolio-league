@@ -227,6 +227,14 @@ export async function resendVerificationCode(userId: string) {
   };
 }
 
+/** Hesap askıya alınmış — giriş engellendi. */
+export class AccountBannedError extends Error {
+  constructor(reason: string | null) {
+    super(reason ?? 'Hesabın askıya alındı.');
+    this.name = 'AccountBannedError';
+  }
+}
+
 export async function loginUser(input: LoginBody) {
   const user = await findUserForLogin(input.email);
 
@@ -247,6 +255,17 @@ export async function loginUser(input: LoginBody) {
     !(await argon2.verify(user.passwordHash, input.password))
   ) {
     throw new InvalidCredentialsError();
+  }
+
+  /*
+    ⚠️ BAN KONTROLÜ ŞİFRE DOĞRULANDIKTAN SONRA.
+
+    Önce yapsaydık, şifreyi bilmeyen biri de bir e-posta deneyerek o
+    hesabın banlı olup olmadığını öğrenebilirdi. Ban durumu hesap
+    sahibinin bilgisi; yabancıya söylenmez.
+  */
+  if (user.bannedAt !== null) {
+    throw new AccountBannedError(user.banReason);
   }
 
   const refreshToken = createRefreshToken();

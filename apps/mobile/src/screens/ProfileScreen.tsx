@@ -4,7 +4,8 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Switch, Text
 import Svg, { Path, Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
 import { apiFetch } from '../api/client';
 import { getChampion, isChampion } from '../lib/champion';
-import { Crown } from 'lucide-react-native';
+import { Crown, ShieldCheck } from 'lucide-react-native';
+import { AdminScreen } from './AdminScreen';
 import { colors, fonts } from '../theme';
 import { TrendingUp, TrendingDown, Trophy, Award, Users, Lock, Settings, ChevronRight, X, User, Check } from 'lucide-react-native';
 import { PostCard } from '../components/PostCard';
@@ -29,6 +30,13 @@ type ProfileSlice = { symbol: string; name: string; sharePercent: string | null;
 type PublicProfile = {
   username: string; firstName: string; lastName: string; avatarSeed?: string | null; avatarStyle?: string | null;
   isSelf: boolean; isFriend: boolean; isPublic: boolean; allocationVisibility?: string; visible: boolean;
+  /**
+   * 'user' | 'admin'. Sunucu bunu YALNIZCA kendi profilinde dolduruyor;
+   * başkasının profilinde her zaman 'user' geliyor.
+   *
+   * ⚠️ Yetki değil, arayüz ipucu. Yönetim uçlarının kendi kontrolü var.
+   */
+  role?: string;
   twrPercent: string | null; rank: number | null; totalParticipants: number | null;
   achievementsCount?: number; allocation: ProfileSlice[]; pending: 'outgoing' | 'incoming' | null;
   friendCount: number; pendingRequests: number;
@@ -41,6 +49,12 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  /*
+    ⚠️ Bu bayrak bir YETKİ DEĞİL, sadece ekranın açık olup olmadığı.
+    Yönetici olmayan biri kodu değiştirip burayı `true` yapsa bile
+    `/admin/*` uçları 403 döner — yetki sunucuda.
+  */
+  const [showAdmin, setShowAdmin] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState<string | null>(null);
@@ -230,9 +244,31 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
           </View>
           
           {profile.isSelf ? (
-            <TouchableOpacity onPress={() => setShowSettings(true)} style={{ padding: 8, backgroundColor: colors.surfacePressed, borderRadius: 20 }}>
-              <Settings size={20} color={colors.inkMuted} />
-            </TouchableOpacity>
+            /*
+              ⚠️ FRAGMENT (<>...</>) ŞART — ve nedeni bir hatadan geliyor.
+
+              Ternary'nin bir dalı TEK bir eleman döndürmek zorunda. İki
+              düğmeyi yan yana yazınca derleme kırıldı; sarmalayıcı bir
+              <View> koymak da olmazdı çünkü dıştaki satır zaten yatay
+              hizalıyor, araya kutu koymak hizayı bozardı.
+
+              Fragment görünmeyen bir sarmalayıcı: gruplar ama çizmez.
+
+              ⚠️ Yönetim düğmesi yalnızca yöneticiye görünüyor — KOLAYLIK
+              olsun diye, güvenlik olsun diye değil. Sunucu `role`'ü zaten
+              yalnızca kendi profilinde gönderiyor ve asıl kontrol
+              `/admin/*` uçlarındaki `requireAdmin`.
+            */
+            <>
+              {profile.role === 'admin' && (
+                <TouchableOpacity onPress={() => setShowAdmin(true)} style={{ padding: 8, backgroundColor: colors.surfacePressed, borderRadius: 20, marginRight: 8 }}>
+                  <ShieldCheck size={20} color={colors.accent} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={() => setShowSettings(true)} style={{ padding: 8, backgroundColor: colors.surfacePressed, borderRadius: 20 }}>
+                <Settings size={20} color={colors.inkMuted} />
+              </TouchableOpacity>
+            </>
           ) : (
             <View>
               {profile.isFriend ? (
@@ -352,6 +388,10 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
           </>
         )}
       </ScrollView>
+
+      <Modal visible={showAdmin} animationType="slide" presentationStyle="pageSheet">
+        <AdminScreen onClose={() => setShowAdmin(false)} />
+      </Modal>
 
       {/* Settings Modal (kept simple for brevity, functionality preserved) */}
       <Modal visible={showSettings} animationType="slide" presentationStyle="pageSheet">

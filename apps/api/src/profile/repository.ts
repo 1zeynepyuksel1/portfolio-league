@@ -24,6 +24,8 @@ export type ProfileUser = {
   lastName: string;
   isPublic: boolean;
   allocationVisibility: string;
+  /** 'user' | 'admin' — yönetim paneli düğmesi buna bakıyor. */
+  role: string;
   avatarSeed: string | null;
   avatarStyle: string | null;
 };
@@ -40,6 +42,7 @@ export async function findProfileByUsername(
       lastName: users.lastName,
       isPublic: users.isPublic,
       allocationVisibility: users.allocationVisibility,
+      role: users.role,
       avatarSeed: users.avatarSeed,
       avatarStyle: users.avatarStyle,
     })
