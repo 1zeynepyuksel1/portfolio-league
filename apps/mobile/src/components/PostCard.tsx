@@ -210,7 +210,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
             <Text style={[styles.modernPnlValue, { color: isDisplayPositive ? colors.gain : colors.loss }]}>{displayValue}</Text>
             {isPnl && (
               <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 6 }}>
-                {payload.is_market ? 'Son 24 Saat' : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} ➔ Bugün` : '')}
+                {payload.is_market ? `Son 24 Saat — ${tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}` : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} — ${tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}` : '')}
               </Text>
             )}
           </View>
