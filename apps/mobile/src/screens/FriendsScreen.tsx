@@ -84,6 +84,20 @@ type RequestsResponse = {
 export function FriendsScreen({
   onClose,
   onSelectUser,
+  /*
+    ⚠️ `mode` TİPTE TANIMLIYDI AMA BURADAN ALINMIYORDU.
+
+    Gövdede dört yerde `mode` okunuyor (247, 253, 321, 435) ve hiçbiri
+    tanımlı bir değişkene bakmıyordu. TypeScript'in yakaladığı bu:
+    "Cannot find name 'mode'".
+
+    ⚠️ VARSAYILAN 'league' — çünkü çağıranlardan biri kipi hiç
+    göndermiyor olabilir. Varsayılansız bıraksaydık `mode` `undefined`
+    olur, `mode !== 'profile'` yine `true` dönerdi ve davranış kazara
+    doğru çıkardı; ama niyeti kodda yazmayan bir doğruluk, ilk
+    değişiklikte bozulur.
+  */
+  mode = 'league',
 }: {
   onClose?: () => void;
     mode?: 'league' | 'profile';
@@ -315,8 +329,6 @@ export function FriendsScreen({
 
           {errorMsg && <Text style={styles.errorText}>⚠️ {errorMsg}</Text>}
           {successMsg && <Text style={styles.successText}>🏆 {successMsg}</Text>}
-        </View>
-
         </View>}
 
         {/* 2. Sekmeler (Arkadaşlarım vs İstekler) */}
