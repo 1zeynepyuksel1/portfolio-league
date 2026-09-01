@@ -8,7 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 
 type MenuStep = 'main' | 'asset' | 'period' | 'market_asset';
 
-export function GlobalShareMenu({ visible, onClose, onNavigateAstro }: { visible: boolean, onClose: () => void, onNavigateAstro: () => void }) {
+export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onClose: () => void }) {
   const [step, setStep] = useState<MenuStep>('main');
   const [shareScope, setShareScope] = useState<ShareScope | null>(null);
   const [tradedAssets, setTradedAssets] = useState<any[]>([]);
@@ -43,24 +43,6 @@ export function GlobalShareMenu({ visible, onClose, onNavigateAstro }: { visible
       setLoadingAssets(false);
     }
   }
-
-  const handleFortuneShare = async () => {
-    try {
-      const lastReadRaw = await SecureStore.getItemAsync('FORTUNE_LAST_READ');
-      const lastText = await SecureStore.getItemAsync('FORTUNE_LAST_TEXT');
-      const lastReadAt = lastReadRaw === null ? 0 : Number(lastReadRaw);
-      
-      if (lastText && (Date.now() - lastReadAt < 24 * 60 * 60 * 1000)) {
-        setShareScope({ type: 'horoscope', content: lastText, assetName: 'Günün Varlığı' });
-      } else {
-        onClose();
-        onNavigateAstro();
-      }
-    } catch (e) {
-      onClose();
-      onNavigateAstro();
-    }
-  };
 
   const handlePeriodSelect = (period: 'all' | 'week' | 'month' | 'custom') => {
     // Custom date picker could be expanded here. For now, we will map 'custom' to 'all' as fallback if not implemented,
@@ -131,17 +113,7 @@ export function GlobalShareMenu({ visible, onClose, onNavigateAstro }: { visible
                   <ChevronRight size={20} color={colors.inkMuted} />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.optionCard} onPress={handleFortuneShare}>
-                  <View style={[styles.iconBox, { backgroundColor: 'rgba(139, 92, 246, 0.1)' }]}>
-                    <Sparkles size={24} color={colors.bronze} />
-                  </View>
-                  <View style={styles.optionTexts}>
-                    <Text style={styles.optionTitle}>Falcı Abla'yı Paylaş</Text>
-                    <Text style={styles.optionSub}>Bugünkü finans falını paylaş</Text>
-                  </View>
-                  <ChevronRight size={20} color={colors.inkMuted} />
-                </TouchableOpacity>
-              </View>
+                </View>
             )}
 
             {step === 'market_asset' && (

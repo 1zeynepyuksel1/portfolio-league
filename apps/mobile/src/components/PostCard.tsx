@@ -115,8 +115,8 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
 
   const payload = post.payload || {};
   const isPnl = post.type === 'pnl_share';
-  const isFortune = post.type === 'horoscope_share';
-  const isWheel = post.type === 'wheel_share';
+  const isFortune = false; // removed
+  const isWheel = false; // removed
   const isSingleAsset = post.scope === 'single_asset' || payload.is_market || payload.asset_key !== undefined;
 
   const pnlCents = BigInt(payload.pnl_amount || '0');
@@ -133,8 +133,8 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
 
   let badgeText = 'Gönderi';
   if (isPnl) badgeText = payload.is_market ? 'Piyasa' : 'Kâr/Zarar';
-  if (isFortune) badgeText = 'Finans Falı';
-  if (isWheel) badgeText = 'Çarkıfelek';
+  // if (isFortune) badgeText removed
+  // if (isWheel) badgeText removed
 
   // Dummy data for mockup
   const [dummyLikes] = useState(() => Math.floor(Math.random() * 200) + 12);

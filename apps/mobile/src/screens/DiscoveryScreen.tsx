@@ -8,11 +8,9 @@ import { ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { Heart, MessageSquare, TrendingUp, TrendingDown, Gift, Plus } from 'lucide-react-native';
 import { GlobalShareMenu } from '../components/GlobalShareMenu';
 import { WhatIfScreen } from './WhatIfScreen';
-import { WheelTab } from '../components/WheelTab';
-import { AstroTab } from '../components/AstroTab';
 import { FriendsScreen } from './FriendsScreen';
 
-type DiscoveryTab = 'feed' | 'whatif' | 'wheel' | 'astro' | 'social';
+type DiscoveryTab = 'feed' | 'whatif' | 'social';
 
 export function DiscoveryScreen({ onSelectUser, currentUser }: { onSelectUser?: (username: string) => void; currentUser?: any }) {
   const [shareMenuVisible, setShareMenuVisible] = useState(false);
@@ -29,13 +27,7 @@ export function DiscoveryScreen({ onSelectUser, currentUser }: { onSelectUser?: 
           <TouchableOpacity onPress={() => setActiveTab('whatif')} style={[styles.tabButton, activeTab === 'whatif' && styles.tabButtonActive]}>
             <Text style={[styles.tabText, activeTab === 'whatif' && styles.tabTextActive]}>Alsaydın</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setActiveTab('wheel')} style={[styles.tabButton, activeTab === 'wheel' && styles.tabButtonActive]}>
-            <Text style={[styles.tabText, activeTab === 'wheel' && styles.tabTextActive]}>Çark</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setActiveTab('astro')} style={[styles.tabButton, activeTab === 'astro' && styles.tabButtonActive]}>
-            <Text style={[styles.tabText, activeTab === 'astro' && styles.tabTextActive]}>Fal</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setActiveTab('social')} style={[styles.tabButton, activeTab === 'social' && styles.tabButtonActive]}>
+                    <TouchableOpacity onPress={() => setActiveTab('social')} style={[styles.tabButton, activeTab === 'social' && styles.tabButtonActive]}>
             <Text style={[styles.tabText, activeTab === 'social' && styles.tabTextActive]}>Sosyal</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -45,14 +37,12 @@ export function DiscoveryScreen({ onSelectUser, currentUser }: { onSelectUser?: 
       <View style={styles.content}>
         {activeTab === 'feed' && <FeedTab onSelectUser={onSelectUser} currentUser={currentUser} />}
         {activeTab === 'whatif' && <WhatIfScreen />}
-        {activeTab === 'wheel' && <WheelTab />}
-        {activeTab === 'astro' && <AstroTab />}
         {activeTab === 'social' && <FriendsScreen onSelectUser={onSelectUser} />}
       </View>
       <TouchableOpacity style={styles.fab} onPress={() => setShareMenuVisible(true)}>
         <Plus size={24} color="#FFF" />
       </TouchableOpacity>
-      <GlobalShareMenu visible={shareMenuVisible} onClose={() => setShareMenuVisible(false)} onNavigateAstro={() => setActiveTab('astro')} />
+      <GlobalShareMenu visible={shareMenuVisible} onClose={() => setShareMenuVisible(false)}  />
     </View>
   );
 }
