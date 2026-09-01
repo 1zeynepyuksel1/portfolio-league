@@ -86,7 +86,6 @@ export function FriendsScreen({
   onSelectUser,
 }: {
   onClose?: () => void;
-    mode?: 'league' | 'profile';
   /**
    * Bir arkadaşa dokununca profilini açar.
    *
@@ -244,7 +243,7 @@ export function FriendsScreen({
       {onClose !== undefined && (
         <View style={styles.backRow}>
           <TouchableOpacity onPress={onClose} hitSlop={12}>
-            <Text style={styles.backText}>{mode === 'profile' ? '‹ Profile dön' : '‹ Lige dön'}</Text>
+            <Text style={styles.backText}>‹ Lige dön</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -318,8 +317,7 @@ export function FriendsScreen({
         </View>
 
         {/* 2. Sekmeler (Arkadaşlarım vs İstekler) */}
-      {mode !== 'profile' && (
-<View style={styles.subTabContainer}>
+      <View style={styles.subTabContainer}>
         <TouchableOpacity
           style={[styles.subTabButton, activeTab === 'list' && styles.subTabButtonActive]}
           onPress={() => {
@@ -348,7 +346,7 @@ export function FriendsScreen({
             {incomingCount > 0 && (
               <View style={styles.notificationBadge}>
                 <Text style={styles.notificationBadgeText}>{incomingCount}</Text>
-              </View>        )}
+              </View>
             )}
           </View>
         </TouchableOpacity>
@@ -433,11 +431,14 @@ export function FriendsScreen({
                   </Text>
                 </View>
 
-                {removeId && mode !== 'profile' ? (
-<TouchableOpacity style={styles.removeButton} onPress={() => handleRemove(removeId)}>
-<Text style={styles.removeButtonText}>Çıkar</Text>
-</TouchableOpacity>
-) : null}
+                {removeId ? (
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => handleRemove(removeId)}
+                  >
+                    <Text style={styles.removeButtonText}>Çıkar</Text>
+                  </TouchableOpacity>
+                ) : null}
               </TouchableOpacity>
             );
           }}
