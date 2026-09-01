@@ -250,7 +250,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{buyDateStr}</Text>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>➔</Text>
-                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>Bugün</Text>
+                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}</Text>
                     </View>
                   </View>
                 </View>
