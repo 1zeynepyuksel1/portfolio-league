@@ -28,7 +28,37 @@ import { apiFetch } from '../api/client';
  * döndüğünde açılan pencerenin kapanmasını bu sağlıyor; bileşenin içine
  * koyulursa geç kalır ve pencere açık kalır.
  */
-WebBrowser.maybeCompleteAuthSession();
+/*
+  ⚠️ `skipRedirectCheck` OLMADAN AÇILIR PENCERE KAPANMIYOR.
+
+  Google'dan dönüşte uygulama açılır pencerenin İÇİNDE yükleniyor ve
+  `maybeCompleteAuthSession` sonucu açan pencereye geri göndermeli. Ama
+  önce şunu kontrol ediyor (`ExpoWebBrowser.web.js:63-71`):
+
+      const redirectUrl = localStorage.getItem(...);
+      if (redirectUrl !== currentUrl) return { type: 'failed', ... };
+
+  Kayıtlı yönlendirme adresiyle o anki adres birebir tutmazsa fonksiyon
+  SESSİZCE vazgeçiyor: pencere kapanmıyor, mesaj gitmiyor, uygulama o
+  pencerede açık kalıyor. Ekranda "ikinci bir sekmede uygulama açıldı"
+  diye görünen şey bu.
+
+  Adresler neden tutmuyor: Metro `http://localhost:8081` veriyor, dönüş
+  ise `http://localhost:8081/#id_token=...` oluyor ve normalleştirme
+  ikisini eşitleyemiyor.
+
+  ⚠️ BU KONTROLÜ ATLAMAK GÜVENLİĞİ ZAYIFLATMIYOR — ve nedeni önemli.
+  O kontrol bir akıl sağlığı testi, kimlik doğrulaması değil. Gerçek
+  korumalar başka yerde:
+
+    1. `state` parametresi — isteği başlatanın biz olduğumuzu kanıtlıyor
+    2. `nonce` — jetonun tekrar kullanılmasını engelliyor
+    3. SUNUCU jetonu Google'a doğrulatıyor ve `aud`'u kontrol ediyor
+
+  Üçü de yerinde. Atlanan yalnızca "tarayıcı beklediğim sayfada mı"
+  sorusu; cevabı yanlış olsa bile sunucu geçersiz jetonu kabul etmiyor.
+*/
+WebBrowser.maybeCompleteAuthSession({ skipRedirectCheck: true });
 
 export type GoogleSession = {
   user: { id: string; email: string; displayName: string; username?: string };
@@ -152,7 +182,19 @@ export function useGoogleSignIn({ onSuccess, onError }: Options) {
 
   const signIn = useCallback(() => {
     setBusy(true);
-    void promptAsync().finally(() => {
+    /*
+      ⚠️ AÇILIR PENCEREYE AÇIK ÖLÇÜ VERİLİYOR.
+
+      Ölçüsüz bırakılınca tarayıcı `window.open`'ı yeni bir SEKME olarak
+      açabiliyor; sekme kullanıcıya "başka bir sayfaya gittim" hissi
+      veriyor ve geri dönüşü kaybettiriyor. Ölçülü pencere üstte küçük
+      bir kutu olarak açılıyor, iş bitince kapanıp asıl ekrana dönüyor.
+
+      Değerler Google'ın giriş ekranının sığdığı en küçük boyut.
+    */
+    void promptAsync({
+      windowFeatures: { width: 480, height: 640 },
+    }).finally(() => {
       /*
         ⚠️ `promptAsync` çözülünce iş BİTMİYOR — sonuç `response` ile
         geliyor ve yukarıdaki efekt onu işliyor. Burada `busy`'yi
