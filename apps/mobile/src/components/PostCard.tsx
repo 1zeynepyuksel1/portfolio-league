@@ -238,8 +238,6 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
     sayılara güvenilebilir.
   */
   const isCrown = post.type === 'crown_share';
-  const isFortune = false; // removed
-  const isWheel = false; // removed
   const isSingleAsset = post.scope === 'single_asset' || payload.is_market || payload.asset_key !== undefined;
 
   const pnlCents = BigInt(payload.pnl_amount || '0');
@@ -261,8 +259,6 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
     çıkıyor; 9. olan birinin kartında "Şampiyon" yazması yanlış olurdu.
   */
   if (isCrown) badgeText = 'Lig Sonucu';
-  // if (isFortune) badgeText removed
-  // if (isWheel) badgeText removed
 
   // Dummy data for mockup
   const [dummyLikes] = useState(() => Math.floor(Math.random() * 200) + 12);
@@ -426,31 +422,28 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
         </View>
       )}
 
-      {isFortune && (
-          <View style={{ backgroundColor: '#2e1065', borderRadius: 16, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: '#4c1d95' }}>
-            <View style={{ position: 'absolute', top: -30, right: -30, width: 100, height: 100, borderRadius: 50, backgroundColor: '#8b5cf6', opacity: 0.2 }} />
-            <View style={{ position: 'absolute', bottom: -20, left: -20, width: 80, height: 80, borderRadius: 40, backgroundColor: '#c084fc', opacity: 0.2 }} />
-            
-            <View style={{ padding: 20, flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
-                <Text style={{ fontSize: 28, textShadowColor: '#8b5cf6', textShadowRadius: 10 }}>🔮</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: '#c4b5fd', marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase' }}>Falcı Abla Diyor ki:</Text>
-                <Text style={{ fontFamily: fonts.medium, fontSize: 15, color: '#ffffff', lineHeight: 22, fontStyle: 'italic' }}>"{payload.fortune_content}"</Text>
-              </View>
-            </View>
-          </View>
-        )}
+      {/*
+        ⚠️ FAL VE ÇARK BLOKLARI SİLİNDİ — 40 SATIR ÖLÜ KOD.
 
-      {isWheel && (
-        <View style={[styles.modernPnlBox, { backgroundColor: 'rgba(245, 158, 11, 0.05)', borderColor: 'rgba(245, 158, 11, 0.15)' }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.modernPnlLabel, { color: '#F59E0B' }]}>Çarkıfelek Ödülü!</Text>
-            <Text style={{ fontFamily: fonts.bold, fontSize: 18, color: colors.ink, marginTop: 4 }}>{payload.prize_text}</Text>
-          </View>
-        </View>
-      )}
+        `const isFortune = false` ve `const isWheel = false` sabitti;
+        iki blok da HİÇ çizilmiyordu. Özellikler arayüzden kaldırılmış
+        ama çizim kodu bırakılmıştı.
+
+        Neden sadece durup beklemiyordu:
+
+        1. İçlerinde temaya bağlı olmayan sekiz renk vardı (#2e1065,
+           #4c1d95, #8b5cf6, #c084fc, #c4b5fd…) — mor bir palet, oysa
+           uygulamanın vurgusu mavi. Renk sayımında bu dosyayı 37'ye
+           çıkaran şeyin yarısı buydu.
+        2. Emoji simge kullanıyordu (🔮) — platformdan platforma değişir
+           ve token'la kontrol edilemez.
+        3. Okuyan kişi "fal özelliği var mı?" diye düşünmek zorunda
+           kalıyordu. Bu projede daha önce tam tersi oldu: `AssetLogo`
+           yazılmış ama kullanılmıyordu, `WelcomeScreen` çizilmiyordu.
+           Var olan ama çalışmayan kod, olmayan koddan daha yanıltıcı.
+
+        Geri gerekirse git geçmişinde duruyor.
+      */}
 
       {/* 4. Caption Area */}
       {isEditing ? (

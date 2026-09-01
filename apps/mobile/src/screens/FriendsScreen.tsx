@@ -10,6 +10,21 @@ import {
 } from 'react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
+/*
+  ⚠️ EMOJİLER SİMGE OLARAK KULLANILIYORDU (👥 📬 🏆 ⚠️) — KALDIRILDI.
+
+  Üç sebep, üçü de somut:
+
+  1. PLATFORMA GÖRE DEĞİŞİR. Aynı emoji Android'de, iOS'ta ve web'de
+     farklı çiziliyor; tasarımın kontrol edemediği bir görsel.
+  2. TOKEN'A BAĞLANAMAZ. Rengi, kalınlığı, boyutu temadan gelmiyor —
+     tema değişse emoji aynı kalır.
+  3. HİZALANMAZ. Emoji yazı satırında farklı bir yükseklik ve genişlik
+     kaplıyor; yanındaki metinle taban çizgisi tutmuyor.
+
+  `lucide-react-native` zaten projede ve diğer ekranlar onu kullanıyor.
+*/
+import { Users, Inbox, UserPlus, AlertTriangle, CheckCircle2 } from 'lucide-react-native';
 
 import { Image } from 'react-native';
 import { SvgXml } from 'react-native-svg';
@@ -265,7 +280,10 @@ export function FriendsScreen({
 
       {/* 1. Üst Kısım: Arkadaş Ekleme Formu */}
       {mode !== 'profile' && <View style={styles.addSection}>
-        <Text style={styles.sectionTitle}>👥 Arkadaş Ekle</Text>
+        <View style={styles.sectionTitleRow}>
+          <UserPlus size={16} color={colors.ink} strokeWidth={2.5} />
+          <Text style={styles.sectionTitle}>Arkadaş Ekle</Text>
+        </View>
         <Text style={styles.sectionSubtitle}>
           Kullanıcı adı ya da e-posta yazarak arkadaşını ligde yarışmaya
           davet et.
@@ -327,8 +345,23 @@ export function FriendsScreen({
             </View>
           )}
 
-          {errorMsg && <Text style={styles.errorText}>⚠️ {errorMsg}</Text>}
-          {successMsg && <Text style={styles.successText}>🏆 {successMsg}</Text>}
+          {/*
+            ⚠️ SİMGE `Text` İÇİNDE DEĞİL, YANINDA. Emoji metnin parçasıydı
+            ve satır kaydığında ondan ayrı düşebiliyordu. Simge ayrı bir
+            eleman olunca hizalama `alignItems` ile garanti.
+          */}
+          {errorMsg && (
+            <View style={styles.messageRow}>
+              <AlertTriangle size={14} color={colors.loss} strokeWidth={2.5} />
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          )}
+          {successMsg && (
+            <View style={styles.messageRow}>
+              <CheckCircle2 size={14} color={colors.gain} strokeWidth={2.5} />
+              <Text style={styles.successText}>{successMsg}</Text>
+            </View>
+          )}
         </View>}
 
         {/* 2. Sekmeler (Arkadaşlarım vs İstekler) */}
@@ -341,9 +374,16 @@ export function FriendsScreen({
             setSuccessMsg(null);
           }}
         >
-          <Text style={[styles.subTabText, activeTab === 'list' && styles.subTabTextActive]}>
-            👥 Arkadaşlarım ({friends.length})
-          </Text>
+          <View style={styles.tabLabelRow}>
+            <Users
+              size={15}
+              color={activeTab === 'list' ? colors.ink : colors.inkMuted}
+              strokeWidth={2.5}
+            />
+            <Text style={[styles.subTabText, activeTab === 'list' && styles.subTabTextActive]}>
+              Arkadaşlarım ({friends.length})
+            </Text>
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -355,9 +395,16 @@ export function FriendsScreen({
           }}
         >
           <View style={styles.tabBadgeRow}>
-            <Text style={[styles.subTabText, activeTab === 'requests' && styles.subTabTextActive]}>
-              📬 İstekler
-            </Text>
+            <View style={styles.tabLabelRow}>
+              <Inbox
+                size={15}
+                color={activeTab === 'requests' ? colors.ink : colors.inkMuted}
+                strokeWidth={2.5}
+              />
+              <Text style={[styles.subTabText, activeTab === 'requests' && styles.subTabTextActive]}>
+                İstekler
+              </Text>
+            </View>
             {incomingCount > 0 && (
               <View style={styles.notificationBadge}>
                 <Text style={styles.notificationBadgeText}>{incomingCount}</Text>
@@ -550,6 +597,12 @@ export function FriendsScreen({
 }
 
 const styles = StyleSheet.create({
+  // Simge + metin satırları: taban çizgisi yerine dikey ortalama, çünkü
+  // simge kare ve metnin x-yüksekliğinden farklı bir kutu kaplıyor.
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  messageRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+
   backRow: {
     paddingHorizontal: 20,
     paddingTop: 26,

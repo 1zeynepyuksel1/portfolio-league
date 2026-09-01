@@ -1,5 +1,18 @@
 import React, { useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { colors } from '../theme';
+/*
+  ⚠️ EMOJİLER SİMGE OLARAK KULLANILIYORDU — HEM ROZETTE HEM KARTTA.
+
+  Kartlar `badge: '🏆 UYUMLU GETİRİ HESABI'` ve `icon: '⚖️'` taşıyordu.
+  Emoji platformdan platforma farklı çiziliyor, temaya bağlanamıyor ve
+  yazı satırında hizalanmıyor. Uygulamanın İLK gördüğü ekran burası;
+  profesyonel görünmesi gereken ilk yer de burası.
+
+  `lucide-react-native` zaten projede ve diğer ekranlar onu kullanıyor.
+*/
+import { Wallet, LineChart, Trophy, ShieldCheck } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 
 type Props = {
   userName: string;
@@ -8,29 +21,29 @@ type Props = {
 
 const CARDS = [
   {
-    badge: '💼 SANAL SERMAYE: 100.000 ₺',
-    icon: '🏛️',
+    badge: 'SANAL SERMAYE: 100.000 ₺',
+    Icon: Wallet,
     title: '100.000 ₺ Başlangıç Portföyü',
     description:
       'Hesabınıza aktarılan sanal bakiyenizle hiçbir finansal risk almadan yatırım stratejilerinizi test edin. Ayrıca her 24 saatte bir 1.000 ₺ ek kaynak kazanabilirsiniz.',
   },
   {
-    badge: '📊 CANLI PİYASA ENTEGRASYONU',
-    icon: '📈',
+    badge: 'CANLI PİYASA ENTEGRASYONU',
+    Icon: LineChart,
     title: 'Gerçek Zamanlı Borsa Verileri',
     description:
       'Bitcoin, Ethereum, Gram Altın ve Döviz kurlarının canlı borsa fiyatlarını anlık takip edin, derinlikli analizlerle alım-satım emirlerinizi yönetin.',
   },
   {
-    badge: '🏆 UYUMLU GETİRİ HESABI (TWR)',
-    icon: '⚖️',
+    badge: 'UYUMLU GETİRİ HESABI (TWR)',
+    Icon: Trophy,
     title: 'Haftalık Performans Ligi',
     description:
       'Uluslararası Zaman Ağırlıklı Getiri (TWR) standartlarına göre hesaplanan yatırım başarınızla haftalık ligde yarışın, liderlik podyumunda yerinizi alın.',
   },
   {
-    badge: '🛡️ GİZLİLİK VE ANONİMLİK',
-    icon: '🔐',
+    badge: 'GİZLİLİK VE ANONİMLİK',
+    Icon: ShieldCheck,
     title: 'Profil Görünürlük Yapılandırması',
     description:
       'Haftalık lig sıralama tablosunda adınızın nasıl görüneceğini belirleyin. Bu ayarı dilediğiniz zaman profil ayarlarınızdan değiştirebilirsiniz.',
@@ -42,6 +55,13 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
   const [isPublic, setIsPublic] = useState(true);
 
   const card = CARDS[currentStep]!;
+  /*
+    ⚠️ BÜYÜK HARFLE BAŞLAYAN DEĞİŞKEN ŞART. JSX'te `<card.Icon />`
+    yazmak da çalışırdı ama `<cardIcon />` gibi küçük harfli bir ad
+    React tarafından HTML etiketi sanılır ve sessizce hiçbir şey
+    çizilmez. Ayrı bir değişkene almak niyeti görünür kılıyor.
+  */
+  const CardIcon: LucideIcon = card.Icon;
   const isLastStep = currentStep === CARDS.length - 1;
 
   function handleNext() {
@@ -75,7 +95,14 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
           <Text style={styles.badgeText}>{card.badge}</Text>
         </View>
 
-        <Text style={styles.icon}>{card.icon}</Text>
+        {/*
+          ⚠️ SİMGE BİR BİLEŞEN, METİN DEĞİL. Emoji `<Text>` içindeyken
+          boyutu font boyutuna, rengi de hiçbir şeye bağlıydı. Bileşen
+          olarak `size` ve `color` temadan geliyor.
+        */}
+        <View style={styles.iconWrap}>
+          <CardIcon size={34} color={colors.accent} strokeWidth={1.8} />
+        </View>
 
         <Text style={styles.cardTitle}>
           {currentStep === 0 ? `Hoş Geldiniz, ${userName}` : card.title}
@@ -223,10 +250,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.8,
   },
-  icon: {
-    fontSize: 44,
-    marginBottom: 14,
-  },
+  iconWrap: { alignItems: 'center', marginBottom: 14 },
   cardTitle: {
     fontSize: 22,
     fontWeight: 'bold',
