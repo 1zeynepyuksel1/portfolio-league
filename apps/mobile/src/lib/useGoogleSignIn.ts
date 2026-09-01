@@ -28,37 +28,61 @@ import { apiFetch } from '../api/client';
  * döndüğünde açılan pencerenin kapanmasını bu sağlıyor; bileşenin içine
  * koyulursa geç kalır ve pencere açık kalır.
  */
-/*
-  ⚠️ `skipRedirectCheck` OLMADAN AÇILIR PENCERE KAPANMIYOR.
+/**
+ * Açılır pencereden dönüşü tamamlar — GÜVENLİ SARMALAYICI.
+ *
+ * ⚠️ ÜÇ AYRI TUZAK VAR VE ÜÇÜ DE YAŞANDI.
+ *
+ * 1) `skipRedirectCheck` OLMADAN PENCERE KAPANMIYOR.
+ *    Kütüphane dönüşte kayıtlı yönlendirme adresiyle o anki adresi
+ *    karşılaştırıyor (`ExpoWebBrowser.web.js:63-71`); tutmazsa sessizce
+ *    vazgeçiyor, pencere kapanmıyor ve uygulama o pencerede açık kalıyor.
+ *    Metro `http://localhost:8081` veriyor, dönüş
+ *    `http://localhost:8081/#id_token=...` oluyor — tutmuyor.
+ *
+ * 2) AMA `skipRedirectCheck` TEK BAŞINA UYGULAMAYI ÇÖKERTTİ.
+ *    Erken çıkışı kaldırınca kod şu satıra kadar ilerliyor:
+ *
+ *        const parent = window.opener ?? window.parent;
+ *        parent.postMessage({ ... }, parent.location.toString());
+ *
+ *    Uygulama BAŞKA BİR KÖKENDEN gelen bir iframe'in içinde çalışıyorsa
+ *    (sunum/önizleme sayfası `file://` üzerinden gömüyor) `window.parent`
+ *    çapraz kökendir ve `parent.location` okumak `SecurityError` fırlatır.
+ *    Bu çağrı modül yüklenirken yapıldığı için uygulama HİÇ AÇILMIYORDU.
+ *
+ * 3) ÇÖZÜM: YALNIZCA AÇILIR PENCEREDEYKEN ÇAĞIR.
+ *    Tamamlanacak bir şey ancak biz AÇILIR PENCEREYSEK var; onu da
+ *    `window.opener` söylüyor. Ana pencerede çağrı zaten hiçbir işe
+ *    yaramıyordu — yalnızca çökme riski getiriyordu.
+ *
+ * ⚠️ VE HER ŞEY `try` İÇİNDE. Bu bir yardımcı; başarısızlığı uygulamanın
+ * açılmasını engelleyemez. `window.opener`'a erişmek bile bazı
+ * tarayıcı politikalarında fırlatabiliyor.
+ */
+function completeAuthSessionSafely(): void {
+  if (Platform.OS !== 'web') {
+    // Native tarafta iframe/opener kavramı yok; kütüphane kendi işini yapıyor.
+    WebBrowser.maybeCompleteAuthSession();
+    return;
+  }
 
-  Google'dan dönüşte uygulama açılır pencerenin İÇİNDE yükleniyor ve
-  `maybeCompleteAuthSession` sonucu açan pencereye geri göndermeli. Ama
-  önce şunu kontrol ediyor (`ExpoWebBrowser.web.js:63-71`):
+  try {
+    if (typeof window === 'undefined') return;
+    // Açılır pencere değilsek tamamlanacak bir oturum yok.
+    if (!window.opener) return;
 
-      const redirectUrl = localStorage.getItem(...);
-      if (redirectUrl !== currentUrl) return { type: 'failed', ... };
+    WebBrowser.maybeCompleteAuthSession({ skipRedirectCheck: true });
+  } catch {
+    /*
+      Sessizce yutuluyor — ve bu bilinçli. Buraya düşmek "dönüş
+      tamamlanamadı" demek; kullanıcı pencereyi kapatıp tekrar dener.
+      Alternatif, uygulamanın hiç açılmaması.
+    */
+  }
+}
 
-  Kayıtlı yönlendirme adresiyle o anki adres birebir tutmazsa fonksiyon
-  SESSİZCE vazgeçiyor: pencere kapanmıyor, mesaj gitmiyor, uygulama o
-  pencerede açık kalıyor. Ekranda "ikinci bir sekmede uygulama açıldı"
-  diye görünen şey bu.
-
-  Adresler neden tutmuyor: Metro `http://localhost:8081` veriyor, dönüş
-  ise `http://localhost:8081/#id_token=...` oluyor ve normalleştirme
-  ikisini eşitleyemiyor.
-
-  ⚠️ BU KONTROLÜ ATLAMAK GÜVENLİĞİ ZAYIFLATMIYOR — ve nedeni önemli.
-  O kontrol bir akıl sağlığı testi, kimlik doğrulaması değil. Gerçek
-  korumalar başka yerde:
-
-    1. `state` parametresi — isteği başlatanın biz olduğumuzu kanıtlıyor
-    2. `nonce` — jetonun tekrar kullanılmasını engelliyor
-    3. SUNUCU jetonu Google'a doğrulatıyor ve `aud`'u kontrol ediyor
-
-  Üçü de yerinde. Atlanan yalnızca "tarayıcı beklediğim sayfada mı"
-  sorusu; cevabı yanlış olsa bile sunucu geçersiz jetonu kabul etmiyor.
-*/
-WebBrowser.maybeCompleteAuthSession({ skipRedirectCheck: true });
+completeAuthSessionSafely();
 
 export type GoogleSession = {
   user: { id: string; email: string; displayName: string; username?: string };
