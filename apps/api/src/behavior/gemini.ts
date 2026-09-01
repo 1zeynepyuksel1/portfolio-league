@@ -90,7 +90,7 @@ const API_KEY = process.env.GEMINI_API_KEY ?? null;
  * her hata `null`'a çevriliyor. Sabit sürüm eskiyebilir; eskimesi görünür
  * bir sorundur, kendiliğinden bozulması değil.
  */
-const MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.6-flash';
 
 /**
  * SUNUCU GENELİ HIZ SINIRI — dakikada kaç model çağrısı.
@@ -205,8 +205,6 @@ export async function callModel<T>(call: ModelCall): Promise<T | null> {
           sağlıklı görünüyordu. Yakalayan şey aşağıdaki JSON doğrulaması
           oldu.
         */
-        thinkingConfig: { thinkingBudget: 0 },
-
         maxOutputTokens: call.maxOutputTokens,
         abortSignal: AbortSignal.timeout(call.timeoutMs),
       },
