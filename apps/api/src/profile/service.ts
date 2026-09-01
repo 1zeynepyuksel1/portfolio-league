@@ -118,11 +118,22 @@ export class ProfileNotFoundError extends Error {
  * `is_public` kapalıyken arkadaşları da engellemek, arkadaş listesini
  * anlamsız kılardı.
  */
+/**
+ * Profilin tamamı görülebilir mi.
+ *
+ * ⚠️ `allocationVisibility` PARAMETRESİ KALDIRILDI — alınıyordu ama
+ * gövdede HİÇ KULLANILMIYORDU, yani derlemeyi kıran ölü bir bağdı.
+ *
+ * Dağılım görünürlüğü zaten aşağıda, `allocation` alanı kurulurken
+ * ayrıca ele alınıyor (`private` / `friends` / `public`). Bu fonksiyon
+ * daha kaba bir soruyu cevaplıyor: profil KAPALI mı? İkisi ayrı
+ * kademeler ve ayrı kalmalı — kapalı profilde dağılım zaten hiç
+ * hesaplanmıyor.
+ */
 function canSee(input: {
   isSelf: boolean;
   isFriend: boolean;
   isPublic: boolean;
-  allocationVisibility: string;
 }): boolean {
   return input.isSelf || input.isFriend || input.isPublic;
 }

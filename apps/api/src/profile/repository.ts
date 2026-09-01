@@ -23,6 +23,14 @@ export type ProfileUser = {
   firstName: string;
   lastName: string;
   isPublic: boolean;
+  /**
+   * Varlık dağılımını kim görebilir: 'private' | 'friends' | 'public'.
+   *
+   * ⚠️ SORGU BUNU ZATEN SEÇİYORDU AMA TİPTE YOKTU — `profile/service.ts`
+   * okumaya çalışınca derleme kırılıyordu. Alan eklendi, sorgu
+   * değiştirilmedi.
+   */
+  allocationVisibility: string;
   avatarSeed: string | null;
   avatarStyle: string | null;
 };
