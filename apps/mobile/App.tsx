@@ -164,6 +164,7 @@ function AppShell() {
    * açılıyor, kapanınca lige dönüyor.
    */
   const [friendsOpen, setFriendsOpen] = useState(false);
+  const [friendsMode, setFriendsMode] = useState<'league' | 'profile'>('league');
 
   /**
    * BAŞKASININ profili. `null` = kapalı.
@@ -449,7 +450,7 @@ function AppShell() {
             />
           ) : activeTab === 'league' ? (
             <LeaderboardScreen
-              onOpenFriends={() => setFriendsOpen(true)}
+              onOpenFriends={() => { setFriendsMode('league'); setFriendsOpen(true); }}
               onSelectUser={(username) => setViewingProfile(username)}
             />
           ) : activeTab === 'coach' ? (
@@ -476,7 +477,7 @@ function AppShell() {
               <ProfileScreen
                 username={currentUser.username}
                 currentUserId={currentUser.id}
-                onOpenFriends={() => setFriendsOpen(true)}
+                onOpenFriends={() => { setFriendsMode('profile'); setFriendsOpen(true); }}
                 onLogout={() => void handleLogout()}
               />
             ) : (
@@ -512,6 +513,7 @@ function AppShell() {
           {friendsOpen && (
             <SlideView direction="bottom">
               <FriendsScreen
+                mode={friendsMode}
                 onClose={() => setFriendsOpen(false)}
                 onSelectUser={(username) => setViewingProfile(username)}
               />
