@@ -123,6 +123,19 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 /** Çıkışta: hem bellekten hem diskten sil. */
+/**
+ * Oturum kapanınca çalışacak temizlik işleri.
+ *
+ * ⚠️ BU DİZİ, `client.ts`'in BAŞKA MODÜLLERİ IMPORT ETMEMESİ İÇİN VAR.
+ * Önbellek tutan modüller (`lib/me.ts`) kendilerini buraya kaydediyor;
+ * burası onları tanımıyor. Bağımlılık tek yönlü kalıyor.
+ */
+const logoutHandlers: (() => void)[] = [];
+
+export function onLogout(handler: () => void): void {
+  logoutHandlers.push(handler);
+}
+
 export async function clearSession(): Promise<void> {
   currentAccessToken = null;
   currentRefreshToken = null;
@@ -136,19 +149,30 @@ export async function clearSession(): Promise<void> {
     zor bir hata.
   */
   /*
-    ⚠️ TEMBEL IMPORT (`await import`) — DAİRESEL BAĞIMLILIĞI KIRIYOR.
+    ⚠️ ÖNCE `await import('../lib/me')` YAZMIŞTIM — VE BU TEHLİKELİYDİ.
 
-    `lib/me.ts` buradan `apiFetch` alıyor. Yukarıya statik bir
-    `import { clearMe } from '../lib/me'` koysaydık iki modül birbirini
-    import ederdi. Bu döngü çoğu zaman çalışır ama modül yükleme sırasına
-    bağlıdır: paketleyici sırayı değiştirdiği gün biri `undefined` olur ve
-    hata çalışma anında, alakasız bir yerde patlar.
+    Amaç dairesel bağımlılığı kırmaktı (`lib/me.ts` buradan `apiFetch`
+    alıyor). Ama dinamik import Metro'da ayrı bir parçaya düşebiliyor ve
+    o parça ağdan yüklenemezse `await` PATLIYOR. `clearSession` de
+    401 akışının tam ortasında çağrılıyor:
 
-    Tembel import bağı çağrı anına erteliyor; o an her iki modül de
-    yüklenmiş oluyor.
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) { await clearSession(); onSessionExpired?.(); }
+
+    Yani import başarısız olsa `clearSession` fırlatır, `onSessionExpired`
+    HİÇ çalışmaz ve kullanıcı giriş ekranına atılmak yerine sonsuz 401
+    döngüsünde kalırdı. Oturum kapatma yolu, en kırılgan olamayacak yer.
+
+    Çözüm: bağımlılığı TERSİNE çevirmek. `lib/me.ts` kendini buraya
+    kaydediyor; burası hiçbir şey import etmiyor. Döngü de yok, ağ da yok.
   */
-  const { clearMe } = await import('../lib/me');
-  clearMe();
+  for (const handler of logoutHandlers) {
+    try {
+      handler();
+    } catch {
+      // Tek bir dinleyicinin hatası oturum kapatmayı engellememeli.
+    }
+  }
   await clearTokens();
 }
 

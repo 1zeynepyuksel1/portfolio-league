@@ -1,4 +1,4 @@
-import { apiFetch } from '../api/client';
+import { apiFetch, onLogout } from '../api/client';
 
 /**
  * me.ts — "ben kimim" bilgisi, TEK YERDEN ve önbellekli.
@@ -59,3 +59,13 @@ export function clearMe(): void {
   onbellek = undefined;
   bekleyen = null;
 }
+
+/*
+  ⚠️ KAYIT MODÜL YÜKLENİRKEN YAPILIYOR, ÇAĞRI ANINDA DEĞİL.
+
+  `client.ts` bu dosyayı import ETMİYOR — etseydi dairesel bağımlılık
+  olurdu. Bunun yerine bu dosya kendini oraya kaydediyor. Bu modül hiç
+  yüklenmezse temizlenecek bir önbellek de yok, yani kural kendiliğinden
+  doğru.
+*/
+onLogout(clearMe);
