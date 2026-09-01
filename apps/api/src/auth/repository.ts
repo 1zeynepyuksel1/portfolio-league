@@ -341,3 +341,132 @@ export async function updateUserPasswordById(userId: string, passwordHash: strin
 
   return updated ?? null;
 }
+
+/**
+ * Google kimliğine (`sub`) bağlı kullanıcı.
+ *
+ * ⚠️ E-POSTAYLA DEĞİL `sub` İLE ARANIYOR. Kullanıcı Google hesabının
+ * e-postasını değiştirirse bağ kopmasın diye; `sub` Google'da kalıcı.
+ */
+export async function findUserByGoogleId(googleId: string) {
+  const [row] = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      username: users.username,
+      isEmailVerified: users.isEmailVerified,
+      bannedAt: users.bannedAt,
+      banReason: users.banReason,
+    })
+    .from(users)
+    .where(eq(users.googleId, googleId))
+    .limit(1);
+
+  return row ?? null;
+}
+
+/**
+ * Var olan hesabı bir Google kimliğine bağlar.
+ *
+ * ⚠️ YALNIZCA `google_id` BOŞKEN. Koşulsuz yazsaydık, aynı e-postaya
+ * sahip ikinci bir Google hesabı ilkinin bağını sessizce ezerdi ve ilk
+ * kullanıcı bir daha Google ile giremezdi. Koşul veritabanı seviyesinde
+ * (`isNull`), uygulama seviyesinde bir `if` değil: iki istek aynı anda
+ * gelirse `if` ikisini de geçirirdi.
+ */
+export async function linkGoogleId(userId: string, googleId: string) {
+  const [updated] = await db
+    .update(users)
+    .set({ googleId })
+    .where(and(eq(users.id, userId), isNull(users.googleId)))
+    .returning({ id: users.id });
+
+  return updated ?? null;
+}
+
+/**
+ * Google ile YENİ kullanıcı — şifresiz.
+ *
+ * ⚠️ `createUserWithAccount`'un kopyası DEĞİL, onu çağırıyor olmalıydı;
+ * çağıramıyor çünkü o fonksiyon `passwordHash` ve `verificationCode`
+ * zorunlu istiyor ve Google kullanıcısında ikisi de yok. Ortak parçayı
+ * (bakiye + hareket + snapshot) ayırmak daha temiz olurdu; şimdilik
+ * bilinçli bir tekrar — ve BURAYA YAZILI, çünkü fark edilmeyen
+ * kopyalar bu projede bulunan hataların en sık türü.
+ *
+ * ⚠️ `isEmailVerified: true` — Google zaten doğruladı ve biz bunu
+ * `verifyGoogleIdToken` içinde `email_verified` ile kontrol ettik.
+ * Kendi doğrulama kodumuzu göndermek kullanıcıyı ikinci kez uğraştırırdı.
+ */
+export async function createGoogleUser(input: {
+  email: string;
+  googleId: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  refreshTokenHash: string;
+  refreshTokenExpiresAt: Date;
+}) {
+  return db.transaction(async (transaction) => {
+    const [user] = await transaction
+      .insert(users)
+      .values({
+        email: input.email,
+        // ⚠️ Şifre YOK. `null` dürüst: bu hesabın şifre yolu yok.
+        passwordHash: null,
+        googleId: input.googleId,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        username: input.username,
+        isEmailVerified: true,
+      })
+      .returning({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        username: users.username,
+        isEmailVerified: users.isEmailVerified,
+      });
+
+    if (!user) throw new Error('Kullanıcı oluşturulamadı.');
+
+    await transaction.insert(accounts).values({ userId: user.id });
+    await transaction.insert(cashMovements).values({
+      userId: user.id,
+      kind: 'signup_bonus',
+      amountCents: 10000000n,
+    });
+    await transaction.insert(portfolioSnapshots).values({
+      userId: user.id,
+      totalValueCents: 10000000n,
+      reason: 'league',
+    });
+    await transaction.insert(refreshTokens).values({
+      userId: user.id,
+      tokenHash: input.refreshTokenHash,
+      expiresAt: input.refreshTokenExpiresAt,
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      isEmailVerified: user.isEmailVerified,
+      displayName: `${user.firstName} ${user.lastName}`,
+    };
+  });
+}
+
+/** Kullanıcı adı boşta mı — Google kaydında benzersiz ad üretmek için. */
+export async function isUsernameTaken(username: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1);
+
+  return row !== undefined;
+}

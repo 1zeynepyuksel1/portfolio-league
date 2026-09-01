@@ -6,6 +6,7 @@
 */
 import { Router, type Response } from 'express';
 import { requireAccessToken } from './middleware.js';
+import { GoogleAuthError, isGoogleEnabled } from './google.js';
 import { loginBodySchema } from './login.schema.js';
 import { refreshBodySchema } from './refresh.schema.js';
 import { registerBodySchema } from './register.schema.js';
@@ -21,6 +22,7 @@ import {
   EmailNotVerifiedError,
   InvalidCredentialsError,
   AccountBannedError,
+  loginWithGoogle,
   InvalidRefreshTokenError,
   InvalidVerificationCodeError,
   loginUser,
@@ -317,6 +319,65 @@ authRouter.post('/logout', async (request, response) => {
 
   Cevap doğrulanmadan hiçbir yazma yapılmıyor.
 */
+
+/**
+ * Google ile giriş / kayıt.
+ *
+ * ⚠️ İSTEMCİDEN GELEN TEK ŞEY `idToken`. Ad, e-posta, resim gibi hiçbir
+ * profil alanı KABUL EDİLMİYOR — hepsi Google'a doğrulatılan jetondan
+ * okunuyor. İstemcinin gönderdiği e-postaya güvenseydik, herhangi biri
+ * istediği hesaba girerdi.
+ *
+ * ⚠️ KENDİ JWT AUTH'UMUZ YERİNİ KORUYOR. Bu uç Google'ı doğruladıktan
+ * sonra BİZİM access/refresh token'ımızı üretiyor; uygulamanın geri
+ * kalanı Google'ı hiç bilmiyor. Google yalnızca bir GİRİŞ YOLU, kimlik
+ * sisteminin kendisi değil (docs/01-plan.md'deki kilitli karar böyle
+ * korunuyor).
+ */
+authRouter.post('/google', async (request, response) => {
+  if (!isGoogleEnabled()) {
+    /*
+      ⚠️ 501: "yapılandırılmamış" ile "reddedildi" ayrı şeyler.
+      400 dönseydik istemci jetonu hatalı sanıp tekrar denerdi.
+    */
+    return response.status(501).json({
+      error: {
+        code: 'GOOGLE_NOT_CONFIGURED',
+        message: 'Google girişi bu sunucuda yapılandırılmamış.',
+      },
+    });
+  }
+
+  const idToken = request.body?.idToken;
+
+  if (typeof idToken !== 'string' || idToken.trim() === '') {
+    return response.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'idToken gerekli.' },
+    });
+  }
+
+  try {
+    const result = await loginWithGoogle(idToken);
+    return response.status(200).json(result);
+  } catch (error) {
+    if (error instanceof GoogleAuthError) {
+      return response.status(401).json({
+        error: { code: 'GOOGLE_AUTH_FAILED', message: error.message },
+      });
+    }
+
+    if (error instanceof AccountBannedError) {
+      return response.status(403).json({
+        error: { code: 'ACCOUNT_BANNED', message: error.message },
+      });
+    }
+
+    logUnexpected('google-login', error);
+    return response.status(500).json({
+      error: { code: 'INTERNAL_ERROR', message: 'Google girişi başarısız.' },
+    });
+  }
+});
 
 authRouter.post('/forgot-password/question', async (request, response) => {
   const parsed = securityQuestionLookupSchema.safeParse(request.body);

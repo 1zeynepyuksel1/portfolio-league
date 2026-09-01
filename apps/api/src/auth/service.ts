@@ -11,6 +11,10 @@ import {
   rotateRefreshToken,
   updateVerificationCode,
   updateUserPasswordById,
+  findUserByGoogleId,
+  linkGoogleId,
+  createGoogleUser,
+  isUsernameTaken,
   findUserSecurity,
   updateSecurityQuestion,
 } from './repository.js';
@@ -23,6 +27,7 @@ import {
   type SetSecurityQuestionBody,
 } from './security-question.schema.js';
 import { hit } from '../lib/rate-limit.js';
+import { GoogleAuthError, verifyGoogleIdToken } from './google.js';
 
 /*
   ⚠️ SINIRLAR NEDEN FARKLI: iki ucun riski aynı değil.
@@ -460,4 +465,143 @@ export async function setSecurityQuestion(
   });
 
   if (!updated) throw new UserNotFoundError();
+}
+
+/**
+ * Google ile giriş / kayıt.
+ *
+ * ⚠️ EN ZOR KARAR BURADA: AYNI E-POSTAYLA ZATEN BİR HESAP VARSA NE OLACAK?
+ *
+ * Üç seçenek vardı:
+ *
+ *   a) Hata ver ("bu e-posta kayıtlı, şifreyle gir")
+ *      -> Kullanıcı Google düğmesine basar, reddedilir, şifresini
+ *         hatırlamaz ve sıfırlamaya gider. Kötü.
+ *
+ *   b) İkinci bir hesap aç
+ *      -> `email` UNIQUE olduğu için zaten imkânsız; olsaydı da kullanıcı
+ *         iki portföyle iki ayrı ligde yarışırdı.
+ *
+ *   c) OTOMATİK BAĞLA — seçilen yol.
+ *      Google e-postayı DOĞRULAMIŞ (`email_verified` kontrol edildi),
+ *      yani bu kişi gerçekten o adresin sahibi. Aynı adres = aynı insan.
+ *
+ * ⚠️ (c) ANCAK `email_verified` KONTROLÜYLE BİRLİKTE GÜVENLİ. O kontrol
+ * olmasaydı biri Google hesabına kurbanın adresini doğrulamadan ekleyip
+ * bizdeki hesabı ele geçirirdi. İki karar tek bir bütün: birini alıp
+ * diğerini atmak sistemi açar.
+ *
+ * ⚠️ BAĞLAMA YARIŞA KARŞI KORUNUYOR: `linkGoogleId` yalnızca `google_id`
+ * BOŞKEN yazıyor (veritabanı koşulu). Aynı anda iki istek gelse bile
+ * ikincisi bağ kuramaz.
+ */
+export async function loginWithGoogle(idToken: string) {
+  const kimlik = await verifyGoogleIdToken(idToken);
+
+  // 1) Bu Google hesabı zaten bağlı mı?
+  let user = await findUserByGoogleId(kimlik.sub);
+
+  // 2) Değilse, aynı e-postalı yerel hesabı bağla.
+  if (user === null) {
+    const mevcut = await findUserByEmail(kimlik.email);
+
+    if (mevcut) {
+      const baglandi = await linkGoogleId(mevcut.id, kimlik.sub);
+      if (baglandi === null) {
+        /*
+          ⚠️ Buraya düşmek "bu hesap BAŞKA bir Google hesabına bağlı"
+          demek. Sessizce giriş yaptırsaydık, A kişisi B'nin hesabına
+          girebilirdi.
+        */
+        throw new GoogleAuthError(
+          'Bu hesap farklı bir Google hesabına bağlı. Şifrenle giriş yap.',
+        );
+      }
+      user = await findUserByGoogleId(kimlik.sub);
+    }
+  }
+
+  // 3) Hâlâ yoksa yeni kullanıcı aç.
+  if (user === null) {
+    const refreshToken = createRefreshToken();
+    const yeni = await createGoogleUser({
+      email: kimlik.email,
+      googleId: kimlik.sub,
+      firstName: kimlik.firstName,
+      lastName: kimlik.lastName,
+      username: await benzersizKullaniciAdi(kimlik.email),
+      refreshTokenHash: refreshToken.tokenHash,
+      refreshTokenExpiresAt: refreshToken.expiresAt,
+    });
+
+    return {
+      user: {
+        id: yeni.id,
+        email: yeni.email,
+        displayName: yeni.displayName,
+        username: yeni.username,
+        isEmailVerified: true,
+      },
+      accessToken: await createAccessToken(yeni.id),
+      refreshToken: refreshToken.value,
+      isNewUser: true,
+    };
+  }
+
+  /*
+    ⚠️ BAN KONTROLÜ BURADA DA VAR. Yalnızca şifreli girişe koysaydık
+    banlı kullanıcı Google düğmesinden içeri girerdi — aynı kapının
+    ikinci anahtarı.
+  */
+  if (user.bannedAt !== null) {
+    throw new AccountBannedError(user.banReason);
+  }
+
+  const refreshToken = createRefreshToken();
+  await addRefreshToken({
+    userId: user.id,
+    tokenHash: refreshToken.tokenHash,
+    expiresAt: refreshToken.expiresAt,
+  });
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      displayName: `${user.firstName} ${user.lastName}`,
+      username: user.username,
+      isEmailVerified: true,
+    },
+    accessToken: await createAccessToken(user.id),
+    refreshToken: refreshToken.value,
+    isNewUser: false,
+  };
+}
+
+/**
+ * E-postadan benzersiz kullanıcı adı üretir.
+ *
+ * ⚠️ ÇAKIŞMA GERÇEK BİR İHTİMAL: `ahmet@gmail.com` ve `ahmet@outlook.com`
+ * aynı tabanı verir. `username` UNIQUE olduğu için ikinci kayıt
+ * veritabanı hatasıyla düşerdi ve kullanıcı sebebini anlamazdı.
+ *
+ * ⚠️ SONSUZ DÖNGÜ YOK: 20 denemeden sonra rastgele son ek. Döngüyü
+ * koşulsuz bırakmak, teorik olarak imkânsız bir durumda sunucuyu
+ * kilitlemek demektir.
+ */
+async function benzersizKullaniciAdi(email: string): Promise<string> {
+  const taban =
+    (email.split('@')[0] ?? 'kullanici')
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '')
+      .slice(0, 20) || 'kullanici';
+
+  if (!(await isUsernameTaken(taban))) return taban;
+
+  for (let i = 2; i <= 20; i++) {
+    const aday = `${taban}${i}`;
+    if (!(await isUsernameTaken(aday))) return aday;
+  }
+
+  return `${taban}${Math.random().toString(36).slice(2, 8)}`;
 }

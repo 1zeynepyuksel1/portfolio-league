@@ -26,6 +26,7 @@ import {
 import Svg, { Path, Polyline } from 'react-native-svg';
 import { checkEmail } from '../lib/validation';
 import { apiFetch, saveSession } from '../api/client';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { ChartBackground } from '../components/ChartBackground';
 import {
   Divider,
@@ -236,6 +237,40 @@ export function LoginScreen({ onLoginSuccess, onGoToRegister, onGoToForgotPasswo
               />
             </View>
 
+            {/*
+              ⚠️ GOOGLE, ŞİFRELİ GİRİŞİN ALTINDA — YERİ BİLİNÇLİ.
+
+              Üstte olsaydı varsayılan yol gibi görünürdü. Bu projede
+              kilitli karar "kendi JWT auth'umuz"; Google EK bir giriş
+              yolu, ana yol değil. Sıralama o kararı görünür kılıyor.
+
+              ⚠️ Ayırıcı ve düğme, düğme çizilmiyorsa hiç görünmüyor:
+              yapılandırma yoksa `GoogleSignInButton` `null` dönüyor ama
+              ayırıcı çizgi kendi başına kalırdı. Onu da aynı koşula
+              bağlamak yerine bileşenin kendisi karar veriyor —
+              koşulu iki yere yazmak, birinin unutulması demek.
+            */}
+            <View style={styles.ayiriciSatir}>
+              <View style={styles.ayiriciCizgi} />
+              <Text style={styles.ayiriciMetin}>veya</Text>
+              <View style={styles.ayiriciCizgi} />
+            </View>
+
+            <GoogleSignInButton
+              disabled={loading}
+              onError={setError}
+              onSuccess={async (res) => {
+                /*
+                  ⚠️ OTURUM AYNI YERE YAZILIYOR (`saveSession`). Google
+                  ile gelen de bizim access/refresh token'ımız; uygulamanın
+                  geri kalanı hangi yoldan girildiğini bilmiyor ve
+                  bilmemeli.
+                */
+                await saveSession(res.accessToken, res.refreshToken);
+                onLoginSuccess(res.user);
+              }}
+            />
+
             <Pressable
               onPress={onGoToForgotPassword}
               accessibilityRole="button"
@@ -295,6 +330,10 @@ export function LoginScreen({ onLoginSuccess, onGoToRegister, onGoToForgotPasswo
 }
 
 const styles = StyleSheet.create({
+  ayiriciSatir: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 18 },
+  ayiriciCizgi: { flex: 1, height: 1, backgroundColor: colors.border },
+  ayiriciMetin: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted },
+
   root: {
     flex: 1,
     backgroundColor: colors.surface,

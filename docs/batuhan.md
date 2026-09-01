@@ -13,6 +13,154 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 40. Altı istek, dört gerçek hata — 1 Eyl 2026
+
+**Değişti:** `0015` migration · `lib/rate-limit.ts` · `auth/google.ts` ·
+`auth/security-question.schema.ts` · `auth/{service,router,repository,middleware}.ts` ·
+`admin/{middleware,service,router,grant}.ts` · `leagues/{repository,service,router,cron.test}.ts` ·
+`profile/{repository,service}.ts` · `lib/champion.ts` ·
+`LeagueResultModal.tsx` · `AdminScreen.tsx` · `GoogleSignInButton.tsx` ·
+`ForgotPasswordScreen.tsx` · `ProfileScreen.tsx` · `TabBar.tsx` ·
+`DiscoveryScreen.tsx` · `LoginScreen.tsx` · `App.tsx`
+
+> Bu bölüm altı özellik isteğini anlatıyor ama asıl içeriği **istekleri
+> yaparken çıkan dört hata**. Sıra buna göre: önce hatalar.
+
+---
+
+#### 🔴 1. Şifre sıfırlama hesap ele geçirmeye açıktı
+
+`POST /auth/reset-password` `{ email, password }` alıyor ve şifreyi
+değiştiriyordu. `requireAccessToken` yok, jeton yok, eski şifre sorulmuyor.
+**Bir e-posta adresini bilen herkes o hesabı ele geçirebiliyordu.**
+
+⚠️ **VE 300 TEST YEŞİLDİ.** Eski test dosyası üç şey soruyordu — kullanıcı
+yoksa hata veriyor mu, yeni şifre eskisiyle aynıysa hata veriyor mu, şifreyi
+hash'leyip yazıyor mu. Üçü de doğruydu. Hiçbiri *"peki bu kişi hesabın
+sahibi mi?"* diye sormuyordu.
+
+**Test ancak sorduğu soruya cevap verir. Sorulmayan soru yeşil bir suitin
+arkasında yıllarca durur.**
+
+Çözüm iki adımlı akış: soruyu getir → cevapla + yeni şifreyi belirle.
+Kritik ayrıntılar:
+
+- Cevap `argon2` ile hash'leniyor — şifreyle aynı fonksiyon
+- `toLocaleLowerCase('tr')`: Türkçe'de `I` yerele göre `ı` ya da `i` olur.
+  Sabitlemeseydik aynı cevap sunucu yereline göre **farklı hash** üretirdi
+- **"Eski şifreyle aynı" kontrolü cevaptan SONRA.** Önce olsaydı uç bir
+  *şifre doğrulama* ucuna dönerdi: cevabı bilmeyen biri şifre deneyebilirdi
+- Güncelleme e-postayla değil **kullanıcı kimliğiyle**
+- Hız sınırı 5 deneme / 15 dk. Cevap uzayı birkaç yüz olan bir soru için bu
+  özelliğin süsü değil, **çalışmasının ön koşulu**
+- **Reddedilen deneme de sayılıyor** — yoksa sınır hiç kapanmazdı
+
+**Soru:** e-posta ile tek kullanıcılık kod, güvenlik sorusundan neden daha
+güvenli? Yine de neden bunu seçtik?
+
+---
+
+#### 🔴 2. Testler canlı ligi kapatıyordu
+
+`cron.test.ts` gerçek veritabanında `closeAndRotateLeague()` çağırıyordu.
+Her `npm test` yarışmayı mühürlüyor, herkesin derecesini yazıyor, yeni dönem
+açıyordu.
+
+```
+test öncesi : 76 dönem, 50 kapalı
+test sonrası: 77 dönem, 51 kapalı
+```
+
+Birikmiş hasar: **77 dönem, aynı hafta adı 25 kez**, katılımcılar 26 ayrı
+"açık" lige dağılmış (çoğunda 0 kişi).
+
+⚠️ **Yan etkisi olan bir fonksiyonu gerçek veriye karşı çalıştıran test,
+test değil bir MİGRASYON'dur.** Zararı testin kendisinde değil, çalıştıktan
+sonra geride bıraktığı durumda görünür — ve orada kimse aramaz.
+
+İkinci kaynak: `findCurrentOpenLeague` **`endsAt`'i hiç kontrol etmiyordu**.
+Bitmiş ama mühürlenmemiş dönem "şu anki açık lig" sayılıyor, sunucu açılışta
+onu kapatıp `endsAt + 1sn`'den yenisini açıyor — o da geçmişte doğuyor, yani
+zaten bitmiş. **Her yeniden başlatma bir dönem ekliyordu.**
+
+---
+
+#### 🔴 3. `origin/main` iki kez derlenmez hâlde
+
+Zeynep'in `FriendsScreen` commit'i JSX dengesizliğiyle geldi. Benim
+birleştirmem değil, dalın kendisi bozuktu (dosya olduğu gibi alınıp
+denendi). Ayrıca `mode` props tipinde tanımlıydı ama **parametrelerden
+alınmıyordu**; gövdede dört yerde okunuyordu.
+
+⚠️ Dengesizlik **tahminle değil sayarak** bulundu: `<View>` derinliği 318.
+satırda sıfırlanıyor, 319'daki kapanış fazla.
+
+⚠️ `mode`'a varsayılan verildi. Varsayılansız bırakılsaydı `undefined`
+olurdu, `mode !== 'profile'` yine `true` dönerdi ve davranış **kazara
+doğru** çıkardı. Niyeti kodda yazmayan doğruluk, ilk değişiklikte bozulur.
+
+---
+
+#### 🔴 4. Bugün Zeynep'le BEŞ kez aynı işi yaptık
+
+`0013` migration · `posts` düzeltmesi · logo+saat · `created_at` yazım
+hatası · `mode` düzeltmesi. Beşi de iki kez yapıldı, beşi de birleştirmede
+iş çıkardı.
+
+**Bu bir araç sorunu değil, iletişim sorunu.** Aynı dosyaya iki kişi
+dokunacaksa önce söylenmeli.
+
+---
+
+#### Özellikler
+
+**Admin paneli** — `requireAccessToken` + `requireAdmin` **router
+seviyesinde** (`adminRouter.use`): yarın eklenen uç otomatik korunuyor,
+unutmak mümkün değil.
+
+⚠️ **Rol token'dan değil veritabanından okunuyor.** Token'a gömseydik
+yöneticiliği alınan kişi token ömrü boyunca yönetici kalırdı.
+
+⚠️ **Ban kontrolü `requireAccessToken`'ın İÇİNDE.** Yalnızca girişte
+kontrol etseydik ban işe yaramazdı: elinde geçerli token olan kullanıcı
+devam ederdi. Doğrulandı — kurbanın **eski** token'ı ban'dan hemen sonra
+403 döndü.
+
+⚠️ Banlı kullanıcı **giriş de yapamıyor**. Önce yapabiliyordu (HTTP 200);
+token işe yaramıyordu ama uygulama içeri alıp her ekranda hata gösterirdi.
+Kontrol şifre doğrulandıktan **sonra** — önce olsaydı şifreyi bilmeyen biri
+de bir hesabın banlı olup olmadığını öğrenirdi.
+
+⚠️ **Yönetici atama ucu YOK**, betik var. Ele geçirilen yönetici hesabı
+kendine kalıcı arka kapı açamasın. **Bakiye düzenleme de yok** — lig
+adaleti tek tıkla biterdi.
+
+**Google girişi** — kilitli karar korunuyor: Google bir **giriş yolu**,
+kimlik sisteminin kendisi değil. Doğrulamadan sonra yine **bizim** JWT'imiz
+üretiliyor; uygulamanın geri kalanı Google'ı hiç bilmiyor.
+
+⚠️ **`aud` kontrolü en kritik satır.** Olmasaydı saldırgan KENDİ Google
+uygulamasında kurbana giriş yaptırır, aldığı jetonu bize gönderir ve
+hesaba girerdi — imza geçerli, kimlik gerçek, ama jeton bize ait değil.
+Mutasyonla sınandı: kontrol kaldırılınca test kırmızıya dönüyor.
+
+⚠️ Aynı e-postalı hesap **otomatik bağlanıyor** — ve bu ancak
+`email_verified` kontrolüyle birlikte güvenli. İkisi tek bir bütün.
+
+**Lig** — sekme Keşfet'e taşındı; `TabKey`'den çıkarılınca TypeScript
+`App.tsx`'teki ölü dalı gösterdi. Kral tacı yalnızca **son kapanan** ligin
+birincisinde (açık ligin lideri her gün değişir). Kutlamanın "görüldü"
+bilgisi **sunucuda**; işaretleme **kapatırken** yapılıyor, açılırken değil —
+açılışta işaretleseydik çökme durumunda kullanıcı kazandığını hiç
+öğrenemezdi.
+
+---
+
+**Soru:** Bu bölümdeki dört hatanın ortak yanı ne? (İpucu: dördü de
+"çalışıyor" görünüyordu.)
+
+---
+
 ### 39. Logolar ve 3 saatlik zaman kayması — 1 Eyl 2026
 
 **Değişti:** `lib/pg-time.ts` (yeni) · `lib/pg-time.test.ts` (yeni, 5 test) ·
