@@ -1,6 +1,6 @@
 {
-  "id": "91716d4e-8494-43e4-860d-cfd7903685f6",
-  "prevId": "2e0b304a-ed16-4b5a-b501-746e20ed7e90",
+  "id": "501048de-00de-4079-b0ba-8aefa8b7b25e",
+  "prevId": "91716d4e-8494-43e4-860d-cfd7903685f6",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1349,6 +1349,13 @@
           "notNull": true,
           "default": true
         },
+        "allocation_visibility": {
+          "name": "allocation_visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'private'"
+        },
         "avatar_seed": {
           "name": "avatar_seed",
           "type": "text",
@@ -1529,87 +1536,6 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
-    },
-    "public.posts": {
-      "name": "posts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "post_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scope": {
-          "name": "scope",
-          "type": "post_scope",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payload": {
-          "name": "payload",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "caption": {
-          "name": "caption",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "visibility": {
-          "name": "visibility",
-          "type": "post_visibility",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'public'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "posts_user_id_users_id_fk": {
-          "name": "posts_user_id_users_id_fk",
-          "tableFrom": "posts",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -1702,31 +1628,6 @@
         "avatar_frame",
         "badge",
         "none"
-      ]
-    },
-    "public.post_scope": {
-      "name": "post_scope",
-      "schema": "public",
-      "values": [
-        "single_asset",
-        "portfolio"
-      ]
-    },
-    "public.post_type": {
-      "name": "post_type",
-      "schema": "public",
-      "values": [
-        "pnl_share",
-        "wheel_share",
-        "horoscope_share"
-      ]
-    },
-    "public.post_visibility": {
-      "name": "post_visibility",
-      "schema": "public",
-      "values": [
-        "public",
-        "friends_only"
       ]
     }
   },

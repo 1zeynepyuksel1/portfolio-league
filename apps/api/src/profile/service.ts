@@ -59,6 +59,7 @@ export type PublicProfile = {
   isFriend: boolean;
   /** Bu profilin herkese açık olup olmadığı — ayar ekranı bunu okuyor. */
   isPublic: boolean;
+  allocationVisibility: string;
   /**
    * Detay görülebiliyor mu.
    *
@@ -121,6 +122,7 @@ function canSee(input: {
   isSelf: boolean;
   isFriend: boolean;
   isPublic: boolean;
+  allocationVisibility: string;
 }): boolean {
   return input.isSelf || input.isFriend || input.isPublic;
 }
@@ -147,6 +149,7 @@ export async function getPublicProfile(
     isSelf,
     isFriend,
     isPublic: owner.isPublic,
+    allocationVisibility: owner.allocationVisibility,
   };
 
   // ⚠️ Yalnızca kendi profilinde sayılıyor: başkasının arkadaş sayısı
@@ -230,7 +233,7 @@ export async function getPublicProfile(
     rank: entry?.rank ?? null,
     totalParticipants,
     achievementsCount: achCount.length,
-    allocation: isSelf ? allocation : [],
+    allocation: (isSelf || owner.allocationVisibility === 'public' || (owner.allocationVisibility === 'friends' && isFriend)) ? allocation : [],
     pending,
     friendCount,
     pendingRequests,

@@ -25,7 +25,7 @@ meRouter.get('/', requireAccessToken, async (_request, response) => {
 
 meRouter.patch('/', requireAccessToken, async (request, response) => {
   const userId = response.locals.userId as string;
-  const { firstName, lastName, username, isPublic } = request.body;
+  const { firstName, lastName, username, isPublic, allocationVisibility } = request.body;
 
   const updateFields: Record<string, any> = {};
 
@@ -105,6 +105,19 @@ meRouter.patch('/', requireAccessToken, async (request, response) => {
     }
     updateFields.isPublic = isPublic;
   }
+
+  if (allocationVisibility !== undefined) {
+    if (!['private', 'friends', 'public'].includes(allocationVisibility)) {
+      return response.status(400).json({
+        error: {
+          code: 'INVALID_INPUT',
+          message: 'Geçersiz görünürlük ayarı.',
+        },
+      });
+    }
+    updateFields.allocationVisibility = allocationVisibility;
+  }
+
 
   if (Object.keys(updateFields).length === 0) {
     return response.status(400).json({

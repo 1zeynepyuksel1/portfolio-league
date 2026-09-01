@@ -26,7 +26,7 @@ const getAssetColor = (index: number) => ASSET_COLORS[index % ASSET_COLORS.lengt
 type ProfileSlice = { symbol: string; name: string; sharePercent: string | null; profitPercent: string | null; };
 type PublicProfile = {
   username: string; firstName: string; lastName: string; avatarSeed?: string | null; avatarStyle?: string | null;
-  isSelf: boolean; isFriend: boolean; isPublic: boolean; visible: boolean;
+  isSelf: boolean; isFriend: boolean; isPublic: boolean; allocationVisibility?: string; visible: boolean;
   twrPercent: string | null; rank: number | null; totalParticipants: number | null;
   achievementsCount?: number; allocation: ProfileSlice[]; pending: 'outgoing' | 'incoming' | null;
   friendCount: number; pendingRequests: number;
@@ -49,6 +49,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   const [editLastName, setEditLastName] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editIsPublic, setEditIsPublic] = useState(true);
+    const [editAlloc, setEditAlloc] = useState('private');
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -80,7 +81,8 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
     try {
       const res = await apiFetch<{ profile: PublicProfile }>(`/users/${username}`);
       setProfile(res.profile); 
-      setEditIsPublic(res.profile.isPublic); 
+      setEditIsPublic(res.profile.isPublic);
+        setEditAlloc(res.profile.allocationVisibility || 'private'); 
       setEditFirstName(res.profile.firstName); 
       setEditLastName(res.profile.lastName);
 
@@ -103,7 +105,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   const handleSaveSettings = async () => {
     setSavingSettings(true); setSettingsError('');
     try {
-      await apiFetch('/users/me', { method: 'PATCH', body: JSON.stringify({ firstName: editFirstName, lastName: editLastName, password: editPassword ? editPassword : undefined }) });
+      await apiFetch('/users/me', { method: 'PATCH', body: JSON.stringify({ firstName: editFirstName, lastName: editLastName, password: editPassword ? editPassword : undefined, allocationVisibility: editAlloc }) });
       if (editIsPublic !== profile?.isPublic) { await apiFetch('/users/me/visibility', { method: 'PATCH', body: JSON.stringify({ isPublic: editIsPublic }) }); }
       await load(); setShowSettings(false); setEditPassword('');
     } catch (err) { setSettingsError(err instanceof Error ? err.message : 'Ayarlar kaydedilemedi.'); } finally { setSavingSettings(false); }
@@ -341,7 +343,24 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted, marginTop: 4 }}>Kapalı olduğunda sadece arkadaşların görebilir.</Text>
               </View>
               <Switch value={editIsPublic} onValueChange={setEditIsPublic} trackColor={{ false: colors.surfacePressed, true: colors.accent }} />
-            </View>
+              </View>
+
+              <View style={{ marginTop: 24, marginBottom: 32 }}>
+                <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink }}>Varlık Dağılımı (Portföy) Kimlere Görünsün?</Text>
+                <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted, marginTop: 4, marginBottom: 12 }}>Cüzdanındaki hisse ve coin dağılımını (yüzdelerini) kimlerin görebileceğini seç.</Text>
+                <View style={{ flexDirection: 'row', backgroundColor: colors.surfacePressed, borderRadius: 8, padding: 4 }}>
+                  <TouchableOpacity onPress={() => setEditAlloc('private')} style={{ flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: editAlloc === 'private' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'private' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'private' ? 2 : 0 }}>
+                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: editAlloc === 'private' ? colors.ink : colors.inkMuted }}>Hiç Kimse</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setEditAlloc('friends')} style={{ flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: editAlloc === 'friends' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'friends' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'friends' ? 2 : 0 }}>
+                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: editAlloc === 'friends' ? colors.ink : colors.inkMuted }}>Arkadaşlar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setEditAlloc('public')} style={{ flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: editAlloc === 'public' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'public' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'public' ? 2 : 0 }}>
+                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: editAlloc === 'public' ? colors.ink : colors.inkMuted }}>Herkes</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
 
             {settingsError ? <Text style={{ color: colors.loss, marginBottom: 16, textAlign: 'center' }}>{settingsError}</Text> : null}
             <TouchableOpacity onPress={handleSaveSettings} disabled={savingSettings} style={{ backgroundColor: colors.accent, padding: 16, borderRadius: 12, alignItems: 'center' }}>
