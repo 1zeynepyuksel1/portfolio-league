@@ -210,7 +210,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
             <Text style={[styles.modernPnlValue, { color: isDisplayPositive ? colors.gain : colors.loss }]}>{displayValue}</Text>
             {isPnl && (
               <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 6 }}>
-                {payload.is_market ? `Son 24 Saat — ${tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}` : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} — ${tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}` : '')}
+                {payload.is_market ? `Son 24 Saat — ${tarihSaat(payload.snapshot_date || post.createdAt) || 'Bugün'}` : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} — ${tarihSaat(payload.snapshot_date || post.createdAt) || 'Bugün'}` : '')}
               </Text>
             )}
           </View>
@@ -250,7 +250,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{buyDateStr}</Text>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>➔</Text>
-                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}</Text>
+                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{tarihSaat(payload.snapshot_date || post.createdAt) || 'Bugün'}</Text>
                     </View>
                   </View>
                 </View>
