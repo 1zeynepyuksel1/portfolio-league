@@ -5,6 +5,7 @@ import { Platform, DeviceEventEmitter } from 'react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 import { formatCents } from '../lib/format';
+import { AssetBadge } from './DesignKit';
 import { Globe, Users, TrendingUp, TrendingDown, Heart, MessageSquare, MoreVertical, Trash2, Edit2, Pin, AlertTriangle, EyeOff } from 'lucide-react-native';
 import { createAvatar } from '@dicebear/core';
 import { shapes } from '@dicebear/collection';
@@ -196,11 +197,11 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
           {payload.positions.map((pos: any, idx: number) => {
             const posCents = BigInt(pos.pnl_amount || '0');
             const posIsPos = posCents >= 0n;
-            const buyDateStr = pos.buy_date ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(pos.buy_date)) : 'Geçmiş';
+            const buyDateStr = pos.buy_date ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(pos.buy_date)) : 'Geçmiş';
             return (
               <View key={pos.symbol || idx} style={styles.positionRow}>
                 <View style={styles.positionLeft}>
-                  {pos.icon_url ? <Image source={{ uri: pos.icon_url }} style={{ width: 36, height: 36, borderRadius: 8 }} /> : <View style={styles.positionIcon}><Text style={styles.positionIconText}>{pos.symbol?.slice(0,2)}</Text></View>}
+                  <AssetBadge symbol={pos.symbol} />
                   <View>
                     <Text style={styles.positionName}>{pos.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
