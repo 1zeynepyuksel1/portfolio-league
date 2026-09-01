@@ -5,7 +5,7 @@ import { Platform, DeviceEventEmitter } from 'react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 import { formatCents } from '../lib/format';
-import { Globe, Users, TrendingUp, TrendingDown, Heart, MessageSquare, MoreVertical, Trash2, Edit2, Pin, AlertTriangle, EyeOff } from 'lucide-react-native';
+import { Globe, Users, TrendingUp, TrendingDown, Heart, MessageSquare, MoreVertical, Trash2, Edit2, Pin, AlertTriangle, EyeOff, ShieldCheck, Ban } from 'lucide-react-native';
 import { createAvatar } from '@dicebear/core';
 import { shapes } from '@dicebear/collection';
 import { SvgXml } from 'react-native-svg';
@@ -25,6 +25,8 @@ const shapeColors = ["ffffff"];
 
 type Props = {
   currentUserId?: string;
+  /** Görüntüleyen kişi yönetici mi — moderasyon seçenekleri buna göre çiziliyor. */
+  isAdmin?: boolean;
   onPressUser?: (username: string) => void;
   post: any;
   user?: any;
@@ -108,8 +110,11 @@ function timeAgo(dateString: string) {
   return new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(date);
 }
 
-export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: Props) {
+export function PostCard({ post, user, isPreview, onPressUser, currentUserId, isAdmin }: Props) {
   const [menuVisible, setMenuVisible] = useState(false);
+  const [isBanning, setIsBanning] = useState(false);
+  const [isConfirmingAdminDelete, setIsConfirmingAdminDelete] = useState(false);
+  const [banReason, setBanReason] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -155,6 +160,61 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
       setDeleted(true);
     } catch (e) {}
     setMenuVisible(false);
+  };
+
+  /*
+    ⚠️ YÖNETİCİ SİLME AYRI BİR UÇ KULLANIYOR — ve bu bilinçli.
+
+    `DELETE /posts/:id` sahiplik arıyor (`userId` eşleşmeli) ve öyle
+    kalmalı: normal kullanıcı yalnızca kendi gönderisini silebilmeli.
+    Yönetici için `DELETE /admin/posts/:id` var.
+
+    Aynı uca "sahipliği atla" bayrağı eklemek daha az kod olurdu ama o
+    bayrağın bir gün yanlışlıkla `true` geçilmesi demektir. İki ayrı uç,
+    iki ayrı yetki — karıştırılamaz.
+  */
+  const handleAdminDelete = async () => {
+    setIsUpdating(true);
+    try {
+      await apiFetch('/admin/posts/' + post.id, { method: 'DELETE' });
+      setDeleted(true);
+    } catch (e) {
+      Alert.alert('Hata', e instanceof Error ? e.message : 'Gönderi silinemedi.');
+    }
+    setIsUpdating(false);
+    setMenuVisible(false);
+  };
+
+  /**
+   * Gönderi sahibini banlar — sebep soruluyor.
+   *
+   * ⚠️ `Alert.prompt` YALNIZCA iOS'ta var. Android ve web'de sessizce
+   * hiçbir şey yapmaz; kullanıcı düğmeye basar, bir şey olmaz ve sebebi
+   * anlaşılmaz. Bu yüzden sebep kendi modal'ımızla soruluyor.
+   */
+  const handleAdminBan = () => {
+    setMenuVisible(false);
+    setBanReason('');
+    setIsBanning(true);
+  };
+
+  const submitBan = async () => {
+    if (banReason.trim().length < 3) {
+      Alert.alert('Eksik', 'Ban sebebi yazmalısın.');
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      await apiFetch('/admin/users/' + post.userId + '/ban', {
+        method: 'POST',
+        body: JSON.stringify({ reason: banReason.trim() }),
+      });
+      setIsBanning(false);
+      Alert.alert('Tamam', '@' + (user?.username ?? 'kullanıcı') + ' banlandı.');
+    } catch (e) {
+      Alert.alert('Hata', e instanceof Error ? e.message : 'Banlanamadı.');
+    }
+    setIsUpdating(false);
   };
 
   const handleVisibility = async (newVis: string) => {
@@ -454,10 +514,94 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
                   <AlertTriangle size={20} color={colors.loss} />
                   <Text style={[styles.menuText, { color: colors.loss }]}>Şikayet Et (Yakında)</Text>
                 </TouchableOpacity>
+
+                {/*
+                  ⚠️ YÖNETİCİ BÖLÜMÜ AYRI BİR BAŞLIK ALTINDA — kazayla
+                  basılmasın diye. Sıradan seçeneklerle aynı listede
+                  dursaydı "Gizle" ile "Sil" yan yana gelirdi; biri
+                  geri alınabilir, diğeri kalıcı.
+
+                  ⚠️ Bu blok bir YETKİ DEĞİL. `isAdmin` yalnızca çizim
+                  kararı; gerçek kontrol `/admin/*` uçlarındaki
+                  `requireAdmin`. Kodu değiştirip burayı açan biri de
+                  sunucudan 403 alır.
+                */}
+                {isAdmin === true && (
+                  <>
+                    <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <ShieldCheck size={14} color={colors.accent} />
+                      <Text style={{ fontFamily: fonts.bold, fontSize: 11, color: colors.accent, letterSpacing: 0.5 }}>YÖNETİCİ</Text>
+                    </View>
+                    <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); setIsConfirmingAdminDelete(true); }} disabled={isUpdating}>
+                      <Trash2 size={20} color={colors.loss} />
+                      <Text style={[styles.menuText, { color: colors.loss }]}>Gönderiyi Sil</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.menuItem} onPress={handleAdminBan} disabled={isUpdating}>
+                      <Ban size={20} color={colors.loss} />
+                      <Text style={[styles.menuText, { color: colors.loss }]}>@{user?.username ?? 'kullanıcı'} kişisini banla</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </>
             )}
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/*
+        ⚠️ YÖNETİCİ SİLME ONAYI AYRI. Sahibin kendi silme onayından farklı
+        bir metin gösteriyor: yönetici BAŞKASININ içeriğini siliyor ve
+        bunun kimin gönderisi olduğunu görmesi gerekiyor.
+      */}
+      <Modal visible={isConfirmingAdminDelete} transparent animationType="fade" onRequestClose={() => setIsConfirmingAdminDelete(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.menuCard}>
+            <Trash2 size={28} color={colors.loss} style={{ alignSelf: 'center', marginBottom: 12 }} />
+            <Text style={styles.menuTitle}>Gönderiyi sil</Text>
+            <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted, textAlign: 'center', marginBottom: 16 }}>
+              @{user?.username ?? 'kullanıcı'} adlı kişinin gönderisi kalıcı olarak silinecek. Bu işlem geri alınamaz.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.surfacePressed, borderRadius: 12 }]} onPress={() => setIsConfirmingAdminDelete(false)}>
+                <Text style={styles.menuText}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.loss, borderRadius: 12 }]} onPress={() => { setIsConfirmingAdminDelete(false); void handleAdminDelete(); }}>
+                <Text style={[styles.menuText, { color: '#FFF' }]}>Sil</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isBanning} transparent animationType="fade" onRequestClose={() => setIsBanning(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.menuCard}>
+            <Ban size={28} color={colors.loss} style={{ alignSelf: 'center', marginBottom: 12 }} />
+            <Text style={styles.menuTitle}>@{user?.username ?? 'kullanıcı'} banlanacak</Text>
+            {/*
+              ⚠️ Sebep kullanıcıya gösteriliyor: sebepsiz ban, itiraz
+              edilemeyen bir bandır. Sunucu da boş sebebi reddediyor.
+            */}
+            <TextInput
+              style={{ backgroundColor: colors.surfacePressed, borderRadius: 12, padding: 14, color: colors.ink, fontFamily: fonts.regular, minHeight: 72, textAlignVertical: 'top', marginBottom: 14 }}
+              value={banReason}
+              onChangeText={setBanReason}
+              placeholder="Ban sebebi"
+              placeholderTextColor={colors.inkMuted}
+              multiline
+              maxLength={280}
+            />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.surfacePressed, borderRadius: 12 }]} onPress={() => setIsBanning(false)}>
+                <Text style={styles.menuText}>Vazgeç</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.menuItem, { flex: 1, justifyContent: 'center', backgroundColor: colors.loss, borderRadius: 12 }]} onPress={() => void submitBan()} disabled={isUpdating}>
+                <Text style={[styles.menuText, { color: '#FFF' }]}>{isUpdating ? 'Banlanıyor…' : 'Banla'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       {/* CUSTOM DELETE CONFIRMATION MODAL */}

@@ -126,6 +126,29 @@ async function refreshAccessToken(): Promise<boolean> {
 export async function clearSession(): Promise<void> {
   currentAccessToken = null;
   currentRefreshToken = null;
+  /*
+    ⚠️ "BEN KİMİM" ÖNBELLEĞİ DE TEMİZLENİYOR.
+
+    `lib/me.ts` kullanıcının rolünü modül seviyesinde saklıyor. Çıkışta
+    temizlenmeseydi, yönetici çıkıp normal bir kullanıcı girdiğinde arayüz
+    yönetici seçeneklerini göstermeye devam ederdi. Sunucu 403 döndüğü
+    için güvenlik açığı değil — ama kafa karıştıran ve sebebi bulunması
+    zor bir hata.
+  */
+  /*
+    ⚠️ TEMBEL IMPORT (`await import`) — DAİRESEL BAĞIMLILIĞI KIRIYOR.
+
+    `lib/me.ts` buradan `apiFetch` alıyor. Yukarıya statik bir
+    `import { clearMe } from '../lib/me'` koysaydık iki modül birbirini
+    import ederdi. Bu döngü çoğu zaman çalışır ama modül yükleme sırasına
+    bağlıdır: paketleyici sırayı değiştirdiği gün biri `undefined` olur ve
+    hata çalışma anında, alakasız bir yerde patlar.
+
+    Tembel import bağı çağrı anına erteliyor; o an her iki modül de
+    yüklenmiş oluyor.
+  */
+  const { clearMe } = await import('../lib/me');
+  clearMe();
   await clearTokens();
 }
 

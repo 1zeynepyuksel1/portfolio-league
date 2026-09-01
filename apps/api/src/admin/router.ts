@@ -5,6 +5,7 @@ import {
   AdminTargetError,
   adminDeletePost,
   banUser,
+  findUserIdByUsername,
   getAdminStats,
   listBannedUsers,
   listRecentPosts,
@@ -70,6 +71,40 @@ adminRouter.post('/users/:id/ban', async (req: Request, res: Response) => {
 adminRouter.post('/users/:id/unban', async (req: Request, res: Response) => {
   try {
     await unbanUser(req.params.id as string);
+    return res.json({ success: true });
+  } catch (err) {
+    return hata(err, res);
+  }
+});
+
+/*
+  ⚠️ KULLANICI ADIYLA BAN — kimlikle olanın YANINDA, yerine değil.
+
+  Yönetim paneli kimlikle çalışıyor (listede zaten var). Profil ekranı
+  ise başkasının kimliğini bilmiyor ve bilmemeli. İki giriş, tek
+  uygulama: ikisi de `banUser`'a düşüyor, kurallar (kendini banlama,
+  yöneticiyi banlama, sebep zorunlu) tek yerde kalıyor.
+*/
+adminRouter.post('/users/by-username/:username/ban', async (req: Request, res: Response) => {
+  try {
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason : '';
+    if (reason.trim().length < 3) {
+      return res.status(400).json({
+        error: { code: 'REASON_REQUIRED', message: 'Ban sebebi yazmalısın.' },
+      });
+    }
+    const targetId = await findUserIdByUsername(req.params.username as string);
+    await banUser(res.locals.userId as string, targetId, reason);
+    return res.json({ success: true });
+  } catch (err) {
+    return hata(err, res);
+  }
+});
+
+adminRouter.post('/users/by-username/:username/unban', async (req: Request, res: Response) => {
+  try {
+    const targetId = await findUserIdByUsername(req.params.username as string);
+    await unbanUser(targetId);
     return res.json({ success: true });
   } catch (err) {
     return hata(err, res);

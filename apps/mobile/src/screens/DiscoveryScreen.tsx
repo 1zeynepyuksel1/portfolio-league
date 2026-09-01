@@ -7,6 +7,7 @@ import { ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 
 import { Heart, MessageSquare, TrendingUp, TrendingDown, Gift, Plus } from 'lucide-react-native';
 import { GlobalShareMenu } from '../components/GlobalShareMenu';
+import { getMe } from '../lib/me';
 import { WhatIfScreen } from './WhatIfScreen';
 import { FriendsScreen } from './FriendsScreen';
 import { LeaderboardScreen } from './LeaderboardScreen';
@@ -75,6 +76,16 @@ export function DiscoveryScreen({ onSelectUser, currentUser, onOpenFriends }: { 
 function FeedTab({ onSelectUser, currentUser }: { onSelectUser?: (username: string) => void; currentUser?: any }) {
   
   const [posts, setPosts] = React.useState<any[]>([]);
+  /*
+    ⚠️ ROL BURADA BİR KEZ OKUNUYOR, HER KARTTA DEĞİL.
+
+    `lib/me.ts` modül seviyesinde önbellekli; yine de isteği akışın
+    kendisi atıyor ve sonucu kartlara PROP olarak geçiyor. Her kart
+    kendi `getMe()`'sini çağırsaydı önbellek yüzünden ağ isteği tek
+    kalırdı ama her kart gereksiz bir `useEffect` ve render turu daha
+    yaşardı.
+  */
+  const [isAdmin, setIsAdmin] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -93,6 +104,7 @@ function FeedTab({ onSelectUser, currentUser }: { onSelectUser?: (username: stri
 
   React.useEffect(() => {
     loadFeed();
+    void getMe().then((me) => setIsAdmin(me?.role === 'admin'));
   }, []);
 
   if (loading) {
@@ -118,6 +130,7 @@ function FeedTab({ onSelectUser, currentUser }: { onSelectUser?: (username: stri
           user={item.user || { username: 'Gizli Kullanıcı', avatarStyle: 'shapes', avatarSeed: 'default' }} 
             isPreview={false}
             currentUserId={currentUser?.id}
+            isAdmin={isAdmin}
             onPressUser={onSelectUser} 
         />
       )}

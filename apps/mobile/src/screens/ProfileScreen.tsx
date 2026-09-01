@@ -4,7 +4,8 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Switch, Text
 import Svg, { Path, Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
 import { apiFetch } from '../api/client';
 import { getChampion, isChampion } from '../lib/champion';
-import { Crown, ShieldCheck } from 'lucide-react-native';
+import { getMe } from '../lib/me';
+import { Crown, ShieldCheck, Ban } from 'lucide-react-native';
 import { AdminScreen } from './AdminScreen';
 import { colors, fonts } from '../theme';
 import { TrendingUp, TrendingDown, Trophy, Award, Users, Lock, Settings, ChevronRight, X, User, Check } from 'lucide-react-native';
@@ -55,6 +56,19 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
     `/admin/*` uçları 403 döner — yetki sunucuda.
   */
   const [showAdmin, setShowAdmin] = useState(false);
+  /*
+    ⚠️ `profile.role` BAŞKASININ PROFİLİNDE HER ZAMAN 'user' — sunucu
+    rolü yalnızca kendi profilinde gönderiyor (kim yönetici bilgisini
+    sızdırmamak için). Bu yüzden "BEN yönetici miyim" ayrı okunuyor.
+
+    İkisini karıştırmak kolay bir hata olurdu: `profile.role` başkasının
+    profilinde bakılınca hep 'user' döneceği için ban düğmesi HİÇ
+    görünmezdi ve sebebi anlaşılmazdı.
+  */
+  const [amAdmin, setAmAdmin] = useState(false);
+  const [banOpen, setBanOpen] = useState(false);
+  const [banReason, setBanReason] = useState('');
+  const [banBusy, setBanBusy] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState<string | null>(null);
@@ -142,6 +156,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   */
   useEffect(() => {
     void getChampion().then(setChampion);
+    void getMe().then((me) => setAmAdmin(me?.role === 'admin'));
   }, []);
 
   useEffect(() => {
@@ -171,6 +186,19 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
       }
       await load(); setShowSettings(false); setEditPassword('');
     } catch (err) { setSettingsError(err instanceof Error ? err.message : 'Ayarlar kaydedilemedi.'); } finally { setSavingSettings(false); }
+  };
+
+  const submitBan = async () => {
+    if (banReason.trim().length < 3) { showToast('Ban sebebi yazmalısın', 'error'); return; }
+    setBanBusy(true);
+    try {
+      await apiFetch(`/admin/users/by-username/${profile?.username}/ban`, { method: 'POST', body: JSON.stringify({ reason: banReason.trim() }) });
+      setBanOpen(false); setBanReason('');
+      showToast('@' + profile?.username + ' banlandı');
+      await load();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Banlanamadı', 'error');
+    } finally { setBanBusy(false); }
   };
 
   const handleFriendAction = async () => {
@@ -293,9 +321,53 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                   </Text>
                 </TouchableOpacity>
               )}
+
+              {/*
+                ⚠️ BAN DÜĞMESİ ARKADAŞ DÜĞMESİNİN ALTINDA, YANINDA DEĞİL.
+                Yan yana olsaydı "Arkadaş Ekle" ile "Banla" bir dokunuş
+                mesafesinde dururdu; biri geri alınabilir, diğeri kişiyi
+                uygulamadan atıyor.
+              */}
+              {amAdmin && !profile.isSelf && (
+                <TouchableOpacity
+                  onPress={() => { setBanReason(''); setBanOpen(true); }}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.loss, backgroundColor: 'rgba(239, 68, 68, 0.08)' }}
+                >
+                  <Ban size={14} color={colors.loss} style={{ marginRight: 6 }} />
+                  <Text style={{ fontFamily: fonts.bold, color: colors.loss, fontSize: 12 }}>Banla</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
+
+        <Modal visible={banOpen} transparent animationType="fade" onRequestClose={() => setBanOpen(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.border }}>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 6 }}>@{profile.username} banlanacak</Text>
+              <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted, marginBottom: 14 }}>
+                Sebep kullanıcıya gösterilir. Elindeki oturum anında geçersiz olur.
+              </Text>
+              <TextInput
+                style={{ backgroundColor: colors.surfacePressed, borderRadius: 12, padding: 14, color: colors.ink, fontFamily: fonts.regular, minHeight: 72, textAlignVertical: 'top', marginBottom: 16 }}
+                value={banReason}
+                onChangeText={setBanReason}
+                placeholder="Ban sebebi"
+                placeholderTextColor={colors.inkMuted}
+                multiline
+                maxLength={280}
+              />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.surfacePressed }} onPress={() => setBanOpen(false)}>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.ink }}>Vazgeç</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center', backgroundColor: colors.loss }} onPress={() => void submitBan()} disabled={banBusy}>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: '#FFF' }}>{banBusy ? 'Banlanıyor…' : 'Banla'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {!profile.visible ? (
           <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 40, paddingVertical: 40, backgroundColor: colors.surfaceRaised, borderRadius: 16 }}>

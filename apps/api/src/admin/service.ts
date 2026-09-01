@@ -114,6 +114,29 @@ export async function unbanUser(targetId: string) {
     .where(eq(users.id, targetId));
 }
 
+/**
+ * Kullanıcı adından kimlik.
+ *
+ * ⚠️ NEDEN GEREKLİ: profil ekranı BAŞKASININ kimliğini bilmiyor.
+ * `getPublicProfile` bilerek `id` döndürmüyor — dışarı sızması gereken
+ * bir alan değil. Yönetici profilden banlarken elinde yalnızca kullanıcı
+ * adı var.
+ *
+ * ⚠️ ÇÖZÜM "profile id ekle" DEĞİL. Öyle yapsaydık HER kullanıcının
+ * kimliği herkese açık bir uçtan dağılırdı; oysa yalnızca yöneticinin
+ * ihtiyacı var. Çeviriyi yetkili tarafta yapmak yüzeyi büyütmüyor.
+ */
+export async function findUserIdByUsername(username: string): Promise<string> {
+  const [row] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1);
+
+  if (row === undefined) throw new AdminTargetError('Kullanıcı bulunamadı.');
+  return row.id;
+}
+
 /** Banlı kullanıcılar — panelin ilk açılışında gösterilen liste. */
 export async function listBannedUsers() {
   return db
