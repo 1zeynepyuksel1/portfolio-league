@@ -146,6 +146,17 @@ export async function getRecentOrders(
     netCents: bigint;
     executedAt: Date;
     /**
+     * Satırın NEREDEN geldiği — 'order' gerçek emir, 'bonus' günlük giriş.
+     *
+     * ⚠️ BU ALAN BİR HATANIN ÜSTÜNE EKLENDİ. Bonus satırları emir gibi
+     * biçimlendiriliyor ve `behavior/service.ts` onları ayıklamak zorunda
+     * (yapay zekâ bir bonusu "kullanıcının kararı" sanmasın diye).
+     * Ayıklama SEMBOL METNİNE bakıyordu; etiket değişince sessizce
+     * bozuldu. `source` yapısal: adlandırma değişse de bozulmaz, alan
+     * adı değişirse TypeScript söyler.
+     */
+    source: 'order' | 'bonus';
+    /**
      * Kullanıcının emri verirken yazdığı gerekçe. Boş bırakılabilir.
      *
      * ⚠️ KOLON BAŞTAN BERİ VARDI AMA SEÇİLMİYORDU — yani veri yazılıyor,
@@ -170,7 +181,7 @@ export async function getRecentOrders(
     ⚠️ HER İKİSİ DE `limit` KADAR ÇEKİLİYOR, SONRA BİRLEŞTİRİLİP TEKRAR
     KIRPILIYOR. Sebebi: hangisinin daha yeni olduğunu önceden
     bilemiyoruz. Yarısını birinden yarısını ötekinden alsaydık, çok emir
-    verip hiç çark çevirmemiş bir kullanıcının listesi eksik kalırdı.
+    verip hiç günlük bonus almamış bir kullanıcının listesi eksik kalırdı.
   */
   const [dbOrders, dbMovements] = await Promise.all([
     db
@@ -207,12 +218,47 @@ export async function getRecentOrders(
       .limit(limit),
   ]);
 
+  /*
+    ⚠️ HER SATIRA `source` İŞARETİ — VE BU BİR HATANIN ÜSTÜNE EKLENDİ.
+
+    Aşağıdaki bonus satırları gerçek emir değil; `cash_movements`'tan
+    gelip emir gibi biçimlendiriliyorlar. `behavior/service.ts` onları
+    listeden ayıklamak zorunda, yoksa yapay zekâ bir günlük bonusu
+    "kullanıcının verdiği karar" sanıp üzerine yorum yapıyor.
+
+    Ayıklama SEMBOL METNİNE bakıyordu (`o.symbol !== 'ÇARK'`) ve oradaki
+    yorum tam olarak şunu yazıyordu: *"bu kırılgan, sembolü değiştiren
+    olursa burası sessizce bozulur."*
+
+    Sonra sembol 'ÇARK' -> 'BONUS' oldu ve filtre gerçekten bozuldu.
+    Tahmin tutmuştu.
+
+    `source` yapısal bir işaret: satırın NEREDEN geldiğini söylüyor,
+    nasıl adlandırıldığını değil. Etiket bir daha değişse de bozulmaz.
+  */
   const combined = [
-    ...dbOrders,
+    ...dbOrders.map((o) => ({ ...o, source: 'order' as const })),
     ...dbMovements.map((m) => ({
+      source: 'bonus' as const,
       id: m.id,
-      symbol: 'ÇARK',
-      name: 'Şans Çarkı',
+      /*
+        ⚠️ ETİKET DEĞİŞTİ: 'ÇARK' / 'Şans Çarkı' -> 'BONUS' / 'Günlük
+        Giriş Bonusu'. BU SATIRLAR ÇARK DEĞİLDİ.
+
+        Sorgu `cash_movements`'tan `kind = 'daily_bonus'` çekiyor ve
+        onlara çark etiketi yapıştırıyordu. Çark özelliği kaldırıldı;
+        veritabanında tek bir çark kaydı yok (`wheel_spins: 0`,
+        `wheel_rewards: 0`). Ekranda kalan tek çark izi bu yanlış
+        etiketti.
+
+        ⚠️ KAYITLAR SİLİNMEDİ — VE SİLİNMEMELİ. Gerçek para hareketleri
+        (15 kayıt, 15.000 ₺) ve `cash_movements` bir DEFTER. Geçmişten
+        çıkarsaydık para hesapta durmaya devam eder ama nereden geldiğini
+        açıklayan satır ekranda olmazdı. Yanlış etiketi düzeltmek doğru;
+        gerçek bir para hareketini gizlemek değil.
+      */
+      symbol: 'BONUS',
+      name: 'Günlük Giriş Bonusu',
       side: (m.amountCents >= 0n ? 'buy' : 'sell') as 'buy' | 'sell',
       quantity: m.amountCents >= 0n ? '+1' : '-1',
       priceTry: (
@@ -222,10 +268,10 @@ export async function getRecentOrders(
       netCents: m.amountCents >= 0n ? m.amountCents : -m.amountCents,
       executedAt: m.createdAt,
       /*
-        ⚠️ ÇARK SATIRINDA KARAR NOTU YOK — ve olamaz.
+        ⚠️ BONUS SATIRINDA KARAR NOTU YOK — ve olamaz.
 
-        Not, kullanıcının bir emri verirken yazdığı gerekçe. Çark
-        ödülü bir KARAR değil, bir olay: kullanıcı "neden" diye bir
+        Not, kullanıcının bir emri verirken yazdığı gerekçe. Günlük
+        bonus bir KARAR değil, bir olay: kullanıcı "neden" diye bir
         şey yazmadı, yazamazdı da. Boş metin koysaydık ekran boş bir
         alıntı kutusu çizerdi.
       */

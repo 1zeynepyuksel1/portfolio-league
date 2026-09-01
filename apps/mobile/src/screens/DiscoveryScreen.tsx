@@ -134,115 +134,25 @@ function FeedTab({ onSelectUser, currentUser }: { onSelectUser?: (username: stri
             onPressUser={onSelectUser} 
         />
       )}
-      ListFooterComponent={
-        <View style={{ marginTop: 24, opacity: 0.8 }}>
-          
-          
-      {/* Post 1 */}
-      <View style={styles.postCard}>
-        <View style={styles.postHeader}>
-          <View style={styles.avatarWrap}>
-            <Image source={require('../../assets/avatars/bear.png')} style={styles.avatar} />
-          </View>
-          <View style={styles.postMeta}>
-            <Text style={styles.postName}>Alex Mercer</Text>
-            <Text style={styles.postTime}>2s önce</Text>
-          </View>
-          <View style={[styles.postBadge, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-            <Text style={[styles.postBadgeText, { color: colors.gain }]}>Kâr/Zarar</Text>
-          </View>
-        </View>
+      /*
+        ⚠️ ÜÇ SAHTE GÖNDERİ BURADAN KALDIRILDI.
 
-        <View style={styles.innerBox}>
-          <View>
-            <Text style={styles.innerBoxLabel}>Portföy Değişimi</Text>
-            <Text style={[styles.innerBoxValue, { color: colors.gain }]}>+42.8%</Text>
-          </View>
-          <TrendingUp size={28} color={colors.gain} strokeWidth={2.5} />
-        </View>
+        `ListFooterComponent` içinde elle yazılmış üç kart duruyordu:
+        "Sarah Jenkins", "Cem Yılmaz", sabit beğeni sayıları ve
+        "Günlük çarktan Kripto Kurdu rozeti çıktı!" metni. Tasarım
+        turundan kalan yer tutucularmış.
 
-        <Text style={styles.postText}>Teknoloji rallisini yakaladık! Sabrın sonu selamet.</Text>
+        ⚠️ ZARARSIZ DEĞİLLERDİ, İKİ SEBEPLE:
 
-        <View style={styles.postFooter}>
-          <TouchableOpacity style={styles.actionBtn}>
-            <Heart size={20} color={colors.inkMuted} />
-            <Text style={styles.actionText}>124</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
-            <MessageSquare size={20} color={colors.inkMuted} />
-            <Text style={styles.actionText}>12</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        1. GERÇEK gönderilerin ALTINA ekleniyorlardı. Kullanıcı kendi
+           paylaşımını yapıp akışa bakınca altında hiç var olmamış
+           insanların gönderilerini görüyordu; hangisinin gerçek olduğu
+           anlaşılmıyordu.
 
-      {/* Post 2 */}
-      <View style={styles.postCard}>
-        <View style={styles.postHeader}>
-          <View style={styles.avatarWrap}>
-            <Image source={require('../../assets/avatars/cat.png')} style={styles.avatar} />
-          </View>
-          <View style={styles.postMeta}>
-            <Text style={styles.postName}>Sarah Jenkins</Text>
-            <Text style={styles.postTime}>5s önce</Text>
-          </View>
-          <View style={[styles.postBadge, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-            <Text style={[styles.postBadgeText, { color: colors.warn }]}>Çark Kazancı</Text>
-          </View>
-        </View>
-
-        <Text style={styles.postText}>Günlük çarktan "Kripto Kurdu" rozeti çıktı! Şans bugün benden yana 🐺🪙</Text>
-
-        <View style={styles.postFooter}>
-          <TouchableOpacity style={styles.actionBtn}>
-            <Heart size={20} color={colors.inkMuted} />
-            <Text style={styles.actionText}>89</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
-            <MessageSquare size={20} color={colors.inkMuted} />
-            <Text style={styles.actionText}>4</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Post 3 */}
-      <View style={styles.postCard}>
-        <View style={styles.postHeader}>
-          <View style={styles.avatarWrap}>
-            <Image source={require('../../assets/avatars/panda.png')} style={styles.avatar} />
-          </View>
-          <View style={styles.postMeta}>
-            <Text style={styles.postName}>Cem Yılmaz</Text>
-            <Text style={styles.postTime}>1g önce</Text>
-          </View>
-          <View style={[styles.postBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
-            <Text style={[styles.postBadgeText, { color: colors.loss }]}>Kâr/Zarar</Text>
-          </View>
-        </View>
-
-        <View style={styles.innerBox}>
-          <View>
-            <Text style={styles.innerBoxLabel}>Portföy Değişimi</Text>
-            <Text style={[styles.innerBoxValue, { color: colors.loss }]}>-12.4%</Text>
-          </View>
-          <TrendingDown size={28} color={colors.loss} strokeWidth={2.5} />
-        </View>
-
-        <Text style={styles.postText}>Piyasa bugün epey sert vurdu. Stop-loss'lar patladı maalesef, sağlık olsun.</Text>
-
-        <View style={styles.postFooter}>
-          <TouchableOpacity style={styles.actionBtn}>
-            <Heart size={20} color={colors.inkMuted} />
-            <Text style={styles.actionText}>210</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
-            <MessageSquare size={20} color={colors.inkMuted} />
-            <Text style={styles.actionText}>45</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    
-        </View>
-      }
+        2. Çark özelliği KALDIRILDI ama bu kart onu hâlâ duyuruyordu.
+           Veritabanında tek bir çark kaydı yok (`wheel_spins: 0`,
+           `wheel_rewards: 0`); ekrandaki tek "çark" izi buydu.
+      */
     />
   );
 }

@@ -377,13 +377,19 @@ export async function getChatContext(userId: string): Promise<ChatContext> {
       sohbet bağlamında model onları "kullanıcı çark aldı" diye bir
       tercih sanır ve üzerine yorum yapar.
 
-      ⚠️ Sembol metnine bağlı bir filtre ve bu kırılgan: Zeynep sembolü
-      değiştirirse burası sessizce bozulur. Alternatifi `cash_movements`
-      için ayrı bir sorgu yazmaktı; bir satırlık filtre için iki sorgu
-      döndürmek doğru gelmedi. Bozulursa belirtisi görünür olur —
-      sohbette "ÇARK" adında bir varlık belirir.
+      ⚠️ FİLTRE SEMBOL METNİNE BAKIYORDU VE GERÇEKTEN BOZULDU.
+
+      Önceki hâli `o.symbol !== 'ÇARK'` idi ve buradaki yorum şunu
+      yazıyordu: *"bu kırılgan, sembolü değiştiren olursa burası
+      sessizce bozulur."* Sonra çark özelliği kaldırıldı, etiket
+      'ÇARK' -> 'BONUS' oldu ve filtre hiçbir şeyi elemez hâle geldi.
+      Tahmin tutmuştu — ama kod tahmine göre yazılmamıştı.
+
+      Artık `source` alanına bakıyor: satırın NEREDEN geldiğini söyleyen
+      yapısal bir işaret (`portfolio/repository.ts`). Etiket bir daha
+      değişse de bozulmaz; alan adı değişirse TypeScript söyler.
     */
-    .filter((o) => o.symbol !== 'ÇARK')
+    .filter((o) => o.source !== 'bonus')
     .map((o) => ({
     // Saat değil GÜN: modelin işine yarayan şey "hangi gün", ve saat
     // eklemek metni uzatıp bir şey katmıyor.
