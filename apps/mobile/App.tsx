@@ -541,10 +541,10 @@ function AppShell() {
           {friendsOpen && (
             <SlideView direction="bottom">
               <FriendsScreen
-                mode={friendsMode}
-                onClose={() => setFriendsOpen(false)}
-                onSelectUser={(username) => setViewingProfile(username)}
-              />
+                  mode={friendsMode}
+                  onClose={() => setFriendsOpen(false)}
+                  onSelectUser={(username) => setViewingProfile(username)}
+                />
             </SlideView>
           )}
 

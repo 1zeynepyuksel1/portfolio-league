@@ -250,7 +250,7 @@ export function FriendsScreen({
       )}
 
       {/* 1. Üst Kısım: Arkadaş Ekleme Formu */}
-      <View style={styles.addSection}>
+      {mode !== 'profile' && <View style={styles.addSection}>
         <Text style={styles.sectionTitle}>👥 Arkadaş Ekle</Text>
         <Text style={styles.sectionSubtitle}>
           Kullanıcı adı ya da e-posta yazarak arkadaşını ligde yarışmaya
@@ -317,9 +317,10 @@ export function FriendsScreen({
           {successMsg && <Text style={styles.successText}>🏆 {successMsg}</Text>}
         </View>
 
+        </View>}
+
         {/* 2. Sekmeler (Arkadaşlarım vs İstekler) */}
-      {mode !== 'profile' && (
-<View style={styles.subTabContainer}>
+      {mode !== 'profile' && <View style={styles.subTabContainer}>
         <TouchableOpacity
           style={[styles.subTabButton, activeTab === 'list' && styles.subTabButtonActive]}
           onPress={() => {
@@ -352,7 +353,7 @@ export function FriendsScreen({
             )}
           </View>
         </TouchableOpacity>
-      </View>
+      </View>}
 
       {/* 3. İçerik Alanı */}
       {loading ? (
@@ -434,10 +435,13 @@ export function FriendsScreen({
                 </View>
 
                 {removeId && mode !== 'profile' ? (
-<TouchableOpacity style={styles.removeButton} onPress={() => handleRemove(removeId)}>
-<Text style={styles.removeButtonText}>Çıkar</Text>
-</TouchableOpacity>
-) : null}
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => handleRemove(removeId)}
+                  >
+                    <Text style={styles.removeButtonText}>Çıkar</Text>
+                  </TouchableOpacity>
+                ) : null}
               </TouchableOpacity>
             );
           }}
