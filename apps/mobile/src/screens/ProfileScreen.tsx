@@ -350,13 +350,13 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted, marginTop: 4, marginBottom: 12 }}>Cüzdanındaki hisse ve coin dağılımını (yüzdelerini) kimlerin görebileceğini seç.</Text>
                 <View style={{ flexDirection: 'row', backgroundColor: colors.surfacePressed, borderRadius: 8, padding: 4 }}>
                   <TouchableOpacity onPress={() => setEditAlloc('private')} style={{ flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: editAlloc === 'private' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'private' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'private' ? 2 : 0 }}>
-                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: editAlloc === 'private' ? colors.ink : colors.inkMuted }}>Hiç Kimse</Text>
+                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: editAlloc === 'private' ? '#000' : colors.inkMuted }}>Hiç Kimse</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setEditAlloc('friends')} style={{ flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: editAlloc === 'friends' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'friends' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'friends' ? 2 : 0 }}>
-                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: editAlloc === 'friends' ? colors.ink : colors.inkMuted }}>Arkadaşlar</Text>
+                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: editAlloc === 'friends' ? '#000' : colors.inkMuted }}>Arkadaşlar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setEditAlloc('public')} style={{ flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: editAlloc === 'public' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'public' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'public' ? 2 : 0 }}>
-                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: editAlloc === 'public' ? colors.ink : colors.inkMuted }}>Herkes</Text>
+                    <Text style={{ fontFamily: fonts.bold, fontSize: 13, color: editAlloc === 'public' ? '#000' : colors.inkMuted }}>Herkes</Text>
                   </TouchableOpacity>
                 </View>
               </View>

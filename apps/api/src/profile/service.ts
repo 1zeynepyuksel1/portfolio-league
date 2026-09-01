@@ -122,7 +122,6 @@ function canSee(input: {
   isSelf: boolean;
   isFriend: boolean;
   isPublic: boolean;
-  allocationVisibility: string;
 }): boolean {
   return input.isSelf || input.isFriend || input.isPublic;
 }

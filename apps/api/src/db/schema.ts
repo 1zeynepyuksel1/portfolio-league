@@ -386,3 +386,7 @@ export const dailyFortunes = pgTable(
     index('daily_fortune_user_date_lookup_idx').on(table.userId, table.fortuneDate),
   ],
 );
+
+
+// IMPORTANT: Include external schemas so drizzle-kit tracks them
+export * from '../posts/schema.js';

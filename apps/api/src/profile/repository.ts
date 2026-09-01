@@ -23,6 +23,7 @@ export type ProfileUser = {
   firstName: string;
   lastName: string;
   isPublic: boolean;
+  allocationVisibility: string;
   avatarSeed: string | null;
   avatarStyle: string | null;
 };

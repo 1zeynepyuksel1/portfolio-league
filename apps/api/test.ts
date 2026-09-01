@@ -1,0 +1,1 @@
+﻿import { db } from './src/db/client.js'; import { posts } from './src/posts/schema.js'; async function t() { try { await db.insert(posts).values({userId:'2904c63a-bedb-43ab-aea4-1f61f8c1aa60',type:'pnl_share',scope:'portfolio',payload:{},caption:'test',visibility:'public'}); console.log('OK');} catch(e) { console.error(e); } process.exit(0); } t();
