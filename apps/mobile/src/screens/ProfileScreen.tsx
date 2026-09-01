@@ -3,7 +3,6 @@ import { DeviceEventEmitter } from 'react-native';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, Pressable, View, Modal, SafeAreaView, Platform, StatusBar as RNStatusBar, Image } from 'react-native';
 import Svg, { Path, Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
 import { apiFetch } from '../api/client';
-import { getChampion, isChampion } from '../lib/champion';
 import { getMe } from '../lib/me';
 import { Crown, ShieldCheck, Ban } from 'lucide-react-native';
 import { AdminScreen } from './AdminScreen';
@@ -41,6 +40,8 @@ type PublicProfile = {
   twrPercent: string | null; rank: number | null; totalParticipants: number | null;
   achievementsCount?: number; allocation: ProfileSlice[]; pending: 'outgoing' | 'incoming' | null;
   friendCount: number; pendingRequests: number;
+  lastWeekRank?: number | null;
+  lastWeekLeagueName?: string | null;
 };
 
 export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSelectUser, currentUserId }: { username: string; onClose?: () => void; onOpenFriends?: () => void; onLogout?: () => void; onSelectUser?: (username: string) => void; currentUserId?: string; }) {
@@ -72,14 +73,6 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   const [showAchievements, setShowAchievements] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState<string | null>(null);
-  /*
-    ⚠️ ŞAMPİYON BİLGİSİ `lib/champion.ts`'ten geliyor ve orada ÖNBELLEKLİ.
-    Burada doğrudan `apiFetch` çağırsaydık taç çizilen her ekran kendi
-    isteğini atardı — akıştaki onlarca kart dahil.
-  */
-  const [champion, setChampion] = useState<
-    { username: string; periodName: string } | null
-  >(null);
   const [toastMessage, setToastMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [confirmAvatarSeed, setConfirmAvatarSeed] = useState<string | null>(null);
@@ -103,6 +96,32 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   const [editQuestion, setEditQuestion] = useState('');
   const [editAnswer, setEditAnswer] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  /*
+    ⚠️ YARIM KALMIŞ TAÇ AÇILIR PENCERESİ KALDIRILDI — VE İKİ SEBEBİ VAR.
+
+    1) HİÇ ÇİZİLMİYORDU. `showCrownPopup` kuruluyor ama JSX'te
+       kullanılmıyordu; `handleShareCrown` da hiç çağrılmıyordu. Ölü kod,
+       üstelik `@react-native-async-storage/async-storage`'ı import
+       ettiği için DERLEMEYİ KIRIYORDU — o paket kurulu değil.
+
+    2) İKİZİ VARDI. "Lig bitince ilk açılışta kutlama" isteği
+       `components/LeagueResultModal.tsx` olarak zaten yapıldı ve
+       App.tsx'te uygulama seviyesinde duruyor.
+
+    ⚠️ ÖNEMLİ FARK — "görüldü mü" bilgisi NEREDE TUTULUYOR:
+
+        buradaki (kaldırılan) : AsyncStorage — CİHAZDA
+        LeagueResultModal     : league_entries.result_seen_at — SUNUCUDA
+
+    Cihazda tutmak üç yerde bozulur: uygulamayı silip kuran, ikinci
+    cihazdan giren ve tarayıcı verisini temizleyen kullanıcı aynı
+    kutlamayı tekrar görür. Sunucudaki kayıt bunların üçünde de doğru.
+
+    Taç ROZETİ kalıyor — o gerçekten çiziliyor ve `lastWeekRank`'ten
+    besleniyor. Kaldırılan yalnızca hiç görünmeyen açılır pencere.
+  */
+
+
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => { setToastMessage({ text, type }); setTimeout(() => setToastMessage(null), 3000); };
 
@@ -147,15 +166,19 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   }, [username]);
 
   /*
-    ⚠️ ŞAMPİYON AYRI BİR `useEffect`'te ve `load`'a BAĞLI DEĞİL.
+    ⚠️ TAÇ ARTIK BURADAN GELMİYOR — `profile.lastWeekRank`'ten geliyor.
 
-    Alttaki efekt `load` her değiştiğinde (yani her profil açılışında)
-    çalışıyor. Şampiyonu oraya koysaydık her profil gezintisinde yeniden
-    istenirdi; oysa lig haftalık, cevap gün boyu aynı. Boş bağımlılık
-    dizisi: bileşen ömründe bir kez.
+    Önce `lib/champion.ts` yazmıştım: ayrı bir uç (`GET /leagues/champion`)
+    ve modül seviyesinde önbellek. Zeynep aynı işi profil yanıtının içine
+    koydu ve ilk ÜÇE genişletti (altın / gümüş / bronz).
+
+    Onunki kazandı: veri zaten çekilen yanıtın içinde, ek istek yok ve
+    ekran tek bir kaynağa bakıyor. Benim modülüm ve ucu silindi —
+    kullanılmayan kod, bu projede en çok tuzağa düşüren şey.
+
+    Bu efekt artık yalnızca "ben yönetici miyim" sorusunu soruyor.
   */
   useEffect(() => {
-    void getChampion().then(setChampion);
     void getMe().then((me) => setAmAdmin(me?.role === 'admin'));
   }, []);
 
@@ -250,20 +273,12 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
               )}
             </View>
 
-            {/*
-              ⚠️ TAÇ AVATARIN ÜSTÜNE MUTLAK KONUMLA BİNİYOR, satır akışına
-              girmiyor. Akışa girseydi yer kaplardı ve taçlı/taçsız
-              kullanıcıların adları farklı hizalanırdı.
-
-              ⚠️ Yalnızca SON KAPANAN ligin birincisinde çıkıyor. Açık
-              ligin lideri henüz şampiyon değil; sıralama hafta bitene
-              kadar değişir ve taç her gün el değiştirirdi.
-            */}
-            {isChampion(champion, profile.username) && (
-              <View style={{ position: 'absolute', left: 40, top: -6, backgroundColor: colors.surface, borderRadius: 12, padding: 3 }}>
-                <Crown size={18} color={colors.gold} strokeWidth={2.5} fill={colors.gold} />
-              </View>
-            )}
+            {/* CROWN LOGIC based on lastWeekRank */}
+              {profile.lastWeekRank && profile.lastWeekRank <= 3 ? (
+                <View style={{ position: 'absolute', left: 40, top: -6, backgroundColor: colors.surface, borderRadius: 12, padding: 3, zIndex: 99 }}>
+                  <Crown size={18} color={profile.lastWeekRank === 1 ? colors.gold : profile.lastWeekRank === 2 ? '#94A3B8' : '#B45309'} strokeWidth={2.5} fill={profile.lastWeekRank === 1 ? colors.gold : profile.lastWeekRank === 2 ? '#94A3B8' : '#B45309'} />
+                </View>
+              ) : null}
 
             <View style={{ marginLeft: 16 }}>
               <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.firstName} {profile.lastName}</Text>

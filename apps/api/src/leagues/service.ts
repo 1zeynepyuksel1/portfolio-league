@@ -4,7 +4,6 @@ import {
   ensureCurrentLeaguePeriod,
   findEntryForResult,
   findLastClosedLeague,
-  findLeagueChampion,
   markResultSeen,
   getFriendsLeaderboardByLeagueId,
   getLeaderboardByLeagueId,
@@ -163,19 +162,3 @@ export async function markLeagueResultSeen(userId: string, periodId: string) {
   await markResultSeen(periodId, userId);
 }
 
-/**
- * Son kapanan ligin şampiyonu — profil fotoğrafındaki taç için.
- *
- * ⚠️ KULLANICI ADI DÖNÜYOR, KİMLİK DEĞİL. Taç ekranda kullanıcı adına
- * göre çiziliyor (profil, sıralama, gönderi kartı); kimlik döndürseydik
- * her ekranın ayrıca kimlik bilmesi gerekirdi.
- */
-export async function getLeagueChampion() {
-  const period = await findLastClosedLeague();
-  if (period === null) return null;
-
-  const champion = await findLeagueChampion(period.id);
-  if (champion === null) return null;
-
-  return { username: champion.username, periodName: period.name };
-}

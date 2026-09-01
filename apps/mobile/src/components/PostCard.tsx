@@ -5,7 +5,7 @@ import { Platform, DeviceEventEmitter } from 'react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 import { formatCents } from '../lib/format';
-import { Globe, Users, TrendingUp, TrendingDown, Heart, MessageSquare, MoreVertical, Trash2, Edit2, Pin, AlertTriangle, EyeOff, ShieldCheck, Ban } from 'lucide-react-native';
+import { Globe, Users, TrendingUp, TrendingDown, Heart, MessageSquare, MoreVertical, Trash2, Edit2, Pin, AlertTriangle, EyeOff, ShieldCheck, Ban, Crown } from 'lucide-react-native';
 import { createAvatar } from '@dicebear/core';
 import { shapes } from '@dicebear/collection';
 import { SvgXml } from 'react-native-svg';
@@ -232,6 +232,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
 
   const payload = post.payload || {};
   const isPnl = post.type === 'pnl_share';
+    const isCrown = post.type === 'crown_share';
   const isFortune = false; // removed
   const isWheel = false; // removed
   const isSingleAsset = post.scope === 'single_asset' || payload.is_market || payload.asset_key !== undefined;
@@ -250,6 +251,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
 
   let badgeText = 'Gönderi';
   if (isPnl) badgeText = payload.is_market ? 'Piyasa' : 'Kâr/Zarar';
+    if (isCrown) badgeText = 'Şampiyon';
   // if (isFortune) badgeText removed
   // if (isWheel) badgeText removed
 
@@ -288,6 +290,22 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
         </View>
 
       {/* 2. Main Box Area (Pnl / Horoscope / Wheel) */}
+
+        {/* CROWN POST UI */}
+        {isCrown && (
+          <View style={{ backgroundColor: payload.rank === 1 ? 'rgba(245, 158, 11, 0.1)' : payload.rank === 2 ? 'rgba(148, 163, 184, 0.1)' : 'rgba(180, 83, 9, 0.1)', padding: 24, borderRadius: 20, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: payload.rank === 1 ? 'rgba(245, 158, 11, 0.3)' : payload.rank === 2 ? 'rgba(148, 163, 184, 0.3)' : 'rgba(180, 83, 9, 0.3)' }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: payload.rank === 1 ? colors.gold : payload.rank === 2 ? '#94A3B8' : '#B45309', justifyContent: 'center', alignItems: 'center', marginBottom: 16, shadowColor: payload.rank === 1 ? colors.gold : payload.rank === 2 ? '#94A3B8' : '#B45309', shadowOpacity: 0.4, shadowRadius: 12, elevation: 6 }}>
+               <Crown size={32} color="#fff" strokeWidth={2.5} fill="#fff" />
+            </View>
+            <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink, marginBottom: 8, textAlign: 'center' }}>
+              {payload.rank === 1 ? 'Altın Taç Sahibi!' : payload.rank === 2 ? 'Gümüş Taç Sahibi!' : 'Bronz Taç Sahibi!'}
+            </Text>
+            <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted, textAlign: 'center' }}>
+              {payload.leagueName} haftasını {payload.rank}. sırada tamamladı!
+            </Text>
+          </View>
+        )}
+
       {isPnl && (
         <View style={styles.modernPnlBox}>
           <View>

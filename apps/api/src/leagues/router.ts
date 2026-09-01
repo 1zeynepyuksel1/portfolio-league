@@ -7,7 +7,6 @@ import {
   getGlobalLeaderboard,
   getMyLeagueResult,
   markLeagueResultSeen,
-  getLeagueChampion,
 } from './service.js';
 
 export const leaguesRouter = Router();
@@ -81,22 +80,6 @@ leaguesRouter.post('/my-result/seen', requireAccessToken, async (req, res) => {
     }
     await markLeagueResultSeen(res.locals.userId as string, periodId);
     return res.json({ success: true });
-  } catch (err: any) {
-    return res.status(400).json({ error: { message: err.message } });
-  }
-});
-
-/**
- * Son kapanan ligin şampiyonu — herkese açık.
- *
- * ⚠️ Kimlik istemiyor çünkü şampiyonluk zaten herkese görünen bir sonuç;
- * sıralama ekranı da girişsiz açılabiliyor. Yalnızca kullanıcı adı ve
- * dönem adı dönüyor, başka hiçbir alan yok.
- */
-leaguesRouter.get('/champion', async (_req, res) => {
-  try {
-    const champion = await getLeagueChampion();
-    return res.json({ champion });
   } catch (err: any) {
     return res.status(400).json({ error: { message: err.message } });
   }

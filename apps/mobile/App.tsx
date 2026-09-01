@@ -590,6 +590,11 @@ function AppShell() {
                 name={tradeAsset.name}
                 onClose={() => setTradeAsset(null)}
                 onOrderPlaced={() => setPortfolioVersion((v) => v + 1)}
+                onGoToWallet={() => {
+                  setTradeAsset(null);
+                  setDetailAsset(null);
+                  setActiveTab('wallet');
+                }}
               />
             </SlideView>
           )}

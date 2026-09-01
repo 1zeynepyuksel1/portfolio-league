@@ -124,7 +124,7 @@ export async function getPortfolioPreview(userId: string) {
   };
 }
 
-export async function createPost(userId: string, type: 'pnl_share' | 'wheel_share' | 'horoscope_share', scope: 'single_asset' | 'portfolio' | null, targetKey: string | null, _periodParams: any, caption: string, visibility: 'public' | 'friends_only', clientPayload?: any) {
+export async function createPost(userId: string, type: 'pnl_share' | 'wheel_share' | 'horoscope_share' | 'crown_share', scope: 'single_asset' | 'portfolio' | null, targetKey: string | null, _periodParams: any, caption: string, visibility: 'public' | 'friends_only', clientPayload?: any) {
   let payload: any = {};
   
   if (type === 'pnl_share') {
@@ -137,7 +137,7 @@ export async function createPost(userId: string, type: 'pnl_share' | 'wheel_shar
     } else {
       throw new Error("Geçersiz paylaşım kapsamı.");
     }
-  } else if (type === 'wheel_share' || type === 'horoscope_share') {
+  } else if (type === 'wheel_share' || type === 'horoscope_share' || type === 'crown_share') {
     payload = clientPayload || {};
   } else {
     throw new Error("Geçersiz paylaşım tipi.");

@@ -323,30 +323,6 @@ export async function findLastClosedLeague() {
   return period ?? null;
 }
 
-/**
- * Bir dönemin şampiyonu — `rank = 1`.
- *
- * ⚠️ TEK KİŞİ DÖNÜYOR. Beraberlik hâlinde iki kullanıcı da `rank = 1`
- * olabilir; `limit(1)` biri gelsin diye değil, EKRANIN tek bir taç
- * çizmesi gerektiği için var. Beraberlik gerçekten olursa taç ikisinden
- * birine takılır ve bu YANLIŞ olur — ama sıralama zaten `twr_pct` gibi
- * dört ondalıklı bir sayıya bakıyor, tam eşitlik pratikte çok nadir.
- * Not olarak duruyor: gerçek çözüm `rank = 1` olan HERKESİ döndürmek.
- */
-export async function findLeagueChampion(periodId: string) {
-  const [row] = await db
-    .select({
-      userId: leagueEntries.userId,
-      username: users.username,
-      twrPct: leagueEntries.twrPct,
-    })
-    .from(leagueEntries)
-    .innerJoin(users, eq(leagueEntries.userId, users.id))
-    .where(and(eq(leagueEntries.periodId, periodId), eq(leagueEntries.rank, 1)))
-    .limit(1);
-
-  return row ?? null;
-}
 
 /** Kullanıcının bir dönemdeki kaydı — sonuç ekranı için. */
 export async function findEntryForResult(periodId: string, userId: string) {

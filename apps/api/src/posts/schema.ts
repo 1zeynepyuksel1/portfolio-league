@@ -1,7 +1,7 @@
 ﻿import { pgTable, uuid, text, timestamp, jsonb, pgEnum } from 'drizzle-orm/pg-core';
 import { users } from '../db/schema.js';
 
-export const postTypeEnum = pgEnum('post_type', ['pnl_share', 'wheel_share', 'horoscope_share']);
+export const postTypeEnum = pgEnum('post_type', ['pnl_share', 'wheel_share', 'horoscope_share', 'crown_share']);
 export const postScopeEnum = pgEnum('post_scope', ['single_asset', 'portfolio']);
 export const postVisibilityEnum = pgEnum('post_visibility', ['public', 'friends_only']);
 
