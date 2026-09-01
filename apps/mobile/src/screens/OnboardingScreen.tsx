@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+/*
+  ⚠️ BU EKRAN TEMAYI HİÇ KULLANMIYORDU — 22 RENK ELLE YAZILIYDI.
+
+  Ve renkler uygulamanın palettiyle TUTMUYORDU: vurgu #38BDF8 (gök
+  mavisi) iken uygulamanın vurgusu #3b82f6; yüzeyler beyazın yüzdesiydi
+  (%8, %10, %12, %22) oysa temada dört kademeli yüzey merdiveni var.
+
+  ⚠️ EN ÇOK BURADA ÖNEMLİ: kullanıcının GÖRDÜĞÜ İLK ekran burası. İlk
+  izlenim başka bir uygulamadan alınmış gibi duruyordu.
+*/
 import { colors } from '../theme';
 /*
   ⚠️ EMOJİLER SİMGE OLARAK KULLANILIYORDU — HEM ROZETTE HEM KARTTA.
@@ -201,27 +211,27 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   stepIndicator: {
-    color: '#38BDF8',
+    color: colors.accent,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.5,
   },
   progressBarBackground: {
     height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: colors.surfacePressed,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#10B981',
+    backgroundColor: colors.gain,
     borderRadius: 2,
   },
   glassCard: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: colors.surfaceRaised,
+    borderColor: colors.borderStrong,
     borderWidth: 1.5,
     borderRadius: 28,
     padding: 26,
@@ -236,8 +246,8 @@ const styles = StyleSheet.create({
   },
   badgeContainer: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    backgroundColor: colors.gainSoft,
+    borderColor: colors.gainSoft,
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 6,
@@ -260,7 +270,7 @@ const styles = StyleSheet.create({
   },
   cardDescription: {
     fontSize: 14,
-    color: '#CBD5E1',
+    color: colors.inkBright,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -269,18 +279,18 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopColor: colors.border,
     alignItems: 'center',
   },
   privacyLabel: {
-    color: '#E2E8F0',
+    color: colors.inkBright,
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 10,
   },
   privacyToggleRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    backgroundColor: colors.surfaceSunken,
     borderRadius: 12,
     padding: 4,
     width: '100%',
@@ -292,10 +302,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   privacyButtonActive: {
-    backgroundColor: '#38BDF8',
+    backgroundColor: colors.accent,
   },
   privacyButtonText: {
-    color: '#64748B',
+    color: colors.inkDisabled,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -316,16 +326,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   backButtonText: {
-    color: '#64748B',
+    color: colors.inkDisabled,
     fontSize: 14,
     fontWeight: '600',
   },
   glowingPillButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.gain,
     borderRadius: 28,
     paddingVertical: 14,
     paddingHorizontal: 28,
-    shadowColor: '#10B981',
+    shadowColor: colors.gain,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.6,
     shadowRadius: 12,

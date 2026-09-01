@@ -321,9 +321,9 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
           */
           const rank: number = Number(payload.rank ?? 0);
           const madalya = rank >= 1 && rank <= 3;
-          const renk = rank === 1 ? colors.gold : rank === 2 ? '#94A3B8' : rank === 3 ? '#B45309' : colors.accent;
-          const zemin = rank === 1 ? 'rgba(245, 158, 11, 0.1)' : rank === 2 ? 'rgba(148, 163, 184, 0.1)' : rank === 3 ? 'rgba(180, 83, 9, 0.1)' : 'rgba(59, 130, 246, 0.08)';
-          const kenar = rank === 1 ? 'rgba(245, 158, 11, 0.3)' : rank === 2 ? 'rgba(148, 163, 184, 0.3)' : rank === 3 ? 'rgba(180, 83, 9, 0.3)' : 'rgba(59, 130, 246, 0.25)';
+          const renk = rank === 1 ? colors.gold : rank === 2 ? colors.silver : rank === 3 ? colors.bronze : colors.accent;
+          const zemin = rank === 1 ? colors.goldSoft : rank === 2 ? colors.silverSoft : rank === 3 ? colors.bronzeSoft : colors.accentSoft;
+          const kenar = rank === 1 ? colors.goldSoft : rank === 2 ? colors.silverSoft : rank === 3 ? colors.bronzeSoft : colors.accentSoft;
           const baslik = rank === 1 ? 'Altın Taç Sahibi!' : rank === 2 ? 'Gümüş Taç Sahibi!' : rank === 3 ? 'Bronz Taç Sahibi!' : `Ligi ${rank}. sırada tamamladı`;
           const donem = payload.periodName ?? payload.leagueName ?? 'Haftalık lig';
           const yuzde = payload.twrPercent;
@@ -486,7 +486,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
           
           {/* Visibility indicator on the right if needed, optional */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={[styles.badge, { paddingVertical: 2, paddingHorizontal: 8, backgroundColor: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.15)' }]}>
+            <View style={[styles.badge, { paddingVertical: 2, paddingHorizontal: 8, backgroundColor: 'rgba(16, 185, 129, 0.05)', borderColor: colors.gainSoft }]}>
               <Text style={[styles.badgeText, { fontSize: 10 }]}>{badgeText}</Text>
             </View>
             {localVis === 'public' ? (
@@ -515,7 +515,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
         <View style={{ flex: 1, backgroundColor: colors.backdrop, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <View style={{ backgroundColor: colors.surface, width: '100%', maxWidth: 360, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
             
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(99, 102, 241, 0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.accentSoft, justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
               <Pin size={32} color={colors.accent} />
             </View>
 
@@ -679,7 +679,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
         <View style={{ flex: 1, backgroundColor: colors.backdrop, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <View style={{ backgroundColor: colors.surface, width: '100%', maxWidth: 360, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: colors.border }}>
             
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(244, 63, 94, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.lossSoft, justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
               <Trash2 size={32} color={colors.loss} />
             </View>
 
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   menuTitle: { fontFamily: fonts.bold, fontSize: 18, color: colors.ink, marginBottom: 16 },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, gap: 12 },
   menuText: { fontFamily: fonts.medium, fontSize: 16, color: colors.ink },
-  badge: { backgroundColor: 'rgba(16, 185, 129, 0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.2)' },
+  badge: { backgroundColor: colors.gainSoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: colors.gainSoft },
   badgeText: { fontFamily: fonts.medium, fontSize: 11, color: colors.gain },
 
   // Modern Pnl Box
@@ -737,7 +737,9 @@ const styles = StyleSheet.create({
 
   // Portfolio list (keeps functionality)
   positionsList: { gap: 12, marginBottom: 16, marginTop: -4 },
-  positionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.03)' },
+  positionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, /* ⚠️ Satır ayracı: elle yazılmış %3 beyaz yerine tema kenarlığı.
+       Tema koyulaşırsa/açılırsa ayraç da onunla gider. */
+    borderBottomColor: colors.border },
   positionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   positionIcon: { width: 36, height: 36, borderRadius: 8, backgroundColor: colors.surfacePressed, justifyContent: 'center', alignItems: 'center' },
   positionIconText: { fontFamily: fonts.bold, fontSize: 13, color: colors.inkMuted, textTransform: 'uppercase' },
