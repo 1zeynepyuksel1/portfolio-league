@@ -210,7 +210,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
             <Text style={[styles.modernPnlValue, { color: isDisplayPositive ? colors.gain : colors.loss }]}>{displayValue}</Text>
             {isPnl && (
               <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 6 }}>
-                {payload.is_market ? 'Son 24 Saat' : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} ➔ Bugün` : '')}
+                {payload.is_market ? `Son 24 Saat — ${tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}` : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} — ${tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}` : '')}
               </Text>
             )}
           </View>
@@ -228,7 +228,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
           {payload.positions.map((pos: any, idx: number) => {
             const posCents = BigInt(pos.pnl_amount || '0');
             const posIsPos = posCents >= 0n;
-            const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
+const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
             return (
               <View key={pos.symbol || idx} style={styles.positionRow}>
                 <View style={styles.positionLeft}>
@@ -244,12 +244,13 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId }: 
                     sembol icin kendi yedegi var.
                   */}
                   <AssetLogo symbol={pos.symbol} size={36} />
+
                   <View>
                     <Text style={styles.positionName}>{pos.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{buyDateStr}</Text>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>➔</Text>
-                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>Bugün</Text>
+                      <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted }}>{tarihSaat(payload.snapshot_date || post.created_at) || 'Bugün'}</Text>
                     </View>
                   </View>
                 </View>
