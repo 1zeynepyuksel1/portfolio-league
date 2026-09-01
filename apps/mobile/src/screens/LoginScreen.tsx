@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.regular,
     color: colors.inkDim,
-    marginTop: 18,
+    marginTop: 20,
   },
   quoteRow: {
     flexDirection: 'row',
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   ctaWrap: {
-    marginTop: 6,
+    marginTop: 8,
   },
   forgot: {
     paddingVertical: 8,
@@ -444,6 +444,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   indicatorWrap: {
-    marginTop: 22,
+    marginTop: 24,
   },
 });

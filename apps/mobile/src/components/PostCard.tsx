@@ -367,7 +367,7 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
             <Text style={styles.modernPnlLabel}>{displayTitle}</Text>
             <Text style={[styles.modernPnlValue, { color: isDisplayPositive ? colors.gain : colors.loss }]}>{displayValue}</Text>
             {isPnl && (
-              <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 6 }}>
+              <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 8 }}>
                 {payload.is_market ? `Son 24 Saat — ${olcumAni(payload, post)}` : (isSingleAsset && tarihSaat(payload.buy_date) ? `${tarihSaat(payload.buy_date)} ➔ ${olcumAni(payload, post)}` : '')}
               </Text>
             )}
@@ -458,10 +458,10 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
             placeholderTextColor={colors.inkMuted}
           />
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
-            <TouchableOpacity onPress={() => { setIsEditing(false); setEditCaption(localCaption); }} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: colors.surfacePressed }}>
+            <TouchableOpacity onPress={() => { setIsEditing(false); setEditCaption(localCaption); }} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: colors.surfacePressed }}>
               <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.ink }}>İptal</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleEditSave} disabled={isUpdating} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: colors.accent }}>
+            <TouchableOpacity onPress={handleEditSave} disabled={isUpdating} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, backgroundColor: colors.accent }}>
               {isUpdating ? <ActivityIndicator size="small" color="white" /> : <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: 'white' }}>Kaydet</Text>}
             </TouchableOpacity>
           </View>
@@ -528,14 +528,14 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
             <TouchableOpacity 
               onPress={() => setShowToast(false)} 
               activeOpacity={0.7}
-              style={{ width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', marginBottom: 12 }}>
+              style={{ width: '100%', paddingVertical: 16, borderRadius: 14, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', marginBottom: 12 }}>
               <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.inkMuted, letterSpacing: 1 }}>KAPAT</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
               onPress={() => { setShowToast(false); if (onPressUser && user?.username) onPressUser(user.username); }} 
               activeOpacity={0.7}
-              style={{ width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' }}>
+              style={{ width: '100%', paddingVertical: 16, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center' }}>
               <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: 'white', letterSpacing: 1 }}>PROFİLDE GÖR</Text>
             </TouchableOpacity>
 
@@ -654,7 +654,7 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
               edilemeyen bir bandır. Sunucu da boş sebebi reddediyor.
             */}
             <TextInput
-              style={{ backgroundColor: colors.surfacePressed, borderRadius: 14, padding: 14, color: colors.ink, fontFamily: fonts.regular, minHeight: 72, textAlignVertical: 'top', marginBottom: 14 }}
+              style={{ backgroundColor: colors.surfacePressed, borderRadius: 14, padding: 16, color: colors.ink, fontFamily: fonts.regular, minHeight: 72, textAlignVertical: 'top', marginBottom: 16 }}
               value={banReason}
               onChangeText={setBanReason}
               placeholder="Ban sebebi"
@@ -692,14 +692,14 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
             <TouchableOpacity 
               onPress={() => setIsConfirmingDelete(false)} 
               activeOpacity={0.7}
-              style={{ width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', marginBottom: 12 }}>
+              style={{ width: '100%', paddingVertical: 16, borderRadius: 14, backgroundColor: colors.surfacePressed, borderWidth: 1, borderColor: colors.border, alignItems: 'center', marginBottom: 12 }}>
               <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.inkMuted, letterSpacing: 1 }}>VAZGEÇ</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
               onPress={() => { setIsConfirmingDelete(false); handleDelete(); }} 
               activeOpacity={0.7}
-              style={{ width: '100%', paddingVertical: 14, borderRadius: 14, backgroundColor: colors.loss, alignItems: 'center' }}>
+              style={{ width: '100%', paddingVertical: 16, borderRadius: 14, backgroundColor: colors.loss, alignItems: 'center' }}>
               <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: 'white', letterSpacing: 1 }}>SİL</Text>
             </TouchableOpacity>
 
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   menuTitle: { fontFamily: fonts.bold, fontSize: 20, color: colors.ink, marginBottom: 16 },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, gap: 12 },
   menuText: { fontFamily: fonts.medium, fontSize: 16, color: colors.ink },
-  badge: { backgroundColor: colors.gainSoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: colors.gainSoft },
+  badge: { backgroundColor: colors.gainSoft, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: colors.gainSoft },
   badgeText: { fontFamily: fonts.medium, fontSize: 12, color: colors.gain },
 
   // Modern Pnl Box

@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.screen,
-    paddingTop: 18,
+    paddingTop: 20,
   },
   title: {
     fontFamily: fonts.semibold,
@@ -417,8 +417,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginHorizontal: spacing.screen,
-    marginTop: 14,
-    paddingHorizontal: 14,
+    marginTop: 16,
+    paddingHorizontal: 16,
     height: 44,
     borderRadius: 14,
     backgroundColor: colors.surfaceSunken,
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.screen,
-    paddingTop: 14,
+    paddingTop: 16,
     paddingBottom: 12,
   },
   chipRow: { flexDirection: 'row', gap: 7, flex: 1 },
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
 
   banner: {
     margin: spacing.screen,
-    padding: 14,
+    padding: 16,
     borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,

@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: 8,
   },
   countdown: {
     fontFamily: fonts.monoBold,
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
      */
     flexDirection: 'column',
     paddingHorizontal: spacing.screen,
-    paddingTop: 18,
+    paddingTop: 20,
     paddingBottom: 4,
   },
   title: {
@@ -534,15 +534,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 12,
     color: colors.inkFaint,
-    marginTop: 6,
+    marginTop: 8,
   },
   countdownBadge: {
     backgroundColor: colors.fieldFill,
     borderColor: colors.warn,
     borderWidth: 1,
     borderRadius: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     alignItems: 'center',
   },
   countdownLabel: {
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 12,
     fontFamily: fonts.bold,
-    marginTop: 1,
+    marginTop: 2,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 11,
+    paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
@@ -601,7 +601,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     color: colors.inkMuted,
-    marginTop: 10,
+    marginTop: 12,
     fontSize: 14,
   },
   errorBox: {
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 10,
-    padding: 14,
+    padding: 16,
     margin: 20,
   },
   errorText: {
@@ -632,12 +632,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.inkMuted,
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 8,
     lineHeight: 18,
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 32,
   },
   podiumContainer: {
     flexDirection: 'row',
@@ -692,8 +692,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -6,
     borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   goldBadge: {
     backgroundColor: colors.gold,
@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontFamily: fonts.semibold,
     fontSize: 14,
-    marginTop: 10,
+    marginTop: 12,
     textAlign: 'center',
   },
   podiumTwr: {
@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 16,
   },
   rankText: {
     color: colors.inkMuted,
@@ -792,7 +792,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   twrBadge: {
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
   },

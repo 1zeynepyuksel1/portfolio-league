@@ -972,7 +972,7 @@ export function PortfolioScreen({
 
               {orders.length > 3 && (
                 <TouchableOpacity
-                  style={[styles.expand, { borderTopWidth: 0, paddingVertical: 10 }]}
+                  style={[styles.expand, { borderTopWidth: 0, paddingVertical: 12 }]}
                   onPress={() => setShowAllOrders(true)}
                   accessibilityRole="button"
                 >
@@ -1074,7 +1074,7 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: 20 },
   chartSection: {
     paddingHorizontal: spacing.screen,
-    marginTop: 14,
+    marginTop: 16,
   },
   chartPlaceholder: {
     height: CHART_HEIGHT,
@@ -1098,7 +1098,7 @@ const styles = StyleSheet.create({
   },
   rangeButton: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
@@ -1121,7 +1121,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
@@ -1145,8 +1145,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
   },
   retryText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.inkBright },
 
@@ -1171,7 +1171,7 @@ const styles = StyleSheet.create({
   */
   totalBlock: {
     paddingHorizontal: spacing.screen,
-    paddingTop: 14,
+    paddingTop: 16,
     paddingBottom: spacing.section,
   },
   deltaRow: {
@@ -1228,7 +1228,7 @@ const styles = StyleSheet.create({
   bonusButton: {
     backgroundColor: colors.gain,
     borderRadius: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
   },
   bonusButtonText: {
@@ -1241,7 +1241,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     minWidth: 80,
     alignItems: 'center',
@@ -1256,7 +1256,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 7,
     paddingHorizontal: spacing.screen,
-    paddingTop: 18,
+    paddingTop: 20,
   },
 
   statGrid: {
@@ -1266,13 +1266,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
-  statCell: { flex: 1, paddingHorizontal: spacing.screen, paddingVertical: 13 },
+  statCell: { flex: 1, paddingHorizontal: spacing.screen, paddingVertical: 12 },
   statDivider: { borderRightWidth: 1, borderRightColor: colors.border },
   statValue: {
     fontFamily: fonts.monoSemibold,
     fontSize: 16,
     color: colors.ink,
-    marginTop: 5,
+    marginTop: 4,
   },
 
   warning: {
@@ -1287,7 +1287,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.screen,
-    paddingTop: 14,
+    paddingTop: 16,
     paddingBottom: 8,
   },
   headCell: {
@@ -1342,13 +1342,13 @@ const styles = StyleSheet.create({
 
   expand: {
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   expandText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.inkMuted },
 
-  section: { marginTop: 22, paddingHorizontal: spacing.screen },
+  section: { marginTop: 24, paddingHorizontal: spacing.screen },
   sectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1362,7 +1362,7 @@ const styles = StyleSheet.create({
     color: colors.inkBright,
   },
   orderRow: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: 6,
@@ -1377,7 +1377,7 @@ const styles = StyleSheet.create({
   },
   noteBox: {
     marginTop: 8,
-    paddingLeft: 10,
+    paddingLeft: 12,
     borderLeftWidth: 2,
     borderLeftColor: colors.border,
   },
@@ -1393,7 +1393,7 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
   },
   orderSideBadge: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
     alignItems: 'center',

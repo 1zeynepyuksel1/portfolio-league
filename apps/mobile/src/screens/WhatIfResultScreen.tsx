@@ -629,8 +629,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
   },
   retryText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.inkBright },
 
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 14,
+    paddingTop: 16,
   },
   iconButton: {
     width: 38,
@@ -652,8 +652,8 @@ const styles = StyleSheet.create({
   topTitle: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' },
   topTitleText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
 
-  hero: { alignItems: 'center', marginTop: 26 },
-  heroRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 10 },
+  hero: { alignItems: 'center', marginTop: 28 },
+  heroRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 12 },
   heroValue: {
     fontFamily: fonts.bold,
     fontSize: 64,
@@ -666,15 +666,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 14,
     color: colors.inkMuted,
-    marginTop: 10,
+    marginTop: 12,
   },
   heroSubStrong: { fontFamily: fonts.monoBold, color: colors.ink },
 
   mathBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 22,
-    paddingVertical: 14,
+    marginTop: 24,
+    paddingVertical: 16,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
@@ -696,12 +696,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: colors.inkMuted,
     textAlign: 'center',
-    marginTop: 14,
+    marginTop: 16,
   },
 
   chartBox: {
     height: CHART_HEIGHT,
-    marginTop: 6,
+    marginTop: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 18,
+    marginTop: 20,
     // Sabit yükseklik: okuma çıkıp kaybolurken grafik zıplamasın.
     minHeight: 20,
   },
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    marginTop: 10,
+    marginTop: 12,
     borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginTop: 22,
+    marginTop: 24,
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
   detailBox: {
     backgroundColor: colors.surfaceSunken,
     borderRadius: 14,
-    padding: 14,
+    padding: 16,
     gap: 8,
   },
   detailLine: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
@@ -820,10 +820,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     color: colors.inkFaint,
-    marginTop: 6,
+    marginTop: 8,
   },
 
-  actions: { flexDirection: 'row', gap: 10, marginTop: 26 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 28 },
   secondary: {
     flex: 1,
     height: 52,
@@ -837,7 +837,7 @@ const styles = StyleSheet.create({
   secondaryText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.inkBright },
   textShareButton: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,

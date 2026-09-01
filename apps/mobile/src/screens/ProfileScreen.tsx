@@ -4,6 +4,8 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Switch, Text
 import Svg, { Path, Defs, LinearGradient, Stop, Circle } from 'react-native-svg';
 import { apiFetch } from '../api/client';
 import { getMe } from '../lib/me';
+import { EmptyState } from '../components/EmptyState';
+import { Newspaper } from 'lucide-react-native';
 import { Crown, ShieldCheck, Ban } from 'lucide-react-native';
 import { AdminScreen } from './AdminScreen';
 import { colors, fonts } from '../theme';
@@ -312,7 +314,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
 
             {/* CROWN LOGIC based on lastWeekRank */}
               {profile.lastWeekRank && profile.lastWeekRank <= 3 ? (
-                <View style={{ position: 'absolute', left: 40, top: -6, backgroundColor: colors.surface, borderRadius: 14, padding: 3, zIndex: 99 }}>
+                <View style={{ position: 'absolute', left: 40, top: -6, backgroundColor: colors.surface, borderRadius: 14, padding: 2, zIndex: 99 }}>
                   <Crown size={18} color={madalyaRengi(profile.lastWeekRank)} strokeWidth={2.5} fill={madalyaRengi(profile.lastWeekRank)} />
                 </View>
               ) : null}
@@ -353,7 +355,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
             <View>
               {profile.isFriend ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.gainSoft, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.gainSoft }}>
-                  <Check size={16} color={colors.gain} style={{ marginRight: 6 }} />
+                  <Check size={16} color={colors.gain} style={{ marginRight: 8 }} />
                   <Text style={{ fontFamily: fonts.medium, color: colors.gain, fontSize: 14 }}>Arkadaş</Text>
                 </View>
               ) : (
@@ -367,7 +369,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                     borderWidth: 1, borderColor: profile.pending === 'outgoing' ? 'transparent' : colors.accent 
                   }}
                 >
-                  <User size={16} color={profile.pending === 'outgoing' ? colors.inkMuted : profile.pending === 'incoming' ? '#FFF' : colors.accent} style={{ marginRight: 6 }} />
+                  <User size={16} color={profile.pending === 'outgoing' ? colors.inkMuted : profile.pending === 'incoming' ? '#FFF' : colors.accent} style={{ marginRight: 8 }} />
                   <Text style={{ fontFamily: fonts.bold, color: profile.pending === 'outgoing' ? colors.inkMuted : profile.pending === 'incoming' ? '#FFF' : colors.accent, fontSize: 14 }}>
                     {profile.pending === 'incoming' ? 'Kabul Et' : profile.pending === 'outgoing' ? 'Bekliyor' : 'Arkadaş Ekle'}
                   </Text>
@@ -385,7 +387,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                   onPress={() => { setBanReason(''); setBanOpen(true); }}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.loss, backgroundColor: colors.lossSoft }}
                 >
-                  <Ban size={14} color={colors.loss} style={{ marginRight: 6 }} />
+                  <Ban size={14} color={colors.loss} style={{ marginRight: 8 }} />
                   <Text style={{ fontFamily: fonts.bold, color: colors.loss, fontSize: 12 }}>Banla</Text>
                 </TouchableOpacity>
               )}
@@ -396,12 +398,12 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
         <Modal visible={banOpen} transparent animationType="fade" onRequestClose={() => setBanOpen(false)}>
           <View style={{ flex: 1, backgroundColor: colors.backdrop, justifyContent: 'center', padding: 24 }}>
             <View style={{ backgroundColor: colors.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.border }}>
-              <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 6 }}>@{profile.username} banlanacak</Text>
-              <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted, marginBottom: 14 }}>
+              <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 8 }}>@{profile.username} banlanacak</Text>
+              <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted, marginBottom: 16 }}>
                 Sebep kullanıcıya gösterilir. Elindeki oturum anında geçersiz olur.
               </Text>
               <TextInput
-                style={{ backgroundColor: colors.surfacePressed, borderRadius: 14, padding: 14, color: colors.ink, fontFamily: fonts.regular, minHeight: 72, textAlignVertical: 'top', marginBottom: 16 }}
+                style={{ backgroundColor: colors.surfacePressed, borderRadius: 14, padding: 16, color: colors.ink, fontFamily: fonts.regular, minHeight: 72, textAlignVertical: 'top', marginBottom: 16 }}
                 value={banReason}
                 onChangeText={setBanReason}
                 placeholder="Ban sebebi"
@@ -410,10 +412,10 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 maxLength={280}
               />
               <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: colors.surfacePressed }} onPress={() => setBanOpen(false)}>
+                <TouchableOpacity style={{ flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: 'center', backgroundColor: colors.surfacePressed }} onPress={() => setBanOpen(false)}>
                   <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: colors.ink }}>Vazgeç</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: colors.loss }} onPress={() => void submitBan()} disabled={banBusy}>
+                <TouchableOpacity style={{ flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: 'center', backgroundColor: colors.loss }} onPress={() => void submitBan()} disabled={banBusy}>
                   <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: '#FFF' }}>{banBusy ? 'Banlanıyor…' : 'Banla'}</Text>
                 </TouchableOpacity>
               </View>
@@ -502,7 +504,14 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
               <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 16 }}>Paylaşımlar</Text>
               {posts.length === 0 ? (
                 <View style={{ alignItems: 'center', paddingVertical: 32, backgroundColor: colors.surfaceRaised, borderRadius: 20 }}>
-                  <Text style={{ fontFamily: fonts.medium, color: colors.inkMuted }}>Henüz paylaşım yok</Text>
+                  <EmptyState
+                    compact
+                    icon={Newspaper}
+                    title="Henüz paylaşım yok"
+                    description={profile.isSelf
+                      ? 'Portföyünü ya da bir varlığını paylaştığında burada görünecek.'
+                      : 'Bu kullanıcı henüz bir şey paylaşmamış.'}
+                  />
                 </View>
               ) : (
                 <View style={{ gap: 16 }}>
@@ -580,13 +589,13 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink }}>Varlık Dağılımı (Portföy) Kimlere Görünsün?</Text>
                 <Text style={{ fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted, marginTop: 4, marginBottom: 12 }}>Cüzdanındaki hisse ve coin dağılımını (yüzdelerini) kimlerin görebileceğini seç.</Text>
                 <View style={{ flexDirection: 'row', backgroundColor: colors.surfacePressed, borderRadius: 10, padding: 4 }}>
-                  <TouchableOpacity onPress={() => setEditAlloc('private')} style={{ flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: editAlloc === 'private' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'private' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'private' ? 2 : 0 }}>
+                  <TouchableOpacity onPress={() => setEditAlloc('private')} style={{ flex: 1, paddingVertical: 12, borderRadius: 6, backgroundColor: editAlloc === 'private' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'private' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'private' ? 2 : 0 }}>
                     <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: editAlloc === 'private' ? '#000' : colors.inkMuted }}>Hiç Kimse</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEditAlloc('friends')} style={{ flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: editAlloc === 'friends' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'friends' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'friends' ? 2 : 0 }}>
+                  <TouchableOpacity onPress={() => setEditAlloc('friends')} style={{ flex: 1, paddingVertical: 12, borderRadius: 6, backgroundColor: editAlloc === 'friends' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'friends' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'friends' ? 2 : 0 }}>
                     <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: editAlloc === 'friends' ? '#000' : colors.inkMuted }}>Arkadaşlar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setEditAlloc('public')} style={{ flex: 1, paddingVertical: 10, borderRadius: 6, backgroundColor: editAlloc === 'public' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'public' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'public' ? 2 : 0 }}>
+                  <TouchableOpacity onPress={() => setEditAlloc('public')} style={{ flex: 1, paddingVertical: 12, borderRadius: 6, backgroundColor: editAlloc === 'public' ? '#FFF' : 'transparent', alignItems: 'center', shadowColor: editAlloc === 'public' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: editAlloc === 'public' ? 2 : 0 }}>
                     <Text style={{ fontFamily: fonts.bold, fontSize: 14, color: editAlloc === 'public' ? '#000' : colors.inkMuted }}>Herkes</Text>
                   </TouchableOpacity>
                 </View>
@@ -603,7 +612,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                   onChangeText={setEditQuestion}
                   placeholder="Soru (örn. İlk evcil hayvanının adı neydi?)"
                   placeholderTextColor={colors.inkMuted}
-                  style={{ backgroundColor: colors.surfacePressed, borderRadius: 14, padding: 14, color: colors.ink, fontFamily: fonts.regular, marginBottom: 10 }}
+                  style={{ backgroundColor: colors.surfacePressed, borderRadius: 14, padding: 16, color: colors.ink, fontFamily: fonts.regular, marginBottom: 12 }}
                 />
                 <TextInput
                   value={editAnswer}
@@ -611,7 +620,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                   placeholder="Cevap"
                   placeholderTextColor={colors.inkMuted}
                   autoCapitalize="none"
-                  style={{ backgroundColor: colors.surfacePressed, borderRadius: 14, padding: 14, color: colors.ink, fontFamily: fonts.regular }}
+                  style={{ backgroundColor: colors.surfacePressed, borderRadius: 14, padding: 16, color: colors.ink, fontFamily: fonts.regular }}
                 />
                 <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 8 }}>
                   Cevap sunucuda şifrelenerek saklanır, kimse göremez. Büyük/küçük harf ve baştaki boşluklar önemsiz.

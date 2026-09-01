@@ -225,14 +225,14 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 14,
     color: colors.inkMuted,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   headline: {
     fontFamily: fonts.bold,
     fontSize: 20,
     color: colors.ink,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   detail: {
     fontFamily: fonts.medium,
@@ -241,10 +241,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   detailStrong: { fontFamily: fonts.bold, color: colors.ink },
-  twr: { fontFamily: fonts.bold, fontSize: 34, marginTop: 14, marginBottom: 22 },
+  twr: { fontFamily: fonts.bold, fontSize: 34, marginTop: 16, marginBottom: 24 },
   button: {
     backgroundColor: colors.accent,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: 14,
     alignSelf: 'stretch',
     alignItems: 'center',
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignSelf: 'stretch',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 8,
   },
   secondaryText: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted },
 });

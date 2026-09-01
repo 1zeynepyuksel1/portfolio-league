@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
   content: {
     paddingHorizontal: spacing.screen,
-    paddingTop: 18,
+    paddingTop: 20,
     // Alt çubuğun üstüne binmesin; sohbet kutusu en altta.
     paddingBottom: 40,
   },
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   titleLogo: { width: 40, height: 40, borderRadius: 20 },
   title: {
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: colors.inkMuted,
-    marginBottom: 22,
+    marginBottom: 24,
   },
   body: { marginTop: 2 },
 });

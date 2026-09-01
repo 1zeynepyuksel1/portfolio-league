@@ -618,8 +618,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginHorizontal: spacing.screen,
-    paddingVertical: 11,
-    paddingHorizontal: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 12,
     gap: 10,
-    marginBottom: 6,
+    marginBottom: 8,
   },
 
   /**
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     gap: 8,
     alignItems: 'center',
   },
@@ -694,8 +694,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.screen,
-    paddingTop: 18,
-    paddingBottom: 10,
+    paddingTop: 20,
+    paddingBottom: 12,
     backgroundColor: colors.surface,
   },
   title: {
@@ -714,14 +714,14 @@ const styles = StyleSheet.create({
   liveText: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkMuted },
   content: {
     paddingHorizontal: spacing.screen,
-    paddingTop: 10, // Üstteki header ile uyumlu olması için 20'den 10'a düşürdük
+    paddingTop: 12, // Üstteki header ile uyumlu olması için 20'den 10'a düşürdük
     // Sabit düğmenin altında kalan son satır görünsün diye ek boşluk.
     paddingBottom: 24,
   },
   ctaBar: {
     paddingHorizontal: spacing.screen,
-    paddingTop: 10,
-    paddingBottom: 14,
+    paddingTop: 12,
+    paddingBottom: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
   amountButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 10,
     backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 14,
+    marginTop: 16,
   },
   chipRow: { flexDirection: 'row', gap: 6, flex: 1 },
 
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

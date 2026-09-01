@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
 
   backRow: {
     paddingHorizontal: 20,
-    paddingTop: 26,
+    paddingTop: 28,
     paddingBottom: 16,
   },
   backText: {
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.fieldFill,
     padding: 16,
     marginHorizontal: 16,
-    marginTop: 10,
+    marginTop: 12,
     borderRadius: 14,
   },
   suggestionsContainer: {
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     gap: 10,
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
     fontSize: 12,
     color: colors.inkMuted,
-    marginTop: 1,
+    marginTop: 2,
   },
   
   sectionTitle: {
@@ -752,8 +752,8 @@ const styles = StyleSheet.create({
   },
   notificationBadge: {
     backgroundColor: colors.accent,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: 10,
   },
   notificationBadgeText: {
@@ -769,14 +769,14 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingBottom: 30,
+    paddingBottom: 32,
   },
   groupHeader: {
     color: colors.ink,
     fontSize: 14,
     fontFamily: fonts.bold,
     marginBottom: 8,
-    marginTop: 6,
+    marginTop: 8,
   },
   noRequestText: {
     color: colors.inkFaint,
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.hairline,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
   avatarTextSmall: {
     color: colors.ink,
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
   requestEmail: {
     color: colors.inkMuted,
     fontSize: 12,
-    marginTop: 1,
+    marginTop: 2,
   },
   requestActions: {
     flexDirection: 'row',
@@ -827,14 +827,14 @@ const styles = StyleSheet.create({
   },
   acceptButton: {
     backgroundColor: colors.gain,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 10,
   },
   rejectButton: {
     backgroundColor: colors.accent,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 10,
   },
   actionButtonText: {
@@ -863,8 +863,8 @@ const styles = StyleSheet.create({
   cancelButton: {
     borderWidth: 1,
     borderColor: colors.inkFaint,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
     borderRadius: 6,
   },
   cancelButtonText: {
@@ -907,8 +907,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   removeButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: colors.accent,
@@ -925,7 +925,7 @@ const styles = StyleSheet.create({
   },
   emptyEmoji: {
     fontSize: 44,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   emptyTitle: {
     color: colors.ink,
@@ -936,7 +936,7 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     fontSize: 14,
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 8,
     lineHeight: 18,
   },
 });

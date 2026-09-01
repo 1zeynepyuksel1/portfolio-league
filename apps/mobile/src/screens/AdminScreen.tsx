@@ -11,7 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ban, Search, ShieldCheck, Trash2, X } from 'lucide-react-native';
+import { Ban, FileText, Search, ShieldCheck, Trash2, UserX, X } from 'lucide-react-native';
+import { EmptyState } from '../components/EmptyState';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 
@@ -245,7 +246,14 @@ export function AdminScreen({ onClose }: { onClose: () => void }) {
                   ))}
               </View>
             )}
-            ListEmptyComponent={<Text style={styles.bos}>Kullanıcı bulunamadı.</Text>}
+            ListEmptyComponent={
+              <EmptyState
+                compact
+                icon={UserX}
+                title="Kullanıcı bulunamadı"
+                description="Arama kutusundaki metni kısaltmayı dene; kullanıcı adı, e-posta ve isim üzerinde arıyor."
+              />
+            }
           />
         </>
       ) : (
@@ -277,7 +285,14 @@ export function AdminScreen({ onClose }: { onClose: () => void }) {
               </TouchableOpacity>
             </View>
           )}
-          ListEmptyComponent={<Text style={styles.bos}>Gönderi yok.</Text>}
+          ListEmptyComponent={
+            <EmptyState
+              compact
+              icon={FileText}
+              title="Gönderi yok"
+              description="Kullanıcılar paylaşım yaptıkça burada listelenecek."
+            />
+          }
         />
       )}
 
@@ -355,7 +370,7 @@ const styles = StyleSheet.create({
   kutuDeger: { fontFamily: fonts.bold, fontSize: 20, color: colors.ink },
   kutuEtiket: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 2 },
   tabRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 8 },
-  tab: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: colors.surfacePressed },
+  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: colors.surfacePressed },
   tabActive: { backgroundColor: colors.accent },
   tabText: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted },
   tabTextActive: { color: '#FFF' },
@@ -369,7 +384,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfacePressed,
     borderRadius: 14,
   },
-  searchInput: { flex: 1, paddingVertical: 10, color: colors.ink, fontFamily: fonts.regular },
+  searchInput: { flex: 1, paddingVertical: 12, color: colors.ink, fontFamily: fonts.regular },
   list: { paddingHorizontal: 16, paddingBottom: 32 },
   row: {
     flexDirection: 'row',
@@ -383,9 +398,9 @@ const styles = StyleSheet.create({
   rowSub: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 2 },
   meta: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 4 },
   banli: { fontFamily: fonts.medium, fontSize: 12, color: colors.loss, marginTop: 4 },
-  rozet: { backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  rozet: { backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   rozetText: { fontFamily: fonts.bold, fontSize: 10, color: '#FFF' },
-  banBtn: { padding: 10, borderRadius: 10, backgroundColor: 'rgba(239, 68, 68, 0.1)' },
+  banBtn: { padding: 12, borderRadius: 10, backgroundColor: 'rgba(239, 68, 68, 0.1)' },
   unbanBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.surfacePressed },
   unbanText: { fontFamily: fonts.bold, fontSize: 12, color: colors.ink },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -398,18 +413,18 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   card: { backgroundColor: colors.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: colors.border },
-  cardTitle: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 6 },
-  cardSub: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted, marginBottom: 14 },
+  cardTitle: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 8 },
+  cardSub: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted, marginBottom: 16 },
   reasonInput: {
     backgroundColor: colors.surfacePressed,
     borderRadius: 14,
-    padding: 14,
+    padding: 16,
     color: colors.ink,
     fontFamily: fonts.regular,
     minHeight: 80,
     textAlignVertical: 'top',
     marginBottom: 16,
   },
-  cardBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  cardBtn: { flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
   cardBtnText: { fontFamily: fonts.bold, fontSize: 14, color: '#FFF' },
 });

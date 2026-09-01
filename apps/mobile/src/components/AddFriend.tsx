@@ -128,7 +128,7 @@ export function AddFriend({ onSent }: { onSent?: () => void }) {
 
 const styles = StyleSheet.create({
   invite: {
-    marginTop: 18,
+    marginTop: 20,
     height: 52,
     borderRadius: 14,
     borderWidth: 1,
@@ -142,8 +142,8 @@ const styles = StyleSheet.create({
   inviteText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.inkBright },
 
   box: {
-    marginTop: 18,
-    padding: 14,
+    marginTop: 20,
+    padding: 16,
     borderRadius: 14,
     backgroundColor: colors.surfaceSunken,
     borderWidth: 1,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   send: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     height: 44,
     borderRadius: 10,
     backgroundColor: colors.inverse,

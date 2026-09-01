@@ -416,23 +416,23 @@ function StatLine({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   statsBlock: {
-    marginTop: 22,
+    marginTop: 24,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingTop: 14,
+    paddingTop: 16,
   },
   statsTitle: {
     fontFamily: fonts.bold,
     fontSize: 10,
     letterSpacing: 1.5,
     color: colors.inkFaint,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   statLine: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 14,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    marginTop: 6,
+    marginTop: 8,
   },
   reset: {
     color: colors.gain,
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     color: colors.inkFaint,
     fontSize: 12,
     lineHeight: 17,
-    marginTop: 14,
+    marginTop: 16,
   },
 
   // Sabit alt çubuk: kendi yatay boşluğu ve üst ayırıcı çizgisi var.

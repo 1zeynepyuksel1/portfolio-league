@@ -306,17 +306,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.regular,
     color: colors.inkDim,
-    marginTop: 18,
+    marginTop: 20,
   },
 
   form: { marginTop: 28, gap: 12 },
-  ctaWrap: { marginTop: 6 },
+  ctaWrap: { marginTop: 8 },
   successText: {
     fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.gain,
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: 12,
   },
 
   footer: { marginTop: 'auto', paddingTop: 24 },
@@ -336,5 +336,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     color: colors.ink,
   },
-  indicatorWrap: { marginTop: 22 },
+  indicatorWrap: { marginTop: 24 },
 });

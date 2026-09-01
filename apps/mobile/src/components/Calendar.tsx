@@ -247,7 +247,7 @@ export function Calendar({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 10,
+    marginVertical: 12,
   },
   label: {
     fontFamily: fonts.bold,
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -289,12 +289,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 14,
     color: colors.inkBright,
-    marginTop: 10,
+    marginTop: 12,
   },
   dropdownButtonCaret: {
     fontSize: 14,
     color: colors.inkFaint,
-    marginTop: 10,
+    marginTop: 12,
   },
   optionsContainer: {
     marginTop: 8,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   listOptions: {
-    padding: 6,
+    padding: 8,
     gap: 4,
   },
   optionCell: {

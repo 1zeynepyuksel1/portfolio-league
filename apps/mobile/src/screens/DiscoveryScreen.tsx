@@ -8,6 +8,8 @@ import { ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { Heart, MessageSquare, TrendingUp, TrendingDown, Gift, Plus } from 'lucide-react-native';
 import { GlobalShareMenu } from '../components/GlobalShareMenu';
 import { getMe } from '../lib/me';
+import { EmptyState } from '../components/EmptyState';
+import { Newspaper } from 'lucide-react-native';
 import { WhatIfScreen } from './WhatIfScreen';
 import { FriendsScreen } from './FriendsScreen';
 import { LeaderboardScreen } from './LeaderboardScreen';
@@ -122,7 +124,11 @@ function FeedTab({ onSelectUser, currentUser }: { onSelectUser?: (username: stri
       contentContainerStyle={styles.feedContent}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadFeed(true)} tintColor={colors.accent} />}
       ListEmptyComponent={
-        <Text style={{ fontFamily: fonts.medium, color: colors.inkMuted, textAlign: 'center', marginTop: 40 }}>Henüz hiç paylaşım yok. İlk sen paylaş!</Text>
+        <EmptyState
+          icon={Newspaper}
+          title="Akış henüz boş"
+          description="Arkadaşların bir şey paylaştığında burada görünecek. İlk paylaşımı sen yapabilirsin."
+        />
       }
       renderItem={({ item }) => (
         <PostCard 
@@ -270,7 +276,7 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
   },
   postBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 14,
   },

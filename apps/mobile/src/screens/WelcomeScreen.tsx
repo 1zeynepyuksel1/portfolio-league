@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   trustRow: {
     flexDirection: 'row',
     gap: 20,
-    marginTop: 26,
+    marginTop: 28,
   },
   trustItem: {
     flexDirection: 'row',
@@ -187,9 +187,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.inkGhost,
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: 12,
   },
   indicatorWrap: {
-    marginTop: 14,
+    marginTop: 16,
   },
 });

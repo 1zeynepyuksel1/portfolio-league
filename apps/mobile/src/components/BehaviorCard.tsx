@@ -246,7 +246,7 @@ export function BehaviorCard() {
 }
 
 const styles = StyleSheet.create({
-  section: { marginBottom: 26 },
+  section: { marginBottom: 28 },
   label: {
     fontFamily: fonts.bold,
     fontSize: 10,
@@ -255,8 +255,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   card: {
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
     borderRadius: 14,
     backgroundColor: colors.surfaceRaised,
     // Tasarım gölge kullanmıyor; derinlik yüzey tonundan geliyor.
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 14,
     color: colors.ink,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   cardBody: {
     fontFamily: fonts.regular,
@@ -282,8 +282,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   comment: {
-    padding: 14,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
     borderRadius: 14,
     // ⚠️ Kartlardan FARKLI yüzey: yorum bir kart değil, kartların
     // üstüne konan bir not. Aynı `surfaceRaised` olsaydı sekizinci bir
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 1.4,
     color: colors.inkDisabled,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   commentText: {
     fontFamily: fonts.regular,
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     color: colors.inkBright,
   },
   empty: {
-    padding: 14,
+    padding: 16,
     borderRadius: 14,
     // ⚠️ Ekrandan DAHA KOYU yüzey: boş durum girintili görünmeli,
     // kart gibi yükselmiş değil. `theme.ts` bu kademeyi bunun için tutuyor.
