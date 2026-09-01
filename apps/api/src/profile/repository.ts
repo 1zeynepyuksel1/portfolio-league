@@ -38,6 +38,7 @@ export async function findProfileByUsername(
       firstName: users.firstName,
       lastName: users.lastName,
       isPublic: users.isPublic,
+      allocationVisibility: users.allocationVisibility,
       avatarSeed: users.avatarSeed,
       avatarStyle: users.avatarStyle,
     })

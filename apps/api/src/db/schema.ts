@@ -28,6 +28,7 @@ export const users = pgTable('users', {
   isEmailVerified: boolean('is_email_verified').default(false).notNull(),
   verificationCode: text('verification_code'),
   isPublic: boolean('is_public').default(true).notNull(),
+    allocationVisibility: text('allocation_visibility').default('private').notNull(),
   avatarSeed: text('avatar_seed'),
   avatarStyle: text('avatar_style'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
