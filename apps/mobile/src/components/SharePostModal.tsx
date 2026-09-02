@@ -10,7 +10,8 @@ export type ShareScope =
   | { type: 'portfolio', period: 'week' | 'month' | 'custom' | 'all' }
   | { type: 'horoscope', content: string, assetName: string }
   | { type: 'wheel', prizeText: string }
-  | { type: 'market_asset', assetKey: string, assetName: string, changePercent: number };
+  | { type: 'market_asset', assetKey: string, assetName: string, changePercent: number }
+  | { type: 'what_if', assetName: string, startDate: string, nominalMultiple: number, realMultiple: number, initialTry: string, finalTry: string };
 
 type PreviewData = any;
 
@@ -43,6 +44,18 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
   }, [visible, scope]);
 
   async function loadPreview() {
+    if (scope?.type === 'what_if') {
+      setPreview({
+        assetName: scope.assetName,
+        startDate: scope.startDate,
+        nominalMultiple: scope.nominalMultiple,
+        realMultiple: scope.realMultiple,
+        initialTry: scope.initialTry,
+        finalTry: scope.finalTry
+      });
+      setLoading(false);
+      return;
+    }
     if (scope?.type === 'horoscope') {
       setPreview({
         fortune_content: scope.content,
@@ -98,6 +111,10 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
       let targetKey = null;
       let periodParams = null;
       let clientPayload = null;
+        if (scope.type === 'what_if') {
+          type = 'what_if_share';
+          clientPayload = preview;
+        }
 
       if (scope.type === 'single_asset') {
         type = 'pnl_share';
@@ -138,7 +155,7 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
   }
 
   const postObj = {
-    type: scope?.type === 'horoscope' ? 'horoscope_share' : scope?.type === 'wheel' ? 'wheel_share' : 'pnl_share',
+    type: scope?.type === 'what_if' ? 'what_if_share' : scope?.type === 'horoscope' ? 'horoscope_share' : scope?.type === 'wheel' ? 'wheel_share' : 'pnl_share',
     scope: scope?.type === 'single_asset' || scope?.type === 'portfolio' ? scope.type : scope?.type === 'market_asset' ? 'single_asset' : null,
     payload: preview,
     caption,

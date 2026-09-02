@@ -238,6 +238,8 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
     sayılara güvenilebilir.
   */
   const isCrown = post.type === 'crown_share';
+
+    const isWhatIf = post.type === 'what_if_share';
   const isSingleAsset = post.scope === 'single_asset' || payload.is_market || payload.asset_key !== undefined;
 
   const pnlCents = BigInt(payload.pnl_amount || '0');
@@ -259,6 +261,8 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
     çıkıyor; 9. olan birinin kartında "Şampiyon" yazması yanlış olurdu.
   */
   if (isCrown) badgeText = 'Lig Sonucu';
+
+    if (isWhatIf) badgeText = 'Kaçan Fırsat';
 
   // Dummy data for mockup
   const [dummyLikes] = useState(() => Math.floor(Math.random() * 200) + 12);
@@ -303,6 +307,32 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
         </View>
 
       {/* 2. Main Box Area (Pnl / Horoscope / Wheel) */}
+
+                {/* WHAT IF UI */}
+        {isWhatIf && (
+          <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.05)', padding: 20, borderRadius: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.2)' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gain, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                <Text style={{ fontSize: 20 }}>🚀</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted }}>Zaman Yolculuğu</Text>
+                <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink }}>{payload.startDate} ➔ {payload.assetName}</Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.surfaceRaised, padding: 12, borderRadius: 12 }}>
+              <View>
+                <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginBottom: 4 }}>Nominal Kazanç</Text>
+                <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.gain }}>{payload.nominalMultiple}x</Text>
+              </View>
+              <View style={{ width: 1, backgroundColor: colors.hairline }} />
+              <View>
+                <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginBottom: 4 }}>Reel Kazanç</Text>
+                <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.gain }}>{payload.realMultiple}x</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* CROWN POST UI */}
         {isCrown && (() => {

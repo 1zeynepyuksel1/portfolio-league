@@ -1,3 +1,4 @@
+import { SharePostModal } from '../components/SharePostModal';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -120,6 +121,7 @@ export function WhatIfResultScreen({
   const [result, setResult] = useState<WhatIfResult | null>(null);
   const [multiples, setMultiples] = useState<MultiplesResponse | null>(null);
   const [series, setSeries] = useState<PricePoint[]>([]);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showQuantity, setShowQuantity] = useState(false);
@@ -208,15 +210,7 @@ export function WhatIfResultScreen({
 
         <TouchableOpacity
           style={styles.textShareButton}
-          onPress={() =>
-            void Share.share({
-              message:
-                `${humanDate(result.startDate)} tarihinde ${result.initialInvestmentTry} ` +
-                `${result.assetName} alsaydım bugün ${result.currentValueTry} olurdu ` +
-                `(${formatMultiple(nominalMultiple)}). Enflasyondan sonra ` +
-                `${formatMultiple(realMultiple)}.`,
-            })
-          }
+          onPress={() => setShareModalVisible(true)}
           accessibilityRole="button"
           accessibilityLabel="Paylaş"
         >
@@ -370,14 +364,7 @@ export function WhatIfResultScreen({
       <View style={styles.actions}>
         <TouchableOpacity
           style={styles.secondary}
-          onPress={() =>
-            void Share.share({
-              message:
-                `${humanDate(result.startDate)} · ${result.assetName} ` +
-                `${formatMultiple(nominalMultiple)} — alım gücünde ` +
-                `${formatMultiple(realMultiple)}`,
-            })
-          }
+          onPress={() => setShareModalVisible(true)}
         >
           <Text style={styles.secondaryText}>Paylaş</Text>
         </TouchableOpacity>
@@ -386,6 +373,21 @@ export function WhatIfResultScreen({
           <Text style={styles.primaryText}>Başka gün</Text>
         </TouchableOpacity>
       </View>
+    
+      <SharePostModal
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        onSuccess={() => setShareModalVisible(false)}
+        scope={{
+          type: 'what_if',
+          assetName: result.assetName,
+          startDate: humanDate(result.startDate),
+          nominalMultiple: nominalMultiple,
+          realMultiple: realMultiple,
+          initialTry: result.initialInvestmentTry,
+          finalTry: result.currentValueTry
+        }}
+      />
     </ScrollView>
   );
 }
