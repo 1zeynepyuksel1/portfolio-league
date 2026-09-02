@@ -156,7 +156,7 @@ export async function createPost(userId: string, type: 'pnl_share' | 'wheel_shar
       throw new Error('Paylaşılacak bir lig sonucun yok.');
     }
     payload = sonuc;
-  } else if (type === 'wheel_share' || type === 'horoscope_share') { || type === 'what_if_share') {
+  } else if (type === 'wheel_share' || type === 'horoscope_share' || type === 'what_if_share') {
     payload = clientPayload || {};
   } else {
     throw new Error("Geçersiz paylaşım tipi.");

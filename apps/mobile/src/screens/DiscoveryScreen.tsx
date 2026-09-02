@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView, Image, SafeAreaView, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { StyleSheet, DeviceEventEmitter, Text, TouchableOpacity, View, ScrollView, Image, SafeAreaView, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { colors, fonts } from '../theme';
 import { apiFetch } from '../api/client';
 import { PostCard } from '../components/PostCard';
@@ -27,6 +27,11 @@ export function DiscoveryScreen({ onSelectUser, currentUser, onOpenFriends }: { 
   const [shareMenuVisible, setShareMenuVisible] = useState(false);
 
   const [activeTab, setActiveTab] = useState<DiscoveryTab>('feed');
+
+  React.useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('switchDiscoveryTab', (tab) => setActiveTab(tab));
+    return () => sub.remove();
+  }, []);
 
   return (
     <View style={styles.container}>

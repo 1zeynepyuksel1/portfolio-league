@@ -309,31 +309,65 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
       {/* 2. Main Box Area (Pnl / Horoscope / Wheel) */}
 
                 {/* WHAT IF UI */}
-        {isWhatIf && (
-          <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.05)', padding: 20, borderRadius: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.2)' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.gain, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-                <Text style={{ fontSize: 20 }}>🚀</Text>
+        {isWhatIf && (() => {
+          const now = new Date();
+          const todayStr = ('0' + now.getDate()).slice(-2) + '.' + ('0' + (now.getMonth() + 1)).slice(-2) + '.' + now.getFullYear();
+          const nominalStr = typeof payload.nominalMultiple === 'number' ? payload.nominalMultiple.toFixed(1) : parseFloat(payload.nominalMultiple || 0).toFixed(1);
+          const realStr = typeof payload.realMultiple === 'number' ? payload.realMultiple.toFixed(1) : parseFloat(payload.realMultiple || 0).toFixed(1);
+          
+          return (
+            <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.05)', padding: 16, borderRadius: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.2)' }}>
+              
+              {/* TOP BADGE */}
+              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(34, 197, 94, 0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                  <Text style={{ fontSize: 16, marginRight: 6 }}>🕰️</Text>
+                  <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: colors.gain }}>Zaman Yolculuğu</Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted }}>Zaman Yolculuğu</Text>
-                <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink }}>{payload.startDate} ➔ {payload.assetName}</Text>
-              </View>
-            </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.surfaceRaised, padding: 12, borderRadius: 12 }}>
-              <View>
-                <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginBottom: 4 }}>Nominal Kazanç</Text>
-                <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.gain }}>{payload.nominalMultiple}x</Text>
-              </View>
-              <View style={{ width: 1, backgroundColor: colors.hairline }} />
-              <View>
-                <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginBottom: 4 }}>Reel Kazanç</Text>
-                <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.gain }}>{payload.realMultiple}x</Text>
-              </View>
-            </View>
-          </View>
-        )}
 
+              {/* MAIN CONTENT ROW */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                
+                <View style={{ flex: 1, paddingRight: 16 }}>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 28, color: colors.ink }}>
+                    {payload.assetName}
+                  </Text>
+                  <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted, marginBottom: 8, marginTop: 2 }}>
+                    {payload.startDate} ➔ {todayStr}
+                  </Text>
+                  <Text style={{ fontFamily: fonts.medium, fontSize: 15, color: colors.inkMuted, lineHeight: 22 }}>
+                    O gün <Text style={{ color: colors.ink }}>{payload.initialTry}</Text> değerinde alsaydım,{'\n'}bugün tam <Text style={{ color: colors.gain, fontFamily: fonts.bold, fontSize: 18 }}>{payload.finalTry}</Text> olurdu.
+                  </Text>
+                </View>
+
+                {/* STYLISH MULTIPLIER BADGE */}
+                <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.12)', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.3)' }}>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 26, color: colors.gain }}>
+                    {nominalStr}x
+                  </Text>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 10, color: colors.gain, marginTop: 4, letterSpacing: 1 }}>
+                    KAZANÇ
+                  </Text>
+                </View>
+                
+              </View>
+
+              {/* BOTTOM BREAKDOWN */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.surfaceRaised, padding: 12, borderRadius: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>KÂĞIT ÜZERİNDE</Text>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.gain }}>{nominalStr}x</Text>
+                </View>
+                <View style={{ width: 1, backgroundColor: colors.border, marginHorizontal: 12 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>ENFLASYONDAN SONRA</Text>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.gain }}>{realStr}x</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })()}
         {/* CROWN POST UI */}
         {isCrown && (() => {
           /*

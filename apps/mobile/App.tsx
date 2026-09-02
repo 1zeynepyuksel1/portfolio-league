@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { ActivityIndicator, DeviceEventEmitter, SafeAreaView, StyleSheet, Text, TouchableOpacity, View, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from '@expo-google-fonts/rubik';
 import {
@@ -265,6 +265,8 @@ function AppShell() {
   // Otomatik oturum geri yükleme devre dışı bırakıldı. Her açılışta giriş sayfasına yönlendirilir.
   useEffect(() => {
     setRestoring(false);
+    const sub = DeviceEventEmitter.addListener('switchTab', (tab) => setActiveTab(tab));
+    return () => sub.remove();
   }, []);
 
   /**
