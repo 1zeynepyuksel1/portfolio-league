@@ -179,6 +179,66 @@ function bpsToPercent(bps: string | number): string {
   return `%${Math.round(Number(bps) / 100)}`;
 }
 
+/**
+ * Dakikayı insanın kullandığı birime çevirir: 3500 -> "2,4 gün"
+ *
+ * ⚠️ HAM DAKİKA GÖSTERİLİYORDU VE PROFESÖRÜN TEK SOMUT ELEŞTİRİSİ
+ * BUYDU: "burası bir tık daha teknik kalıyor."
+ *
+ * Ekranda şöyle bir cümle çıkıyordu:
+ *
+ *   "Kârlı 2 pozisyonu 780 dakika, zararlı 3'ü 3500 dakika tuttun."
+ *
+ * Sayılar DOĞRU ama çeviri yok. 3500 dakikanın ne kadar olduğunu
+ * kimse kafadan hesaplamıyor; okuyan kişi bir şey hissetmiyor.
+ *
+ *   780 dakika  = 13 saat
+ *   3500 dakika = 2,4 gün
+ *
+ * ⚠️ EŞİKLER: 90 dakikaya kadar dakika (o aralıkta "1,5 saat"
+ * demek hassasiyet kaybı), 48 saate kadar saat, sonrası gün.
+ * Ondalık yalnızca gün ve saatte — "13,4 dakika" gibi bir sayı
+ * uydurma bir hassasiyet iddiası olurdu.
+ */
+function sure(dakika: string | number): string {
+  const d = Number(dakika);
+  if (!Number.isFinite(d) || d < 0) return '—';
+
+  if (d < 90) return `${Math.round(d)} dakika`;
+
+  const saat = d / 60;
+  if (saat < 48) {
+    // 13,4 saat gibi bir ondalık anlamlı; 13,44 değil.
+    const y = Math.round(saat * 10) / 10;
+    return `${String(y).replace('.', ',')} saat`;
+  }
+
+  const gun = Math.round((saat / 24) * 10) / 10;
+  return `${String(gun).replace('.', ',')} gün`;
+}
+
+/**
+ * "Kaç katı" ifadesi — iki süreyi kıyaslar.
+ *
+ * ⚠️ TEK SAYI ANLAMSIZDIR, KIYAS ANLAMLIDIR. "2,4 gün tuttun"
+ * bir bilgi; "kazandıranın 4 katı kadar tuttun" bir İÇGÖRÜ.
+ * Kullanıcının davranışını gösteren şey oran, süre değil.
+ *
+ * ⚠️ SIFIRA BÖLME KORUMASI. Kazanan pozisyonu saniyeler içinde
+ * kapatan bir kullanıcıda payda 0 olabilir; `Infinity` metne
+ * "Infinity katı" diye yazılırdı.
+ */
+function katOrani(buyuk: string | number, kucuk: string | number): string | null {
+  const b = Number(buyuk);
+  const k = Number(kucuk);
+  if (!Number.isFinite(b) || !Number.isFinite(k) || k <= 0) return null;
+
+  const oran = b / k;
+  if (oran < 1.5) return null; // Kayda değer bir fark yok.
+
+  return `${String(Math.round(oran * 10) / 10).replace('.', ',')} katı`;
+}
+
 /** Kuruş metnini para biçimine sokar: "14677" -> "146,77 ₺" */
 function cents(value: string | number): string {
   return formatTRY(BigInt(value) as Penny);
@@ -238,9 +298,10 @@ function toFinding(indicator: Indicator): BehaviorFinding {
       return build(
         indicator,
         'Sat, hemen geri al',
-        `${f('count')} kez bir varlığı sattıktan sonra ${f('windowMinutes')} ` +
-          `dakika içinde geri aldın. Bu gidiş-dönüşlerin komisyonu ` +
-          `${cents(f('feeCents'))}.`,
+        `${f('count')} kez bir varlığı sattıktan sonra ${sure(f('windowMinutes'))} ` +
+          `içinde geri aldın. Bu gidiş-dönüşler sana ` +
+          `${cents(f('feeCents'))} komisyona mal oldu — pozisyonun ` +
+          `değişmedi, yalnızca komisyon ödedin.`,
       );
 
     case 'panic_selling':
@@ -253,14 +314,30 @@ function toFinding(indicator: Indicator): BehaviorFinding {
           `${bpsToPercent(f('shareBps'))}'i böyle.`,
       );
 
-    case 'disposition_effect':
+    case 'disposition_effect': {
+      /*
+        ⚠️ ÜÇ KURAL BİRDEN UYGULANIYOR (bkz. `sure` ve `katOrani`):
+          1. birim çevir  -> 3500 dakika değil "2,4 gün"
+          2. kıyas ver    -> "4 katı"
+          3. sonucu söyle -> davranışın ne anlama geldiği
+
+        ⚠️ KAT ORANI `null` DÖNEBİLİR (fark 1,5 katın altındaysa ya
+        da payda sıfırsa). O zaman cümle kıyassız kuruluyor —
+        "1,1 katı" demek, olmayan bir örüntüyü varmış gibi
+        göstermek olurdu.
+      */
+      const kat = katOrani(f('loserAvgHoldMinutes'), f('winnerAvgHoldMinutes'));
+
       return build(
         indicator,
         'Kazananı çabuk, kaybedeni geç sattın',
         `Kârlı ${f('winnerCount')} pozisyonu ortalama ` +
-          `${f('winnerAvgHoldMinutes')} dakika, zararlı ${f('loserCount')} ` +
-          `pozisyonu ${f('loserAvgHoldMinutes')} dakika tuttun.`,
+          `${sure(f('winnerAvgHoldMinutes'))} tuttun; zararlı ` +
+          `${f('loserCount')} pozisyonu ${sure(f('loserAvgHoldMinutes'))}` +
+          (kat === null ? '.' : ` — yani ${kat} kadar.`) +
+          ' Zararı kapatmayı ertelemek, zararı büyütür.',
       );
+    }
 
     case 'averaging_down':
       return build(
