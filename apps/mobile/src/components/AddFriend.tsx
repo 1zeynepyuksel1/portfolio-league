@@ -11,7 +11,17 @@ import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 
 /**
- * AddFriend — `docs/export/8a` sağ ekranın "Arkadaş davet et" düğmesi.
+ * AddFriend — arkadaş ekleme düğmesi (`docs/export/8a`).
+ *
+ * ⚠️ ETİKET "davet et" DEĞİL "ekle" — VE FARK KULLANICI İÇİN GERÇEK.
+ *
+ * "Davet et" uygulamayı KULLANMAYAN birini çağırmak demek; kullanıcı
+ * o düğmeye basınca WhatsApp/SMS paylaşımı bekler. Buradaki düğme
+ * ise uygulamadaki bir hesaba arkadaşlık isteği gönderiyor — yani
+ * "ekle". Yanlış fiil, yanlış beklenti üretiyordu.
+ *
+ * FriendsScreen'deki başlık zaten "Arkadaş Ekle" diyordu; ikisi
+ * ayrışmıştı.
  *
  * ⚠️ E-POSTA İLE, KULLANICI ADIYLA DEĞİL.
  *
@@ -70,7 +80,7 @@ export function AddFriend({ onSent }: { onSent?: () => void }) {
         onPress={() => setOpen(true)}
         accessibilityRole="button"
       >
-        <Text style={styles.inviteText}>+  Arkadaş davet et</Text>
+        <Text style={styles.inviteText}>+  Arkadaş ekle</Text>
       </TouchableOpacity>
     );
   }

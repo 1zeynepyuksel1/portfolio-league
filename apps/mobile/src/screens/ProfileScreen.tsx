@@ -78,7 +78,7 @@ type PublicProfile = {
   role?: string;
   twrPercent: string | null; rank: number | null; totalParticipants: number | null;
   achievementsCount?: number; allocation: ProfileSlice[]; pending: 'outgoing' | 'incoming' | null;
-  friendCount: number; pendingRequests: number;
+  friendCount: number; mutualFriendCount: number; pendingRequests: number;
   lastWeekRank?: number | null;
   lastWeekLeagueName?: string | null;
 };
@@ -87,6 +87,16 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
+
+  /*
+    Profil içi sekmeler: Portföy | Paylaşımlar.
+
+    ⚠️ İKİSİ ALT ALTA DURUYORDU VE PORTFÖY HİÇ GÖRÜNMÜYORDU. Sekmeye
+    ayırmanın iki kazancı var: uzun sayfa kısalıyor, ve portföyü
+    GİZLİ olan kullanıcıda sekme hiç çizilmediği için "burada bir şey
+    vardı ama göremiyorum" hissi doğmuyor — olmayan bir şey aranmıyor.
+  */
+  const [profileTab, setProfileTab] = useState<'portfolio' | 'posts'>('posts');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -230,8 +240,30 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   const handleSaveSettings = async () => {
     setSavingSettings(true); setSettingsError('');
     try {
-      await apiFetch('/users/me', { method: 'PATCH', body: JSON.stringify({ firstName: editFirstName, lastName: editLastName, password: editPassword ? editPassword : undefined, allocationVisibility: editAlloc }) });
-      if (editIsPublic !== profile?.isPublic) { await apiFetch('/users/me/visibility', { method: 'PATCH', body: JSON.stringify({ isPublic: editIsPublic }) }); }
+      /*
+        ⚠️ `allocationVisibility` BURADAN ÇIKARILDI — YANLIŞ UCA
+        GİDİYORDU VE HİÇ KAYDEDİLMİYORDU.
+
+        `PATCH /users/me` yalnızca ad, soyad ve şifre yazıyor;
+        şeması bu alanı hiç tanımıyordu ve Zod bilinmeyen anahtarı
+        SESSİZCE atıyordu. İstek 200 dönüyor, ekran "kaydedildi"
+        diyor, veritabanı değişmiyordu.
+
+        ⚠️ Görünürlük ayarlarının tek adresi artık
+        `PATCH /users/me/visibility` ve ikisini birden alıyor.
+      */
+      await apiFetch('/users/me', { method: 'PATCH', body: JSON.stringify({ firstName: editFirstName, lastName: editLastName, password: editPassword ? editPassword : undefined }) });
+
+      /*
+        ⚠️ KOŞUL KALDIRILDI. Önceden yalnızca `isPublic` DEĞİŞTİYSE
+        gönderiliyordu; portföy görünürlüğü tek başına değiştirilirse
+        istek hiç atılmıyordu. İkisi tek uca gittiği için koşul
+        artık ikisini birden susturuyordu.
+      */
+      await apiFetch('/users/me/visibility', {
+        method: 'PATCH',
+        body: JSON.stringify({ isPublic: editIsPublic, allocationVisibility: editAlloc }),
+      });
 
       /*
         ⚠️ İKİSİ BİRDEN DOLU DEĞİLSE HİÇ GÖNDERİLMİYOR.
@@ -287,6 +319,44 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
 
   if (loading) return <View style={[{ flex: 1, backgroundColor: colors.surface }, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator color={colors.accent} /></View>;
   if (profile === null) return <View style={[{ flex: 1, backgroundColor: colors.surface }, { justifyContent: 'center', alignItems: 'center' }]}><Text style={{ color: colors.loss }}>{error ?? 'Profil bulunamadı.'}</Text></View>;
+
+  /*
+    ⚠️ PORTFÖY GÖRÜNÜRLÜĞÜNÜ İSTEMCİ HESAPLAMIYOR, SUNUCUDAN OKUYOR.
+
+    Kural sunucuda: `profile/service.ts:299` — `allocation` dizisi
+    ya dolu gelir (kendisi · herkese açık · arkadaşsa "friends")
+    ya da BOŞ. Burada tek yaptığımız "dolu mu" diye bakmak.
+
+    Kuralı burada yeniden yazsaydık (isSelf, isFriend,
+    allocationVisibility okuyup karar vermek) iki yerde yaşayan bir
+    kural olurdu ve biri değiştiğinde öteki geride kalırdı —
+    nitekim eski kod tam olarak bunu yapıyordu.
+  */
+  const portfoyGorunur =
+    Array.isArray(profile.allocation) && profile.allocation.length > 0;
+
+  /*
+    ⚠️ "GİZLİ" İLE "BOŞ" AYRI ŞEYLER — VE SEKMEYİ SAKLAMAK BUNU
+    AYIRT EDİLEMEZ KILIYORDU.
+
+    Önce sekmeyi yalnızca portföy görülebiliyorsa çizdim; gerekçem
+    "olmayan bir şey aranmaz"dı. Kullanımda yanlış çıktı: arkadaş
+    ekleyen kullanıcı portföyü görmeyi bekliyor, sekme hiç
+    görünmüyor ve ortada bir AÇIKLAMA yok. Kişinin portföyü mü boş,
+    yoksa gizli mi — bilinmiyor.
+
+    Sessizlik, yanlış varsayıma davetiye. Sekme artık her zaman
+    duruyor; içinde ya dağılım ya da NEDEN göremediğin yazıyor.
+
+    ⚠️ Kuralı yine sunucudan okuyoruz, yeniden hesaplamıyoruz:
+    `allocationVisibility` + `isFriend`. `private` arkadaşları da
+    kapsar — "hiç kimse" gerçekten hiç kimse demek.
+  */
+  const gorunurlukAyari = profile.allocationVisibility ?? 'private';
+  const portfoyGizli =
+    !profile.isSelf &&
+    (gorunurlukAyari === 'private' ||
+      (gorunurlukAyari === 'friends' && !profile.isFriend));
 
   const bgColors = [colors.surfaceRaised.replace('#',''), colors.surfacePressed.replace('#','')];
   const shapeColors = [colors.gain, colors.loss, colors.warn, colors.gold, colors.accent].map(c => c.replace('#', ''));
@@ -473,13 +543,95 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                         birini değiştiren diğerini bozuyordu. */}
                     <Users size={20} color={colors.violet} />
                   </View>
-                  <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginBottom: 4 }}>ARKADAŞ</Text>
-                  <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>{profile.friendCount || 0}</Text>
+                  {/*
+                    ⚠️ BAŞKASININ ARKADAŞ SAYISI GÖSTERİLMİYOR — ONUN
+                    BİLGİSİ. Yerine ORTAK arkadaş sayısı: o bilgi iki
+                    tarafa da ait ve sosyal uygulamada işe yarayan şey
+                    zaten bu — "tanıdık biri mi?".
+
+                    ⚠️ Sunucu başkasının profilinde `friendCount`'ı
+                    HİÇ HESAPLAMIYOR (0 gönderiyor). Yalnızca ekranda
+                    gizleseydik sayı yine ağdan geçer ve konsoldan
+                    okunabilirdi. Gizlemenin doğru yeri veriyi hiç
+                    üretmemek.
+                  */}
+                  <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginBottom: 4 }}>
+                    {profile.isSelf ? 'ARKADAŞ' : 'ORTAK'}
+                  </Text>
+                  <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>
+                    {profile.isSelf ? (profile.friendCount || 0) : (profile.mutualFriendCount || 0)}
+                  </Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Asset Allocation (Only if Self) */}
-            {profile.isSelf && profile.allocation && profile.allocation.length > 0 && (
+            {/*
+              ⚠️ SEKMELER YALNIZCA PORTFÖY GÖRÜLEBİLİYORSA ÇİZİLİYOR.
+
+              Tek sekme sunan bir sekme çubuğu, sekme çubuğu değildir.
+              Portföy gizliyse doğrudan paylaşımlar gösteriliyor.
+            */}
+            {(
+              <View style={styles.profileTabs}>
+                {([
+                  { key: 'portfolio' as const, label: 'Portföy' },
+                  { key: 'posts' as const, label: 'Paylaşımlar' },
+                ]).map((s) => (
+                  <TouchableOpacity
+                    key={s.key}
+                    onPress={() => setProfileTab(s.key)}
+                    style={[styles.profileTab, profileTab === s.key && styles.profileTabOn]}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: profileTab === s.key }}
+                  >
+                    <Text style={[styles.profileTabText, profileTab === s.key && styles.profileTabTextOn]}>
+                      {s.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/*
+              VARLIK DAĞILIMI.
+
+              ⚠️ ESKİ KOŞUL `profile.isSelf && ...` İDİ — VE BU YÜZDEN
+              BAŞKASININ PORTFÖYÜ HİÇBİR ZAMAN GÖRÜNMÜYORDU.
+
+              Kullanıcı ayarını "herkese açık" yapsa bile ekran onu
+              yok sayıyordu. Sunucu kararı zaten doğru veriyor
+              (`profile/service.ts:299`): `allocation` dizisi
+              görünürlük kuralına göre ya dolu ya BOŞ geliyor —
+              `isSelf`, `public`, ya da `friends` + arkadaşsa dolu.
+
+              ⚠️ DERS: SUNUCUNUN VERDİĞİ KARARI İSTEMCİDE TEKRAR VERME.
+              Buradaki ikinci koşul sunucununkinden daha DAR olduğu
+              için sızıntı yaratmadı — sessizce özelliği kapattı.
+              Ters yönde olsaydı gizlilik ihlali olurdu. İki yerde
+              yaşayan bir kural, er ya da geç ayrışır.
+            */}
+            {profileTab === 'portfolio' && !portfoyGorunur && (
+              <View style={{ backgroundColor: colors.surfaceRaised, borderRadius: 20, padding: 24, marginBottom: 24, alignItems: 'center' }}>
+                <Lock size={22} color={colors.inkFaint} strokeWidth={2} />
+                <Text style={{ fontFamily: fonts.bold, fontSize: 15, color: colors.ink, marginTop: 10, textAlign: 'center' }}>
+                  {portfoyGizli ? 'Portföyü gizli' : 'Portföyü boş'}
+                </Text>
+                {/*
+                  ⚠️ İKİNCİ SATIR "NE YAPMALIYIM"I SÖYLÜYOR (K6 kuralı).
+                  Yalnızca "gizli" demek bir kapı; "arkadaş olursanız
+                  görebilirsin" bir yol.
+                */}
+                <Text style={{ fontFamily: fonts.regular, fontSize: 13, color: colors.inkMuted, marginTop: 4, textAlign: 'center' }}>
+                  {portfoyGizli
+                    ? (gorunurlukAyari === 'friends'
+                        ? 'Bu kullanıcı portföyünü yalnızca arkadaşlarına gösteriyor.'
+                        : 'Bu kullanıcı portföyünü kimseye göstermiyor.')
+                    : 'Bu kullanıcı henüz bir varlık almamış.'}
+                </Text>
+              </View>
+            )}
+
+            {profileTab === 'portfolio' && portfoyGorunur && (
               <View style={{ backgroundColor: colors.surfaceRaised, borderRadius: 20, padding: 16, marginBottom: 24 }}>
                 <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 16 }}>Varlık Dağılımı</Text>
                 <View style={{ flexDirection: 'row', height: 12, borderRadius: 6, overflow: 'hidden', marginBottom: 16 }}>
@@ -499,7 +651,8 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
               </View>
             )}
 
-            {/* Posts */}
+            {/* Paylaşımlar — portföy sekmesi açıkken gizleniyor. */}
+            {profileTab === 'posts' && (
             <View>
               <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: 16 }}>Paylaşımlar</Text>
               {posts.length === 0 ? (
@@ -521,6 +674,7 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
                 </View>
               )}
             </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -536,7 +690,8 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
             <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: colors.ink }}>Ayarlar</Text>
             <TouchableOpacity onPress={() => setShowSettings(false)} style={{ padding: 8 }}><X size={24} color={colors.ink} /></TouchableOpacity>
           </View>
-          <ScrollView style={{ padding: 16 }}>
+          <ScrollView
+        showsVerticalScrollIndicator={false} style={{ padding: 16 }}>
 
             <Text style={{ fontFamily: fonts.bold, color: colors.ink, marginBottom: 12, marginTop: 8 }}>Avatar Seçimi</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24, flexDirection: 'row' }}>
@@ -650,3 +805,42 @@ export function ProfileScreen({ username, onClose, onOpenFriends, onLogout, onSe
   );
 
 }
+
+/*
+  ⚠️ BU DOSYADAKİ TEK `StyleSheet` — GERİ KALANI SATIR İÇİ STİL.
+
+  Dosyanın alışkanlığı satır içi stil ve ona uymak "tutarlı" olurdu.
+  Uymadım: satır içi stiller her çizimde yeni bir nesne üretiyor ve
+  aynı değerler dosyanın içinde tekrar tekrar yazılıyor. Yeni kod
+  eskinin hatasını taklit etmemeli.
+
+  Dosya bir sonraki elden geçirmede tamamen buraya taşınmalı.
+*/
+const styles = StyleSheet.create({
+  profileTabs: {
+    flexDirection: 'row',
+    gap: 4,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 999,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 20,
+  },
+  /*
+    İkisi eşit genişlikte (`flex: 1` + `minWidth: 0`). Biri içeriğine
+    göre büyüseydi "Paylaşımlar" daha geniş kutu olur ve görsel olarak
+    önerilen sekme gibi okunurdu.
+  */
+  profileTab: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 9,
+    borderRadius: 999,
+    alignItems: 'center',
+  },
+  profileTabOn: { backgroundColor: colors.accent },
+  profileTabText: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted },
+  // Mavi zeminde tema mürekkebi karşıtlık eşiğini geçmiyor; beyaz geçiyor.
+  profileTabTextOn: { fontFamily: fonts.bold, color: '#FFFFFF' },
+});

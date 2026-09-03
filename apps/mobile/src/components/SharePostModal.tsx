@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityInd
 import { X, Share2, Globe, Users } from 'lucide-react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
+import { getPreference } from '../lib/storage';
 import { PostCard } from './PostCard';
 
 export type ShareScope = 
@@ -31,6 +32,30 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
   const [caption, setCaption] = useState('');
     const [errorText, setErrorText] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'friends_only'>('public');
+
+  /*
+    ⚠️ VARSAYILAN ONBOARDING'DEN GELİYOR — AMA KİLİT DEĞİL.
+
+    Kullanıcı kayıt olurken "paylaşımlarımı kimler görsün" sorusuna
+    cevap verdi; kutu o cevapla açılıyor. Yine de her gönderi için
+    değiştirebilir — aşağıdaki iki düğme duruyor.
+
+    ⚠️ KUTU HER AÇILDIĞINDA OKUNUYOR, BİR KEZ DEĞİL.
+    `[]` bağımlılığıyla yalnızca ilk kurulumda okusaydık, kullanıcı
+    ayarını değiştirdikten sonra uygulamayı kapatıp açana kadar eski
+    değer geçerli kalırdı.
+
+    ⚠️ Tercih okunamazsa 'public' kalıyor — yani mevcut davranış.
+    Yeni bir özelliğin hatası, eski davranışı bozmamalı.
+  */
+  useEffect(() => {
+    if (!visible) return;
+    let alive = true;
+    void getPreference('defaultPostVisibility').then((v) => {
+      if (alive && (v === 'public' || v === 'friends_only')) setVisibility(v);
+    });
+    return () => { alive = false; };
+  }, [visible]);
 
   useEffect(() => {
     if (visible && scope) {
@@ -159,7 +184,8 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
           {loading || !preview ? (
             <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>
           ) : (
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps='always'>
+            <ScrollView
+        showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps='always'>
               <View style={styles.previewBox}>
                 <PostCard post={postObj} user={user} isPreview={true} />
               </View>

@@ -100,17 +100,25 @@ export function FriendsScreen({
   onClose,
   onSelectUser,
   /*
-    ⚠️ `mode` TİPTE TANIMLIYDI AMA BURADAN ALINMIYORDU.
+    ⚠️ `mode` ARTIK YALNIZCA "GERİ NEREYE DÖNER" DEMEK.
 
-    Gövdede dört yerde `mode` okunuyor (247, 253, 321, 435) ve hiçbiri
-    tanımlı bir değişkene bakmıyordu. TypeScript'in yakaladığı bu:
-    "Cannot find name 'mode'".
+    Eskiden iki iş birden yapıyordu: geri düğmesinin etiketi VE
+    ekranın salt-okunur olup olmadığı. `mode === 'profile'` iken
+    arkadaş ekleme, çıkarma ve alt sekmeler gizleniyordu.
 
-    ⚠️ VARSAYILAN 'league' — çünkü çağıranlardan biri kipi hiç
-    göndermiyor olabilir. Varsayılansız bıraksaydık `mode` `undefined`
-    olur, `mode !== 'profile'` yine `true` dönerdi ve davranış kazara
-    doğru çıkardı; ama niyeti kodda yazmayan bir doğruluk, ilk
-    değişiklikte bozulur.
+    O varsayım artık geçersiz: profil bir sekme olmaktan çıkıp
+    avatardan açılan bir katman oldu ve "Arkadaşlarım" arkadaş
+    yönetiminin TEK yolu (Keşfet'teki "Sosyal" alt sekmesi bugün
+    kaldırıldı). Salt-okunur bırakmak, kullanıcının arkadaş
+    çıkarmasını tamamen imkânsız kılıyordu.
+
+    ⚠️ TEK BAYRAK İKİ İŞ YAPARSA, BİRİ DEĞİŞTİĞİNDE ÖTEKİ SESSİZCE
+    BOZULUR. Burada tam olarak bu oldu: navigasyon değişti, yetki
+    onunla birlikte gitti — hiçbir yerde hata çıkmadan.
+
+    ⚠️ VARSAYILAN 'league' — çağıranlardan biri kipi hiç göndermiyor
+    olabilir. Varsayılansız bıraksaydık davranış kazara doğru çıkardı;
+    niyeti kodda yazmayan bir doğruluk ilk değişiklikte bozulur.
   */
   mode = 'league',
 }: {
@@ -279,14 +287,20 @@ export function FriendsScreen({
       )}
 
       {/* 1. Üst Kısım: Arkadaş Ekleme Formu */}
-      {mode !== 'profile' && <View style={styles.addSection}>
+      {<View style={styles.addSection}>
         <View style={styles.sectionTitleRow}>
           <UserPlus size={16} color={colors.ink} strokeWidth={2.5} />
           <Text style={styles.sectionTitle}>Arkadaş Ekle</Text>
         </View>
+        {/*
+          ⚠️ "davet et" -> "ekle". Düğme uygulamadaki bir hesaba istek
+          gönderiyor; dışarıdan birini çağırmıyor. Alt satır da aynı
+          fiile uyduruldu, yoksa başlık "Ekle" derken açıklama "davet
+          et" diyordu.
+        */}
         <Text style={styles.sectionSubtitle}>
-          Kullanıcı adı ya da e-posta yazarak arkadaşını ligde yarışmaya
-          davet et.
+          Kullanıcı adı ya da e-posta yazarak arkadaşını ekle, ligde
+          birlikte yarışın.
         </Text>
 
         <View style={styles.formRow}>
@@ -318,7 +332,8 @@ export function FriendsScreen({
           
           <View style={styles.suggestionsContainer}>
               {searchResults.map((user: any) => {
-                const name = user.displayName;
+                // ⚠️ Gerçek ad değil kullanıcı adı — kimse kimsenin adını görmüyor.
+                const name = user.username;
                 const initials = name.slice(0, 2).toUpperCase();
                 return (
                   <TouchableOpacity
@@ -365,7 +380,7 @@ export function FriendsScreen({
         </View>}
 
         {/* 2. Sekmeler (Arkadaşlarım vs İstekler) */}
-      {mode !== 'profile' && <View style={styles.subTabContainer}>
+      {<View style={styles.subTabContainer}>
         <TouchableOpacity
           style={[styles.subTabButton, activeTab === 'list' && styles.subTabButtonActive]}
           onPress={() => {
@@ -428,15 +443,29 @@ export function FriendsScreen({
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🤝</Text>
-              <Text style={styles.emptyTitle}>Henüz Arkadaşınız Yok</Text>
+              {/*
+                ⚠️ EMOJİ SİMGE OLARAK KULLANILIYORDU (🤝).
+
+                Emoji platformdan platforma farklı çiziliyor, temaya
+                bağlanamıyor ve yazı satırında hizalanmıyor. `lucide`
+                zaten bu dosyada kullanılıyor; boyut ve renk temadan
+                geliyor.
+
+                ⚠️ DİL "SİZ"DEN "SEN"E ÇEVRİLDİ. Uygulamanın geri
+                kalanı "sen" diyor ("Henüz varlığın yok", "İlk
+                işlemini yap"). Tek ekranın resmî konuşması, iki
+                farklı ürünmüş hissi veriyor.
+              */}
+              <UserPlus size={28} color={colors.inkFaint} strokeWidth={2} />
+              <Text style={styles.emptyTitle}>Henüz arkadaşın yok</Text>
               <Text style={styles.emptyText}>
-                Yukarıdan arkadaşınızın e-postasını yazarak ekleyin ve Haftalık Ligde yarışmaya başlayın!
+                Yukarıdan kullanıcı adı ya da e-posta yazarak arkadaşını ekle, haftalık ligde birlikte yarışın.
               </Text>
             </View>
           }
           renderItem={({ item }) => {
-            const name = item.displayName || 'Arkadaş';
+            // ⚠️ Gerçek ad değil kullanıcı adı.
+            const name = item.username || 'Arkadaş';
             const initials = name.slice(0, 2).toUpperCase();
             const removeId = item.friendshipId || item.id || '';
 
@@ -493,7 +522,7 @@ export function FriendsScreen({
                   </Text>
                 </View>
 
-                {removeId && mode !== 'profile' ? (
+                {removeId ? (
                   <TouchableOpacity
                     style={styles.removeButton}
                     onPress={() => handleRemove(removeId)}
@@ -518,7 +547,13 @@ export function FriendsScreen({
                 📥 Gelen İstekler ({incomingRequests.length})
               </Text>
               {incomingRequests.length === 0 && (
-                <Text style={styles.noRequestText}>Gelen bekleyen istek yok.</Text>
+                /*
+                  ⚠️ BU DOĞRU BİR BOŞ DURUM — 2. TÜR ("temizlendi").
+                  Kullanıcının yapacağı bir şey yok ve olmaması İYİ
+                  bir durum. Buraya "ne yapmalıyım" eklemek, olmayan
+                  bir işi varmış gibi göstermek olurdu.
+                */
+                <Text style={styles.noRequestText}>Bekleyen istek yok.</Text>
               )}
             </View>
           }

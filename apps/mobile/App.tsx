@@ -26,6 +26,9 @@ import { MarketScreen } from './src/screens/MarketScreen';
 import { TradeScreen } from './src/screens/TradeScreen';
 import { AssetDetailScreen } from './src/screens/AssetDetailScreen';
 import { DiscoveryScreen } from './src/screens/DiscoveryScreen';
+import { UserAvatar } from './src/components/UserAvatar';
+import { formatCentsString } from './src/lib/format';
+import { setPreference } from './src/lib/storage';
 import { LeagueResultModal } from './src/components/LeagueResultModal';
 import { SlideView } from './src/components/SlideView';
 import {
@@ -37,12 +40,43 @@ import { PortfolioScreen } from './src/screens/PortfolioScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
-import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { OnboardingScreen, type OnboardingResult } from './src/screens/OnboardingScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { colors } from './src/theme';
 import { TabBar, type TabKey } from './src/components/TabBar';
 import { CurrencyProvider } from './src/lib/currency';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+
+/**
+ * Saate göre selamlama.
+ *
+ * ⚠️ SAF FONKSİYON, BİLEŞENİN DIŞINDA. İçeride tanımlasaydık her
+ * çizimde yeniden oluşurdu — küçük bir israf ama asıl sorun şu:
+ * test edilebilirliği kaybederdik. Burada duran hâli tek başına
+ * çağrılabilir.
+ *
+ * ⚠️ Sınırlar bilinçli: gece 23-05 arası "iyi geceler" diyor. Sabah
+ * 05'te "günaydın" başlamasının sebebi, uygulamayı o saatte açan
+ * kişinin uyanık olması — takvim değil, kullanıcının hâli önemli.
+ */
+function selamlama(saat: number): string {
+  if (saat >= 5 && saat < 11) return 'Günaydın';
+  if (saat >= 11 && saat < 18) return 'Merhaba';
+  if (saat >= 18 && saat < 23) return 'İyi akşamlar';
+  return 'İyi geceler';
+}
+
+/**
+ * Selamlamada kullanılacak ad.
+ *
+ * ⚠️ SADECE İLK AD. `displayName` "Batuhan Oğuz" olabilir; selamlamada
+ * tam ad resmî durur ve satırı uzatır. Boşluktan öncesini alıyoruz.
+ * Ad hiç yoksa kullanıcı adına düşüyor — orası her zaman dolu.
+ */
+function ilkAd(displayName?: string, username?: string): string {
+  const ad = (displayName ?? '').trim().split(/\s+/)[0];
+  return ad !== undefined && ad !== '' ? ad : (username ?? '');
+}
 
 type User = {
   id: string;
@@ -100,17 +134,21 @@ export default function App() {
 /**
  * Uygulama ve her yeni oturum hangi sekmeyle açılır.
  *
- * ⚠️ CÜZDAN, LİG DEĞİL. Önce lig açılıyordu; sıralama ilgi çekici ama
- * kullanıcının ilk sorusu "param ne durumda". Lig ancak kendi portföyünü
- * gördükten sonra anlam taşıyor — getirisini bilmeyen biri için
- * sıralamadaki yeri boş bir sayıdır.
+ * ⚠️ 'wallet' -> 'discovery' DEĞİŞTİ. Eski gerekçe şuydu: "kullanıcının
+ * ilk sorusu 'param ne durumda'". Doğru — ama YALNIZCA portföyü olan
+ * kullanıcı için. Yeni kullanıcının cüzdanı boş; onu boş bir cüzdanla
+ * karşılamak, uygulamanın ilk söylediği şeyin "burada bir şeyin yok"
+ * olması demek. Profesörün ifadesi: "cüzdandan almak bana ürkütücü
+ * geldi."
  *
- * Sabit olarak duruyor ki iki çağıran (ilk açılış ve giriş sonrası) ayrı
- * ayrı yazmasın: biri değişip diğeri unutulursa "yenileyince cüzdan,
- * giriş yapınca lig" gibi tutarsız bir davranış çıkardı. Aynı hatanın
- * lig ekranındaki rengi iki yere yazılmış hâlini bugün düzelttik.
+ * Akış hem doluyor (başkalarının paylaşımları) hem de üstünde lig
+ * kartını taşıyor — yani ilk ekran hep bir şey söylüyor.
+ *
+ * ⚠️ Sabit olarak duruyor ki iki çağıran (ilk açılış ve giriş sonrası)
+ * ayrı ayrı yazmasın: biri değişip diğeri unutulursa "yenileyince akış,
+ * giriş yapınca cüzdan" gibi tutarsız bir davranış çıkar.
  */
-const START_TAB: Tab = 'wallet';
+const START_TAB: Tab = 'discovery';
 
 function AppShell() {
   // Giriş yapmış kullanıcı bilgisi (null ise kimlik ekranları görünür)
@@ -194,6 +232,41 @@ function AppShell() {
    * değil profilde kalırdı.
    */
   const [viewingProfile, setViewingProfile] = useState<string | null>(null);
+
+  /*
+    `+` MENÜSÜ VE KEŞFET ODAĞI.
+
+    ⚠️ `discoveryFocus` bir SEKME DEĞİL, bir İSTEK. Keşfet hangi alt
+    sekmede olduğunu kendi biliyor; buradan yalnızca "şuna geç" diye
+    haber gönderiyoruz. `nonce` her istekte artıyor — sebebi
+    DiscoveryScreen'de yazılı: aynı hedef arka arkaya seçilirse
+    `tab` değişmediği için efekt bir daha tetiklenmez.
+  */
+
+  /*
+    Sol üstteki avatarın görseli.
+
+    ⚠️ OTURUM NESNESİNDE YOK — giriş cevabı `avatarSeed` döndürmüyor,
+    o alan profil ucunda yaşıyor. Ayrı tutuluyor ki `currentUser`ın
+    şekli değişmesin; değiştirseydik giriş, kayıt ve oturum geri
+    yükleme yollarının ÜÇÜNÜ birden güncellemek gerekirdi.
+
+    ⚠️ Okunamazsa `undefined` kalıyor ve UserAvatar baş harfe düşüyor —
+    yani avatar isteği başarısız olsa da sol üst köşe boş kalmıyor.
+  */
+  const [myAvatar, setMyAvatar] = useState<{ seed?: string | null; style?: string | null } | undefined>(undefined);
+
+  /*
+    Üst çubuktaki portföy değeri.
+
+    ⚠️ CÜZDAN EKRANIYLA AYNI VERİ AMA AYRI İSTEK — ve bu bilinçli.
+    PortfolioScreen kendi verisini kendi çekiyor; oradan yukarı
+    taşımak için ya durumu App'e almak (her fiyat tazelemesinde tüm
+    uygulama yeniden çizilir) ya da geri çağrı geçirmek gerekirdi
+    (ekran açık değilken değer boş kalır). Ayrı ve seyrek bir istek
+    ikisinden de ucuz.
+  */
+  const [myTotal, setMyTotal] = useState<string | null>(null);
 
   // Saklanan oturum kontrol edilirken açılış ekranı gösterilir. Bu bayrak
   // olmasaydı uygulama bir an giriş ekranını gösterip sonra ana ekrana
@@ -305,15 +378,69 @@ function AppShell() {
   useEffect(() => {
     if (!currentUser) {
       setPendingRequests(0);
+      /*
+        ⚠️ ÜST ÇUBUK VERİSİ DE SIFIRLANIYOR — VE BU BİR HATA
+        DÜZELTMESİ.
+
+        Çıkış yapılınca yalnızca `currentUser` temizleniyordu; avatar
+        ve portföy değeri ÖNCEKİ kullanıcınınki olarak state'te
+        kalıyordu. Yeni bir hesap açıldığında üst çubuk hâlâ eski
+        kullanıcının avatarını ve bakiyesini gösteriyordu — ekran
+        "başkasının hesabına girmişsin" gibi görünüyordu.
+      */
+      setMyAvatar(undefined);
+      setMyTotal(null);
       return;
     }
 
     let alive = true;
 
+    /*
+      ⚠️ BU BAYRAK EFEKTE AİT, BİLEŞENE DEĞİL — VE FARK BURADA.
+
+      Eskiden koşul `myAvatar === undefined` idi, yani "elimizde yoksa
+      çek". İki sorunu vardı:
+
+        1. Kullanıcı değişince eski avatar hâlâ `undefined` DEĞİLDİ,
+           dolayısıyla yeni kullanıcının avatarı hiç çekilmiyordu.
+        2. `myAvatar` bu kapanışta ÇİZİM ANINDAKİ değeriyle
+           donuyor; efektin içinde sıfırlasak bile kapanış eski
+           değeri görürdü.
+
+      `alindi` her efekt turunda — yani her kullanıcı için — sıfırdan
+      başlıyor. "Kullanıcı başına bir kez" kuralını durumdan değil,
+      efektin ömründen alıyor.
+    */
+    let alindi = false;
+
+    // Yeni kullanıcı: eski kimliğin izlerini hemen sil.
+    setMyAvatar(undefined);
+    setMyTotal(null);
+
     async function load() {
       try {
         const data = await apiFetch<{ incoming?: unknown[] }>('/friends/requests');
         if (alive) setPendingRequests(data.incoming?.length ?? 0);
+
+        // Avatar 45 saniyede bir değişmiyor: kullanıcı başına bir kez.
+        if (alive && !alindi && currentUser?.username) {
+          alindi = true;
+          const me = await apiFetch<{ profile?: { avatarSeed?: string | null; avatarStyle?: string | null } }>(
+            `/users/${currentUser.username}`,
+          );
+          if (alive) {
+            setMyAvatar({ seed: me.profile?.avatarSeed, style: me.profile?.avatarStyle });
+          }
+        }
+
+        /*
+          ⚠️ HER TURDA TAZELENİYOR — avatarın aksine. Portföy değeri
+          45 saniyede gerçekten değişiyor; başlıktaki sayı ekrandaki
+          sayıdan geride kalırsa kullanıcı hangisine inanacağını
+          bilemez.
+        */
+        const pf = await apiFetch<{ totalValueCents?: string }>('/portfolio');
+        if (alive && pf.totalValueCents) setMyTotal(pf.totalValueCents);
       } catch {
         // Rozet ikincil bilgi — okunamazsa sessizce eski değerde kalsın.
         // Hata göstermek, kullanıcının yapabileceği bir şey olmadığı için
@@ -343,6 +470,39 @@ function AppShell() {
    * İlk açılışta gerekmiyor (state zaten `START_TAB` ile kuruluyor),
    * ama iki yol aynı sabiti kullansın diye burada da yazılıyor.
    */
+  /*
+    OTURUM DEĞİŞİNCE ÖNCEKİ OTURUMUN KATMANLARINI KAPAT.
+
+    ⚠️ BULUNAN HATA: yeni hesap açan kullanıcı, ÖNCEKİ hesabın
+    profiline düşüyordu.
+
+    Sebep: `viewingProfile` bir KULLANICI ADI tutuyor ve çıkışta
+    temizlenmiyordu. Sıra şöyle işliyordu:
+
+      1. batuhanwh olarak gir, avatara dokun -> viewingProfile='batuhanwh'
+      2. Çıkış yap -> currentUser=null, ama viewingProfile HÂLÂ 'batuhanwh'
+      3. Yeni hesap aç -> currentUser=yeni, profil katmanı hâlâ ÜSTTE
+         ve batuhanwh'ı çiziyor
+
+    ⚠️ BU BİR SINIF, TEK BİR HATA DEĞİL. Aynı şey açık her katman için
+    geçerli: arkadaş listesi, varlık detayı, emir ekranı. Hepsi önceki
+    oturuma ait bir şeye tutunuyordu. O yüzden dördü birden burada
+    kapanıyor — tek tek bulunup yamanmıyor.
+
+    ⚠️ BAĞIMLILIK `currentUser?.id`, `currentUser` DEĞİL. Nesne kimliği
+    başka sebeplerle de değişebilir; o zaman kullanıcı bir varlık
+    detayına bakarken katman aniden kapanırdı. Kimlik değiştiğinde
+    kapanmalı, nesne değiştiğinde değil.
+
+    ⚠️ İlk açılışta da çalışıyor ve zararsız: hepsi zaten kapalı.
+  */
+  useEffect(() => {
+    setViewingProfile(null);
+    setFriendsOpen(false);
+    setDetailAsset(null);
+    setTradeAsset(null);
+  }, [currentUser?.id]);
+
   function startSession(user: User) {
     setCurrentUser(user);
     setActiveTab(START_TAB);
@@ -357,13 +517,56 @@ function AppShell() {
    * Varsayılan zaten `is_public = true` (şemada) ve kullanıcı aynı ayarı
    * Profil sekmesinden her an değiştirebiliyor.
    */
-  async function finishOnboarding(isPublic: boolean) {
+  async function finishOnboarding(result: OnboardingResult) {
     const user = onboardingFor;
 
+    /*
+      ⚠️ SEVİYE SUNUCUYA GİTMİYOR, CİHAZDA KALIYOR.
+
+      Sunucuda saklamak `users` tablosuna yeni bir kolon demek — yani
+      migration, yani Zeynep'in şeridi ve bir bekleme. Oysa seviyenin
+      TEK İŞİ arayüzü şekillendirmek: hangi ipucu gösterilecek, boş
+      durum metni ne kadar uzun olacak. Bunların hiçbiri sunucuyu
+      ilgilendirmiyor.
+
+      ⚠️ Bedeli var ve biliniyor: kullanıcı telefon değiştirirse cevap
+      kaybolur ve varsayılana düşer. Kabul edilebilir — çünkü yanlış
+      varsayılan kimseyi engellemiyor, yalnızca deneyimi ortalamaya
+      çekiyor.
+    */
     try {
+      await setPreference('onboardingLevel', result.level);
+      /*
+        ⚠️ PAYLAŞIM GÖRÜNÜRLÜĞÜ DE CİHAZDA — ama sebebi seviyeninkinden
+        FARKLI.
+
+        Seviye sunucuyu hiç ilgilendirmiyor. Bu ise bir VARSAYILAN:
+        gerçek görünürlük her gönderinin kendi `visibility` alanında
+        (`posts.visibility`) ve o sunucuda. Burada sakladığımız şey
+        yalnızca paylaşım kutusunun açılış değeri.
+
+        ⚠️ Bu ayrımı kaybetme: kullanıcı "arkadaşlarım" dedi diye
+        paylaşımları gizlenmiyor — bir sonraki paylaşımında kutu
+        "arkadaşlarım" seçili açılıyor. Gizliliği sağlayan yer
+        sunucu, burası sadece kolaylık.
+      */
+      await setPreference('defaultPostVisibility', result.postVisibility);
+    } catch {
+      // Tercih yazılamazsa akış durmamalı; varsayılanlar kullanılır.
+    }
+
+    try {
+      /*
+        ⚠️ İKİ AYAR TEK İSTEKTE. Ayrı ayrı gönderseydik biri geçip
+        öteki düşebilir ve kullanıcı yarısı uygulanmış bir gizlilik
+        ayarıyla kalırdı — gizlilikte en kötü sonuç bu.
+      */
       await apiFetch('/users/me/visibility', {
         method: 'PATCH',
-        body: JSON.stringify({ isPublic }),
+        body: JSON.stringify({
+          isPublic: result.isPublic,
+          allocationVisibility: result.allocationVisibility,
+        }),
       });
     } catch {
       // Sessiz geç — gerekçe yukarıda.
@@ -413,7 +616,7 @@ function AppShell() {
         */
         <OnboardingScreen
           userName={onboardingFor.displayName}
-          onFinishOnboarding={(isPublic) => void finishOnboarding(isPublic)}
+          onFinishOnboarding={(result) => void finishOnboarding(result)}
         />
       ) : !currentUser ? (
         // 1. GİRİŞ YAPILMAMIŞSA: Welcome -> Login / Kayıt akışı
@@ -446,6 +649,79 @@ function AppShell() {
       ) : (
         // 2. GİRİŞ YAPILDIYSA: Ana Uygulama Gösterilir
         <View style={styles.mainContainer}>
+          {/*
+            ÜST ÇUBUK — SOL ÜSTTE AVATAR.
+
+            ⚠️ PROFİL ARTIK SEKME DEĞİL. Alt çubuktaki beş kutudan biri
+            profile ayrılmıştı; profil ise günde bir kez açılan bir yer.
+            En kolay ulaşılan alanı en seyrek kullanılan sayfaya vermek
+            pahalı bir tercihti. Avatar hem daha az yer kaplıyor hem de
+            "burası SEN'sin" bilgisini simgeden daha iyi taşıyor.
+
+            ⚠️ ARKADAŞLIK İSTEĞİ ROZETİ DE BURAYA TAŞINDI. Sekme silinince
+            rozet kimsenin görmediği bir yerde kalırdı — `badges` artık
+            TabBar'a geçmiyor.
+
+            ⚠️ İNCE VE BOŞ. İçine başlık koymadık: her ekranın kendi
+            başlığı zaten var, ikincisini eklemek iki katlı bir başlık
+            yaratırdı.
+          */}
+          <TouchableOpacity
+            style={styles.topBar}
+            onPress={() => {
+              if (currentUser?.username) setViewingProfile(currentUser.username);
+            }}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Profilini aç"
+          >
+            {/*
+              ⚠️ DOKUNMA HEDEFİ TÜM SATIR, YALNIZCA AVATAR DEĞİL.
+              34 piksellik bir daire, 44 piksellik alt sınırın altında.
+              Satırın tamamı basılabilir olunca hedef genişliyor ve
+              "bastım ama açılmadı" durumu ortadan kalkıyor.
+            */}
+            <View>
+              <UserAvatar
+                seed={myAvatar?.seed}
+                avatarStyle={myAvatar?.style}
+                fallback={currentUser?.username ?? currentUser?.displayName}
+                size={38}
+              />
+              {pendingRequests > 0 && (
+                <View style={styles.avatarBadge}>
+                  <Text style={styles.avatarBadgeText}>
+                    {pendingRequests > 9 ? '9+' : pendingRequests}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/*
+              ⚠️ `flex: 1` + `minWidth: 0` BİRLİKTE. Uzun bir ad
+              ("Abdurrahman") yalnızca `flex: 1` ile kutuyu içeriğinden
+              dar olamayacak hâle getirir ve satır sağa taşar.
+            */}
+            <View style={styles.topBarText}>
+              <Text style={styles.greeting} numberOfLines={1}>
+                {selamlama(new Date().getHours())},{' '}
+                {ilkAd(currentUser?.displayName, currentUser?.username)}
+              </Text>
+
+              {/*
+                ⚠️ SAYI GELMEDEN SATIR ÇİZİLMİYOR — "0,00 ₺" YAZMIYORUZ.
+                Yüklenirken sıfır göstermek, gerçekten sıfır bakiyeden
+                ayırt edilemez; kullanıcı bir an parasının gittiğini
+                sanar. Satır yoksa merak eder, yanlış bilgi almaz.
+              */}
+              {myTotal !== null && (
+                <Text style={styles.greetingSub} numberOfLines={1}>
+                  Portföyün {formatCentsString(myTotal)}
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
+
           {/* Aktif Ekran İçeriği */}
           {activeTab === 'market' ? (
             <MarketScreen
@@ -477,29 +753,19 @@ function AppShell() {
               şey vaat etmiş olurdu.
             */
             <CoachScreen />
-          ) : activeTab === 'profile' ? (
+          ) : activeTab === 'league' ? (
             /*
-              ⚠️ KENDİ PROFİLİN — kullanıcı adı `currentUser`'dan geliyor.
+              LİG — kendi sekmesine geri döndü.
 
-              `username` eski bir oturumda eksik olabilir (0008 migration'ından
-              önce açılmış token). O durumda profil ekranı yerine kısa bir
-              uyarı gösteriyoruz: `undefined` bir URL'e girip 404 almaktansa
-              ne yapılacağını söylemek doğru.
+              ⚠️ `onOpenFriends` App'ten geçiyor, Lig ekranından değil.
+              Arkadaş listesi bir KATMAN ve katmanı açan durum burada
+              (`friendsOpen`). Lig kendi içinden açsaydı ikinci bir
+              arkadaş katmanı doğar, ikisi ayrı durum tutardı.
             */
-            currentUser?.username ? (
-              <ProfileScreen
-                username={currentUser.username}
-                currentUserId={currentUser.id}
-                onOpenFriends={() => { setFriendsMode('profile'); setFriendsOpen(true); }}
-                onLogout={() => void handleLogout()}
-              />
-            ) : (
-              <View style={styles.splash}>
-                <Text style={styles.notice}>
-                  Profilini görmek için çıkıp tekrar giriş yap.
-                </Text>
-              </View>
-            )
+            <LeaderboardScreen
+              onOpenFriends={() => { setFriendsMode('league'); setFriendsOpen(true); }}
+              onSelectUser={(username) => setViewingProfile(username)}
+            />
           ) : (
             /*
               ⚠️ `onOpenFriends` BURADAN GEÇİYOR — Lig ekranı Keşfet'in
@@ -520,6 +786,14 @@ function AppShell() {
                 'league' kalmalı.
               */
               onOpenFriends={() => { setFriendsMode('league'); setFriendsOpen(true); }}
+              /*
+                ⚠️ AKIŞTAKİ LİG KARTI BURAYA BAĞLANIYOR.
+
+                Kart Keşfet'in içinde ama gideceği yer bir ÜST SEKME.
+                Keşfet kendi kendine sekme değiştiremez — sekme durumu
+                App'te. O yüzden geri çağrı olarak geçiyor.
+              */
+              onOpenLeague={() => setActiveTab('league')}
             />
           )}
 
@@ -546,7 +820,6 @@ function AppShell() {
           <TabBar
             active={activeTab}
             onChange={setActiveTab}
-            badges={{ profile: pendingRequests }}
           />
 
           {/*
@@ -555,38 +828,64 @@ function AppShell() {
             Sekme çubuğunu da kapatıyor: emir verirken kullanıcı yanlışlıkla
             başka sekmeye geçip yarım kalmış bir formu kaybetmesin.
           */}
-          {friendsOpen && (
-            <SlideView direction="bottom">
-              <FriendsScreen
+          {/*
+            ⚠️ İKİ KATMANIN SIRASI SABİT DEĞİL — VE OLAMAZ.
+
+            JSX'te sonra yazılan üstte durur. Ama burada hangisinin
+            üstte olması gerektiği DEĞİŞİYOR:
+
+              Lig -> Arkadaşlar -> bir kişiye dokun -> PROFİL üstte
+              Profil -> "Arkadaşlarım"             -> ARKADAŞLAR üstte
+
+            Sabit sıra ikisinden birini bozar. Nitekim bozdu: profil
+            sonra yazılıydı, "Arkadaşlarım"a basınca liste AÇILIYOR
+            ama profilin altında kalıyordu — ekranda hiçbir şey
+            olmuyormuş gibi görünüyordu.
+
+            ⚠️ YENİ DURUM DEĞİŞKENİ EKLEMEDİK. `friendsMode` zaten
+            nereden açıldığını söylüyor: 'profile' ise arkadaşlar
+            üstte, 'league' ise profil üstte. İkinci bir bayrak
+            tutsaydık ikisi ayrışabilirdi.
+          */}
+          {(() => {
+            const arkadasKatmani = friendsOpen ? (
+              <SlideView key="friends" direction="bottom">
+                <FriendsScreen
                   mode={friendsMode}
                   onClose={() => setFriendsOpen(false)}
                   onSelectUser={(username) => setViewingProfile(username)}
                 />
-            </SlideView>
-          )}
+              </SlideView>
+            ) : null;
 
-          {/*
-            ⚠️ PROFİL KATMANI ARKADAŞLAR KATMANININ ALTINDA DEĞİL ÜSTÜNDE —
-            ve sıra bu yüzden değişti.
+            const profilKatmani = viewingProfile !== null ? (
+              <SlideView key="profile" direction="right">
+                <ProfileScreen
+                  username={viewingProfile}
+                  currentUserId={currentUser?.id}
+                  onClose={() => setViewingProfile(null)}
+                  /*
+                    ⚠️ KENDİ PROFİLİN İLE BAŞKASININKİ AYNI KATMAN,
+                    FARKLI YETKİ. Çıkış ve arkadaş yönetimi yalnızca
+                    kendi profilinde anlamlı.
 
-            JSX'te sonra çizilen üstte durur. Profil önce yazılıydı; arkadaş
-            listesinden bir kişiye dokunulduğunda profil AÇILIYOR ama arkadaş
-            ekranının ALTINDA kalıyordu. Ekranda hiçbir şey olmuyormuş gibi
-            görünürdü.
+                    ⚠️ Koşullu YAYILIYOR (`...`): `onLogout={undefined}`
+                    yazmak ile alanı hiç göndermemek farklı şeyler.
+                  */
+                  {...(viewingProfile === currentUser?.username
+                    ? {
+                        onOpenFriends: () => { setFriendsMode('profile'); setFriendsOpen(true); },
+                        onLogout: () => void handleLogout(),
+                      }
+                    : {})}
+                />
+              </SlideView>
+            ) : null;
 
-            Profil en son: hem ligden hem arkadaş listesinden açılabiliyor,
-            ikisinin de üstünde olması gerekiyor. Kapanınca altındaki ekran
-            neyse ona dönülüyor.
-          */}
-          {viewingProfile !== null && (
-            <SlideView direction="right">
-              <ProfileScreen
-                username={viewingProfile}
-                currentUserId={currentUser?.id}
-                onClose={() => setViewingProfile(null)}
-              />
-            </SlideView>
-          )}
+            return friendsMode === 'profile'
+              ? [profilKatmani, arkadasKatmani]
+              : [arkadasKatmani, profilKatmani];
+          })()}
 
           {detailAsset !== null && (
             <SlideView direction="right">
@@ -622,6 +921,60 @@ function AppShell() {
 }
 
 const styles = StyleSheet.create({
+  /*
+    Üst çubuk. Yükseklik yok — içerik (34 piksel avatar + dolgu)
+    belirliyor. Sabit yükseklik verseydik yazı tipi ölçeği büyütülmüş
+    bir cihazda avatar taşardı.
+  */
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 22,
+    paddingTop: 8,
+    // ⚠️ 12 -> 6. Altındaki ekranın kendi üst dolgusu var; ikisi
+    // toplanınca avatar ile içerik arası boşluk fazla oluyordu.
+    paddingBottom: 6,
+  },
+  topBarText: { flex: 1, minWidth: 0 },
+  greeting: {
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 15,
+    color: colors.ink,
+  },
+  greetingSub: {
+    /*
+      ⚠️ RAKAM İÇEREN SATIR DAR YAZI TİPİNDE (DM Mono). Rakamların
+      genişliği eşit olduğu için sayı 45 saniyede bir değiştiğinde
+      satır oynamıyor. Orantılı bir yazı tipinde "1" ile "8"
+      farklı genişlikte ve başlık her tazelemede titrerdi.
+    */
+    fontFamily: 'DMMono_400Regular',
+    fontSize: 12,
+    color: colors.inkMuted,
+    marginTop: 1,
+  },
+  avatarBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Rozet avatarın üstüne biniyor; ince kenarlık ikisini ayırıyor.
+    borderWidth: 1.5,
+    borderColor: '#0F0F10',
+  },
+  avatarBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+
   notice: {
     color: colors.inkMuted,
     fontSize: 14,
@@ -633,8 +986,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#0B132B',
     paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
   },
+  /*
+    ⚠️ ZEMİN RENGİ BURAYA EKLENDİ — VE SEBEBİ ÖĞRETİCİ.
+
+    Kök `SafeAreaView` (`styles.container`) lacivert bir zemin taşıyor:
+    `#0B132B`. Bugüne kadar hiç görünmedi, çünkü her ekran alanın
+    TAMAMINI dolduruyor ve kendi zeminini (`colors.surface`, #0F0F10)
+    çiziyordu. Lacivert, hiçbir zaman göze çarpmayan bir kalıntıydı.
+
+    Üst çubuğu ekleyince ekranın üstünde ~50 piksellik bir şerit açıldı
+    ve o şeritte hiçbir ekran yoktu — kök zemin ortaya çıktı. "Arka plan
+    neden mavi oldu?" sorusunun cevabı bu: renk YENİ DEĞİL, sadece
+    ilk kez görünür oldu.
+
+    ⚠️ Çözümü üst çubuğa değil BURAYA yazdık. Yalnızca `topBar`a zemin
+    verseydik hata bir kez daha ortaya çıkardı — ileride altta ya da
+    arada başka bir boşluk açıldığında lacivert yine sızardı.
+    Kabın kendisi doğru rengi taşırsa boşluk nerede açılırsa açılsın
+    doğru görünüyor.
+  */
   mainContainer: {
     flex: 1,
+    backgroundColor: colors.surface,
   },
   splash: {
     flex: 1,
