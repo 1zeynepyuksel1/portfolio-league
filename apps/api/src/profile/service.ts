@@ -11,6 +11,7 @@ import { getPortfolio } from '../portfolio/service.js';
 import {
   areFriends,
   countFriends,
+  countMutualFriends,
   countIncomingRequests,
   findLeagueEntry,
   findProfileByUsername,
@@ -101,7 +102,14 @@ export type PublicProfile = {
    * hiç göndermemek, "gönder ama gösterme"den güvenli: API'yi doğrudan
    * çağıran biri de göremiyor.
    */
+  /**
+   * ⚠️ KENDİ PROFİLİNDE GERÇEK SAYI, BAŞKASININKİNDE 0.
+   * Başkasının kaç arkadaşı olduğu ona ait bir bilgi; yerine
+   * `mutualFriendCount` gönderiliyor.
+   */
   friendCount: number;
+  /** Görüntüleyen ile profil sahibinin ortak arkadaş sayısı. */
+  mutualFriendCount: number;
   /**
    * Aramızdaki bekleyen isteğin yönü — profil düğmesi buna göre çiziliyor.
    *
@@ -217,7 +225,16 @@ export async function getPublicProfile(
 
   // ⚠️ Yalnızca kendi profilinde sayılıyor: başkasının arkadaş sayısı
   // ne gösteriliyor ne de gönderiliyor. Sorgu da boşuna çalışmıyor.
-  const friendCount = await countFriends(owner.id);
+  /*
+    ⚠️ ARKADAŞ SAYISI YALNIZCA KENDİ PROFİLİNDE HESAPLANIYOR.
+
+    Başkasının profilinde gerçek sayıyı hesaplayıp "ekranda
+    göstermeyiz" demek yetmez — sayı yanıtın içinde ağdan geçer ve
+    tarayıcı konsolundan okunabilir. Gizlemenin tek doğru yeri,
+    veriyi HİÇ ÜRETMEMEK.
+  */
+  const friendCount = isSelf ? await countFriends(owner.id) : 0;
+  const mutualFriendCount = isSelf ? 0 : await countMutualFriends(viewerId, owner.id);
   const pending = isSelf ? null : await pendingBetween(viewerId, owner.id);
   const pendingRequests = isSelf ? await countIncomingRequests(owner.id) : 0;
 
@@ -233,6 +250,7 @@ export async function getPublicProfile(
       allocation: [],
       pending,
       friendCount,
+      mutualFriendCount,
       pendingRequests,
     };
   }
@@ -299,6 +317,7 @@ export async function getPublicProfile(
     allocation: (isSelf || owner.allocationVisibility === 'public' || (owner.allocationVisibility === 'friends' && isFriend)) ? allocation : [],
     pending,
     friendCount,
+    mutualFriendCount,
     pendingRequests,
   };
 }

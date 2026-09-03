@@ -12,6 +12,19 @@ export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;
 export type LeaderboardEntryDto = {
   rank: number;
   userId: string;
+  /**
+   * ⚠️ ARTIK KULLANICI ADI TAŞIYOR, GERÇEK AD DEĞİL.
+   *
+   * Lig tablosu herkese açık bir liste; oradaki her satır bir kişinin
+   * GERÇEK ADINI yabancılara veriyordu. Ürünün kimseye gerçek ad
+   * göstermesi gerekmiyor — kullanıcı adı zaten benzersiz ve kişinin
+   * kendi seçtiği şey.
+   *
+   * ⚠️ ALAN SİLİNMEDİ, İÇERİĞİ DEĞİŞTİ. Silmek DTO'yu kullanan her
+   * yeri kırardı; burada tek doğru kaynak repository'deki `select`.
+   * Adı `displayName` kalıyor çünkü "ekranda gösterilecek ad"
+   * anlamı hâlâ doğru — yalnızca o adın NE OLDUĞU değişti.
+   */
   displayName: string;
   /** Profil adresi. Eski kayıtlarda boş olabilir. */
   username: string | null;

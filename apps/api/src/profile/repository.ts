@@ -162,9 +162,47 @@ export async function findLeagueEntry(periodId: string, userId: string) {
 /** Gizlilik tercihini günceller. */
 export async function setProfileVisibility(
   userId: string,
-  isPublic: boolean,
+  /*
+    ⚠️ `| undefined` AÇIKÇA YAZILIYOR — `exactOptionalPropertyTypes`
+    açık olduğu için "alan yok" ile "alan var ama undefined" ayrı
+    şeyler sayılıyor. Zod'un çıktısı ikincisi; tip bunu kabul
+    etmezse çağıran taraf alanları tek tek ayıklamak zorunda kalırdı.
+  */
+  ayarlar: { isPublic?: boolean | undefined; allocationVisibility?: string | undefined },
 ): Promise<void> {
-  await db.update(users).set({ isPublic }).where(eq(users.id, userId));
+  /*
+    ⚠️ İMZA `isPublic: boolean`'DAN NESNEYE ÇEVRİLDİ — VE SEBEBİ BİR
+    HATA.
+
+    `allocationVisibility` (portföyü kimler görsün) veritabanında
+    vardı, profil ekranında düzenlenebiliyordu, sunucuya
+    gönderiliyordu — ama HİÇBİR UÇ ONU YAZMIYORDU:
+
+      PATCH /users/me            -> `updateSchema` alanı tanımıyor,
+                                    Zod bilinmeyen anahtarı SESSİZCE atıyor
+      PATCH /users/me/visibility -> yalnızca `isPublic` yazıyor
+
+    Sonuç: ayar hiç çalışmadı. 13 kullanıcının 13'ü de `private`
+    kaldı — varsayılan olduğu için değil, DEĞİŞTİRİLEMEDİĞİ için.
+
+    ⚠️ HATA HİÇBİR YERDE GÖRÜNMEDİ. İstek 200 dönüyordu, ekran
+    "kaydedildi" diyordu, veritabanı değişmiyordu. Zod'un varsayılan
+    davranışı bilinmeyen anahtarları atmak; `.strict()` kullanılsaydı
+    400 dönerdi ve hata ilk denemede yakalanırdı.
+
+    ⚠️ BOŞ NESNE İLE ÇAĞRILMAMALI — `set({})` Drizzle'da hata verir.
+    Çağıran taraf en az bir alan olduğunu doğruluyor (router'daki
+    `refine`), burada ayrıca korunuyor.
+  */
+  const degisiklikler: Record<string, unknown> = {};
+  if (ayarlar.isPublic !== undefined) degisiklikler.isPublic = ayarlar.isPublic;
+  if (ayarlar.allocationVisibility !== undefined) {
+    degisiklikler.allocationVisibility = ayarlar.allocationVisibility;
+  }
+
+  if (Object.keys(degisiklikler).length === 0) return;
+
+  await db.update(users).set(degisiklikler).where(eq(users.id, userId));
 }
 
 /**
@@ -191,6 +229,68 @@ export async function countFriends(userId: string): Promise<number> {
     );
 
   return row?.n ?? 0;
+}
+
+/**
+ * İki kullanıcının ORTAK arkadaş sayısı.
+ *
+ * ⚠️ NEDEN VAR: BAŞKASININ ARKADAŞ SAYISI ONUN BİLGİSİ.
+ *
+ * Bir kullanıcının kaç arkadaşı olduğu, o kişiye ait bir veri; ürünün
+ * yabancılara söylemesi gereken bir şey değil. Ama "ortak arkadaşınız
+ * var" bilgisi İKİ TARAFA DA ait ve tam da bir sosyal uygulamanın
+ * işine yarayan şey: tanıdık biri mi, değil mi.
+ *
+ * ⚠️ İKİ YÖN DE SAYILIYOR — `countFriends` ile aynı sebep. Arkadaşlık
+ * tek satırda duruyor ve isteği kimin gönderdiği rastgele. Yalnızca
+ * bir yöne baksaydık aynı ortak arkadaş, kim kime baktığına göre
+ * sayılır ya da sayılmazdı.
+ *
+ * Yöntem: her iki kullanıcının arkadaş kimlik kümesi çıkarılıp
+ * kesişimi alınıyor. Küçük kümeler için SQL'de kesişim yazmaktan
+ * daha okunur ve bu ölçekte daha hızlı.
+ */
+export async function countMutualFriends(
+  viewerId: string,
+  ownerId: string,
+): Promise<number> {
+  async function arkadasIdleri(userId: string): Promise<Set<string>> {
+    const rows = await db
+      .select({
+        requesterId: friendships.requesterId,
+        addresseeId: friendships.addresseeId,
+      })
+      .from(friendships)
+      .where(
+        and(
+          eq(friendships.status, 'accepted'),
+          or(
+            eq(friendships.requesterId, userId),
+            eq(friendships.addresseeId, userId),
+          ),
+        ),
+      );
+
+    return new Set(
+      rows.map((r) => (r.requesterId === userId ? r.addresseeId : r.requesterId)),
+    );
+  }
+
+  const [a, b] = await Promise.all([arkadasIdleri(viewerId), arkadasIdleri(ownerId)]);
+
+  let ortak = 0;
+  for (const id of a) {
+    /*
+      ⚠️ KENDİLERİ SAYILMIYOR. Viewer ile owner arkadaşsa, viewer
+      owner'ın arkadaş listesinde ve owner viewer'ınkinde olur;
+      elemezsek "1 ortak arkadaş" gibi görünür — oysa o kişi
+      karşındaki kişinin kendisi.
+    */
+    if (id === viewerId || id === ownerId) continue;
+    if (b.has(id)) ortak += 1;
+  }
+
+  return ortak;
 }
 
 /**

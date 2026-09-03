@@ -127,12 +127,34 @@ profileRouter.get('/:username', async (request, response) => {
  * ayarında sessiz bir tip hatası, kullanıcının bilmediği bir açıklık
  * demek — o yüzden katı doğrulama.
  */
-const visibilitySchema = z.object({
-  isPublic: z.boolean({
-    required_error: 'isPublic alanı zorunlu.',
-    invalid_type_error: 'isPublic true ya da false olmalı.',
-  }),
-});
+/*
+  ⚠️ İKİSİ DE İSTEĞE BAĞLI, AMA EN AZ BİRİ ZORUNLU.
+
+  Eskiden yalnızca `isPublic` vardı ve ZORUNLUYDU. İki sonucu oldu:
+
+    1. `allocationVisibility` gönderilse bile Zod onu SESSİZCE
+       atıyordu — ayar hiç kaydedilmedi.
+    2. Yalnızca portföy görünürlüğünü değiştirmek isteyen çağıran,
+       ilgisiz `isPublic` alanını da göndermek zorundaydı.
+
+  `.refine` boş gövdeyi reddediyor: hiçbir alan yoksa istek anlamsız
+  ve sessizce başarılı dönmemeli.
+*/
+const visibilitySchema = z
+  .object({
+    isPublic: z
+      .boolean({ invalid_type_error: 'isPublic true ya da false olmalı.' })
+      .optional(),
+    allocationVisibility: z
+      .enum(['private', 'friends', 'public'], {
+        invalid_type_error: 'Geçersiz görünürlük ayarı.',
+      })
+      .optional(),
+  })
+  .refine(
+    (v) => v.isPublic !== undefined || v.allocationVisibility !== undefined,
+    { message: 'En az bir ayar gönderilmeli.' },
+  );
 
 /** PATCH /users/me/visibility — kendi profilini aç/kapat. */
 profileRouter.patch('/me/visibility', async (request, response) => {
@@ -150,8 +172,8 @@ profileRouter.patch('/me/visibility', async (request, response) => {
   }
 
   try {
-    await setProfileVisibility(userId, parsed.data.isPublic);
-    return response.json({ isPublic: parsed.data.isPublic });
+    await setProfileVisibility(userId, parsed.data);
+    return response.json(parsed.data);
   } catch (error) {
     console.error('[PATCH /users/me/visibility] başarısız:', error);
     return response.status(500).json({

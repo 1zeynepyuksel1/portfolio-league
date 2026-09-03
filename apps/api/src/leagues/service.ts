@@ -56,7 +56,8 @@ export async function getGlobalLeaderboard(
     return {
       rank: entry.rank ?? query.offset + index + 1,
       userId: entry.userId,
-      displayName: entry.displayName,
+      // ⚠️ Gerçek ad değil kullanıcı adı — gerekçe DTO'da yazılı.
+      displayName: entry.username,
       // ⚠️ Profil ekranının adresi. Repository bunu seçiyordu ama servis
       // katmanı düşürüyordu — lig tablosundan profile geçiş bu yüzden
       // çalışmıyordu. Tek tek alan sayan eşlemelerin bilinen bedeli:
@@ -94,7 +95,8 @@ export async function getFriendsLeaderboard(
     return {
       rank: index + 1, // Arkadaşlar arası göreceli sıralama
       userId: entry.userId,
-      displayName: entry.displayName,
+      // ⚠️ Gerçek ad değil kullanıcı adı — gerekçe DTO'da yazılı.
+      displayName: entry.username,
       // ⚠️ Profil ekranının adresi. Repository bunu seçiyordu ama servis
       // katmanı düşürüyordu — lig tablosundan profile geçiş bu yüzden
       // çalışmıyordu. Tek tek alan sayan eşlemelerin bilinen bedeli:
