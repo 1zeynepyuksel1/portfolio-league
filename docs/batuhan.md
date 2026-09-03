@@ -13,6 +13,45 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 41. `+` menüsü ve sol üstteki avatar — 2 Eyl 2026
+
+**Değişti:** `components/UserAvatar.tsx` (yeni) · `components/QuickCreateSheet.tsx` (yeni) ·
+`components/TabBar.tsx` · `screens/DiscoveryScreen.tsx` · `App.tsx`
+
+Profesörün UX incelemesinden çıkan ilk yapısal deneme. Profil sekmeden
+çıkıp sol üstteki avatara taşındı; boşalan yere Spotify kalıbında bir
+`+` düğmesi geldi ve Keşfet'in alt sekmelerini (Lig · Alsaydın · Sosyal)
+alt sayfadan açıyor.
+
+**Okurken şunlara dikkat et:**
+
+1. **`TabKey`'den `'profile'` silindi.** Silinen bir tip anahtarının
+   TypeScript'te nasıl ölü dal yakaladığını gör — `activeTab === 'profile'`
+   dalı derleme hatası verdiği için fark edildi, sessizce kalmadı.
+
+2. **`+` neden `TabKey`'e eklenmedi.** Sekme "neredesin", düğme "ne
+   yapabilirsin" demek. Aynı tipte olsalardı `active === 'create'` gibi
+   anlamsız bir durum mümkün olurdu. Çizim sırasında araya sıkıştırılıyor
+   (`CREATE_INDEX`).
+
+3. **`DiscoveryFocus` içindeki `nonce`.** ⚠️ Buradaki tuzak asıl öğrenilecek
+   şey: yalnızca `tab` geçilseydi, aynı hedef arka arkaya seçildiğinde
+   `useEffect` bağımlılığı değişmez ve menü "tıklanıyor ama bir şey
+   olmuyor" hâline gelirdi. Sayaç bunu çözüyor.
+
+4. **Koşullu prop yayılımı** (`...(kosul ? {...} : {})`). Kendi profilinde
+   çıkış/arkadaş düğmeleri var, başkasınınkinde yok. `onLogout={undefined}`
+   yazmak ile alanı hiç göndermemek farklı şeyler.
+
+5. **Avatar üç kademeli** — hazır görsel, üretilen SVG, baş harf. Üçüncüsü
+   olmasa yeni kullanıcı boş bir daire görürdü ve "yükleniyor" sanırdı.
+
+6. ⚠️ **Bilinen borç:** `localAvatars` haritası hem `UserAvatar.tsx`'te
+   hem `ProfileScreen.tsx`'te var. Profil ekranına bir daha dokunulduğunda
+   oradaki kopya silinip buradan import edilmeli.
+
+---
+
 ### 40. Altı istek, dört gerçek hata — 1 Eyl 2026
 
 **Değişti:** `0015` migration · `lib/rate-limit.ts` · `auth/google.ts` ·
