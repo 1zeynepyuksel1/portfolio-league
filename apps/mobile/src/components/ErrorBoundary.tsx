@@ -50,7 +50,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
         <Text style={styles.message}>{error.message}</Text>
 
-        <ScrollView style={styles.stackBox}>
+        <ScrollView
+        showsVerticalScrollIndicator={false} style={styles.stackBox}>
           <Text style={styles.stack}>{error.stack ?? 'Yığın izi yok'}</Text>
         </ScrollView>
 

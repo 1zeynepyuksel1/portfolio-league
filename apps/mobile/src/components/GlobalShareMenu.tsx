@@ -120,7 +120,8 @@ export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onCl
             {step === 'market_asset' && (
               <View style={styles.assetPicker}>
                 <TouchableOpacity onPress={() => setStep('main')} style={{ marginBottom: 16 }}><Text style={styles.backBtn}>Geri</Text></TouchableOpacity>
-                <FlatList 
+                <FlatList
+        showsVerticalScrollIndicator={false} 
                   data={marketAssets}
                   keyExtractor={item => item.symbol}
                   renderItem={({item}) => (
@@ -150,7 +151,8 @@ export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onCl
             {step === 'asset' && (
               <View style={styles.assetPicker}>
                 <TouchableOpacity onPress={() => setStep('main')} style={{ marginBottom: 16 }}><Text style={styles.backBtn}>← Geri</Text></TouchableOpacity>
-                <FlatList 
+                <FlatList
+        showsVerticalScrollIndicator={false} 
                   data={tradedAssets}
                   keyExtractor={item => item.symbol}
                   renderItem={({item}) => (

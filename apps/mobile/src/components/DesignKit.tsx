@@ -1,6 +1,6 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { ReactNode } from 'react';
-import { colors, fonts, sectionLabel } from '../theme';
+import { colors, fonts, radius, sectionLabel } from '../theme';
 import { AssetLogo } from './AssetLogo';
 
 /**
@@ -169,15 +169,37 @@ export function ChangeText({
   const negative = percent.trim().startsWith('-');
   const digits = percent.replace('-', '').replace('.', ',');
 
+  /*
+    ⚠️ DÜZ METİNDEN DOLGULU ROZETE.
+
+    Önce yalnızca renkli bir yazıydı: yeşil "+1,86%". Doğru ama zayıf —
+    yüzde, listedeki en çok bakılan bilgi ve etrafındaki metinlerle aynı
+    ağırlıkta duruyordu. Dolgulu bir zemin onu satırdan AYIRIYOR; göz
+    listeyi tararken önce rozetlere takılıyor.
+
+    ⚠️ ZEMİN SOLUK, YAZI PARLAK. Tersi olsaydı (dolu yeşil zemin, beyaz
+    yazı) her satır bir düğme gibi görünür ve dokunulabilir sanılırdı.
+    %15 opaklıkta zemin "vurgu" diyor, "buraya bas" demiyor.
+
+    ⚠️ RENK TEK BAŞINA GÖSTERGE DEĞİL — işaret de var (+ / −). Renk
+    körlüğü olan kullanıcı için kâr ile zararı ayıran şey işaret.
+  */
   return (
-    <Text
+    <View
       style={[
-        styles.change,
-        { fontSize: size, color: negative ? colors.loss : colors.gain },
+        styles.changePill,
+        { backgroundColor: negative ? colors.lossSoft : colors.gainSoft },
       ]}
     >
-      {negative ? '−' : '+'}%{digits}
-    </Text>
+      <Text
+        style={[
+          styles.change,
+          { fontSize: size, color: negative ? colors.loss : colors.gain },
+        ]}
+      >
+        {negative ? '−' : '+'}%{digits}
+      </Text>
+    </View>
   );
 }
 
@@ -265,5 +287,23 @@ const styles = StyleSheet.create({
   },
 
   change: { fontFamily: fonts.monoSemibold },
+  /*
+    ⚠️ `alignSelf: 'flex-start'` KALDIRILDI — SİMETRİYİ O BOZUYORDU.
+
+    Rozeti kaba sığdırmak için koymuştum. Ama `alignSelf` EBEVEYNİN
+    hizalamasını EZİYOR: Piyasa listesinde sütun `alignItems: 'flex-end'`
+    ile sağa hizalıyken rozet sola kaçıyordu. Fiyat sağda, rozet solda —
+    her satırda farklı genişlikte olduğu için sol kenarları tırtıklı
+    görünüyordu.
+
+    Doğrusu: hizalamaya ebeveyn karar verir. `flexDirection: 'row'` ya da
+    `alignItems` veren bir kapta bu `View` zaten içeriği kadar yer
+    kaplıyor; `alignSelf` gereksizdi ve zararlıydı.
+  */
+  changePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.xs,
+  },
 
 });

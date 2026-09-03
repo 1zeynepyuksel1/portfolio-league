@@ -35,7 +35,8 @@ import {
   Chip,
   SectionLabel,
 } from '../components/DesignKit';
-import { colors, fonts, rowMetrics, spacing } from '../theme';
+import { colors, fonts, gradients, radius, rowMetrics, shadows, spacing } from '../theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 /**
  * PortfolioScreen — `docs/export/5a-filtre-logo.html`
@@ -53,6 +54,8 @@ import { colors, fonts, rowMetrics, spacing } from '../theme';
 type Position = {
   symbol: string;
   name: string;
+  /** Sunucu hesaplıyor: bu varlık ŞU AN işlem görür mü. */
+  tradable?: boolean;
   quantity: string;
   priceTry: string | null;
   priceUsd: string | null;
@@ -107,10 +110,24 @@ const REFRESH_MS = 10_000;
 const CHART_WIDTH = Dimensions.get('window').width - 32;
 const CHART_HEIGHT = 160;
 const PORTFOLIO_RANGES = [
-  { value: '1w', label: '1H' },
-  { value: '1m', label: '1A' },
-  { value: '3m', label: '3A' },
-  { value: '1y', label: '1Y' },
+  /*
+    ⚠️ '1G' EKLENDİ — SUNUCU ZATEN DESTEKLİYORDU.
+
+    `market/ranges.ts` altı aralık tanımlıyor ('1d' dahil) ve
+    `/portfolio/history` hepsini kabul ediyor. Eksik olan tek şey
+    ekrandaki düğmeydi: yazılmış bir yetenek, ona giden yol olmadığı
+    için kullanılamıyordu. Bu projede aynı şekil beşinci kez.
+
+    ⚠️ '1G' KOVASI 5 DAKİKA (288 nokta) — ama fiyat cron'u kaç
+    saattir çalışıyorsa o kadar nokta gelir. Cron duraksadıysa
+    grafik 288 değil 2-3 nokta çizer. Bu bir hata değil, verinin
+    gerçek hâli.
+  */
+  { value: '1d', label: '1G', getiri: 'GÜNLÜK GETİRİ' },
+  { value: '1w', label: '1H', getiri: 'HAFTALIK GETİRİ' },
+  { value: '1m', label: '1A', getiri: 'AYLIK GETİRİ' },
+  { value: '3m', label: '3A', getiri: '3 AYLIK GETİRİ' },
+  { value: '1y', label: '1Y', getiri: 'YILLIK GETİRİ' },
 ] as const;
 
 /**
@@ -193,7 +210,39 @@ export function PortfolioScreen({
   const [claiming, setClaiming] = useState(false);
 
   const [historyPoints, setHistoryPoints] = useState<{ ts: string; price: string }[]>([]);
-  const [selectedRange, setSelectedRange] = useState<'1w' | '1m' | '3m' | '1y'>('1w');
+
+  /*
+    SEÇİLİ ARALIĞIN GETİRİSİ — büyük yüzde ve tutar bundan geliyor.
+
+    ⚠️ ESKİDEN İKİ FARKLI DÖNEM YAN YANA DURUYORDU:
+
+      -3.416,99 ₺   ->  `portfolio.profitCents`  = TÜM ZAMANLAR kâr/zarar
+      -%2,71        ->  `portfolio.twrPercent`   = HAFTALIK TWR
+      HAFTALIK GETİRİ                            = etiket ikisini de
+                                                   haftalık sanıyordu
+
+    Yani tutar ile yüzde farklı soruların cevabıydı ve etiket
+    yalnızca birine uyuyordu. Aralık filtresine bağlanınca bu
+    kendiliğinden çıktı ortaya.
+  */
+  const [rangeReturn, setRangeReturn] = useState<{ twrPercent: string | null; changeCents: string | null } | null>(null);
+  /*
+    ⚠️ TİP ELLE YAZILIYORDU VE '1G' EKLENİNCE TUTMADI.
+
+    Eskiden: `useState<'1w' | '1m' | '3m' | '1y'>` — yani aralık
+    listesi bir yerde, tipi BAŞKA bir yerde. `PORTFOLIO_RANGES`'e
+    '1d' eklendiğinde tip güncellenmediği için TypeScript hata
+    verdi.
+
+    ⚠️ Hata VERMESİ iyi haber. İki ayrı doğruluk kaynağı tutulduğunda
+    olağan sonuç sessiz bir kayıptır: düğme çizilir, basılır, istek
+    yanlış gider. Burada derleyici yakaladı.
+
+    Şimdi tip listeden TÜRETİLİYOR — yeni bir aralık eklemek tek
+    satır ve tip kendiliğinden genişliyor.
+  */
+  const [selectedRange, setSelectedRange] =
+    useState<(typeof PORTFOLIO_RANGES)[number]['value']>('1w');
   const [historyLoading, setHistoryLoading] = useState(false);
   const [scrubbed, setScrubbed] = useState<{ ts: string; price: string } | null>(null);
 
@@ -316,9 +365,23 @@ export function PortfolioScreen({
     async function loadHistory() {
       setHistoryLoading(true);
       try {
-        const res = await apiFetch<{ points: { ts: string; value: string }[] }>(
+        const res = await apiFetch<{
+          points: { ts: string; value: string }[];
+          twrPercent: string | null;
+          changeCents: string | null;
+        }>(
           `/portfolio/history?range=${selectedRange}&currency=${currency}`
         );
+
+        /*
+          ⚠️ GETİRİ AYNI İSTEKTEN GELİYOR, İKİNCİ BİR ÇAĞRIYLA DEĞİL.
+
+          Ayrı bir uçtan çekseydik iki istek ayrı anlarda dönerdi ve
+          grafik bir aralığa, üstteki yüzde başka bir aralığa ait
+          olabilirdi — kullanıcı "grafik 1 gün ama yüzde haftalık"
+          diye görürdü ve hangisine inanacağını bilemezdi.
+        */
+        setRangeReturn({ twrPercent: res.twrPercent, changeCents: res.changeCents });
         /*
           ⚠️ KURUŞ -> LİRA ÇEVRİMİ ŞART.
 
@@ -584,11 +647,30 @@ export function PortfolioScreen({
               Değer yoksa renk de nötr: yeşil/kırmızı bir İDDİADIR.
             */}
             {(() => {
-              const tutar = money(
-                portfolio.profitCents,
-                portfolio.profitUsdCents,
-              );
+              /*
+                ⚠️ ÜÇÜ DE ARTIK AYNI ARALIĞA AİT: tutar, yüzde ve etiket.
+
+                Önceden tutar tüm zamanların kâr/zararıydı, yüzde
+                haftalık TWR'ydi, etiket "HAFTALIK GETİRİ" diyordu.
+                Üç parçadan ikisi etiketle uyuşmuyordu.
+
+                ⚠️ VERİ GELMEDEN ESKİSİNE DÜŞMÜYORUZ. `rangeReturn`
+                yokken portföyün haftalık değerini göstermek, kullanıcı
+                "1G" seçmişken haftalık sayıyı GÜNLÜK etiketiyle
+                sunmak olurdu — sessiz ve inandırıcı bir yalan.
+                Gelene kadar tire.
+              */
+              const aralik =
+                PORTFOLIO_RANGES.find((r) => r.value === selectedRange) ??
+                PORTFOLIO_RANGES[1];
+
+              const tutar =
+                rangeReturn?.changeCents == null
+                  ? '—'
+                  : formatCentsString(rangeReturn.changeCents);
+
               const bilinmiyor = tutar === '—';
+              const yukselen = Number(rangeReturn?.twrPercent ?? 0) >= 0;
 
               return (
                 <View style={styles.deltaRow}>
@@ -598,19 +680,19 @@ export function PortfolioScreen({
                       {
                         color: bilinmiyor
                           ? colors.inkFaint
-                          : gaining
+                          : yukselen
                             ? colors.gain
                             : colors.loss,
                       },
                     ]}
                   >
-                    {bilinmiyor ? '' : gaining ? '+' : ''}
+                    {bilinmiyor ? '' : yukselen ? '+' : ''}
                     {tutar}
                   </Text>
 
-                  <ChangeText percent={portfolio.twrPercent} />
+                  <ChangeText percent={rangeReturn?.twrPercent ?? null} />
 
-                  <Text style={styles.deltaLabel}>HAFTALIK GETİRİ</Text>
+                  <Text style={styles.deltaLabel}>{aralik.getiri}</Text>
                 </View>
               );
             })()}
@@ -629,8 +711,31 @@ export function PortfolioScreen({
                 <ActivityIndicator color={colors.gain} />
               </View>
             ) : historyPoints.length === 0 ? (
+              /*
+                ⚠️ ESKİ METİN: "Gösterilecek grafik verisi bulunamadı."
+
+                Bu bir HATA cümlesiydi ve hiçbir şey bulunamamış
+                değildi — kullanıcı henüz işlem yapmamıştı. Profesör
+                boş durumları YEDİ KAYITTA İKİ KEZ sordu; iki kez
+                sorduğu tek şey buydu.
+
+                ⚠️ BOŞ DURUMUN ÜÇ TÜRÜ VAR VE DİLLERİ AYRI:
+                  ilk kullanım -> öğret, davet et
+                  temizlendi   -> tebrik et
+                  hata         -> açıkla, çözüm ver     <- yanlışlıkla bu kullanılıyordu
+
+                Buradaki 1. tür. "bulunamadı" kelimesi artık yasak
+                (K6 kuralı); yerine ne yok, neden yok, ne yapmalıyım.
+              */
               <View style={styles.chartPlaceholder}>
-                <Text style={styles.chartErrorText}>Gösterilecek grafik verisi bulunamadı.</Text>
+                <Text style={styles.chartEmptyTitle}>
+                  {sorted.length === 0 ? 'Grafik ilk alımınla başlıyor' : 'Bu aralıkta hareket yok'}
+                </Text>
+                <Text style={styles.chartEmptyText}>
+                  {sorted.length === 0
+                    ? 'Bir varlık aldığında portföyünün seyri burada çizilecek.'
+                    : 'Daha geniş bir aralık seç.'}
+                </Text>
               </View>
             ) : (
               <PriceChart
@@ -872,7 +977,21 @@ export function PortfolioScreen({
                 ? '—'
                 : money(item.valueCents, item.valueUsdCents)}
             </Text>
-            <Text style={styles.rowAsOf}>{formatRelativeTime(item.asOf)}</Text>
+            {/*
+              ⚠️ "15 sa" DEĞİL "piyasa kapalı".
+
+              ABD borsası kapalıyken son fiyat saatler öncesine ait
+              olur ve satır "AAPL · 15 sa" diye görünüyordu — ARIZA
+              gibi. Oysa hiçbir şey bozuk değil, seans kapalı.
+
+              Bu ayrım Piyasa ekranında zaten vardı; cüzdanda yoktu
+              çünkü sunucu bu uçta `tradable` göndermiyordu. Aynı
+              düzeltmenin bir ekranda olup ötekinde olmaması, bu
+              projede tekrar eden bir şekil.
+            */}
+            <Text style={[styles.rowAsOf, item.tradable === false && styles.rowClosed]}>
+              {item.tradable === false ? 'piyasa kapalı' : formatRelativeTime(item.asOf)}
+            </Text>
           </View>
         </TouchableOpacity>
       )}
@@ -1085,6 +1204,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  chartEmptyTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    color: colors.inkMuted,
+    textAlign: 'center',
+  },
+  chartEmptyText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.inkFaint,
+    textAlign: 'center',
+    marginTop: 4,
+    paddingHorizontal: 24,
+  },
   chartErrorText: {
     fontFamily: fonts.regular,
     fontSize: 12,
@@ -1170,9 +1303,32 @@ const styles = StyleSheet.create({
     aynı soruyu cevaplıyor: "portföyüm nasıl dağılmış ve nasıl gitti".
   */
   totalBlock: {
+    /*
+      ⚠️ KENARDAN KENARA — VE BU BİR HİZA HATASINI DÜZELTİYOR.
+
+      Önce `marginHorizontal: 22` + `paddingHorizontal: 20` yazmıştım.
+      Sonuç: kartın içindeki bakiye ekran kenarından 42 piksel içerde
+      başlıyordu, oysa altındaki bölüm başlıkları 22 pikselde. Aynı
+      dikey çizgide olması gereken iki şey 20 piksel kaymıştı.
+
+      Kart tam genişlikte olunca iç dolgusu `spacing.screen` oluyor ve
+      bakiye, altındaki her şeyle AYNI çizgiden başlıyor. Yan kenarlık
+      da kalktı: kenardan kenara giden bir yüzeyin yan çizgisi görünmez,
+      yalnızca alt çizgi anlamlı.
+    */
     paddingHorizontal: spacing.screen,
     paddingTop: 16,
-    paddingBottom: spacing.section,
+    paddingBottom: 24,
+    marginBottom: spacing.section,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    /*
+      ⚠️ GÖLGE KOYU TEMADA GÖRÜNMEZ SANILIR AMA GÖRÜNÜR. Kartın kendisi
+      zeminden bir ton açık; altındaki koyu halka o farkı büyütüyor ve
+      kart "yüzüyor". `elevation` Android için AYRI verilmek zorunda —
+      `shadow*` özellikleri Android'de hiçbir şey yapmıyor.
+    */
+    ...shadows.card,
   },
   deltaRow: {
     flexDirection: 'row',
@@ -1329,6 +1485,8 @@ const styles = StyleSheet.create({
   rowChange: { width: rowMetrics.changeWidth + 34, alignItems: 'flex-end' },
   rowValue: { width: rowMetrics.valueWidth, alignItems: 'flex-end' },
   rowValueText: { fontFamily: fonts.monoSemibold, fontSize: 14, color: colors.ink },
+  // Kapalı seans nötr renkte — bir hata değil, bir durum.
+  rowClosed: { color: colors.inkFaint, fontStyle: 'italic' },
   rowAsOf: {
     fontFamily: fonts.regular,
     fontSize: 10,

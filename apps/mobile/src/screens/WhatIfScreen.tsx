@@ -111,7 +111,20 @@ export function formatMultiple(value: number): string {
   return `${value.toFixed(1).replace('.', ',')}×`;
 }
 
-export function WhatIfScreen() {
+/**
+ * ⚠️ `embedded` — EKRAN ARTIK İKİ YERDEN ÇİZİLEBİLİR.
+ *
+ * Piyasa'nın alt sekmesi olarak açıldığında üstünde zaten
+ * "Ya Alsaydın" yazan bir sekme var; kendi başlığını da çizerse
+ * aynı kelime ekranda iki kez görünür. Aynı kelimenin iki kez
+ * yazılması kullanıcıya ikisinin FARKLI şeyler olduğunu düşündürür.
+ *
+ * ⚠️ Varsayılan `false` — yani ekran tek başına çizildiğinde
+ * davranışı DEĞİŞMİYOR. Yeni bir bayrağın varsayılanı her zaman
+ * "eski davranış" olmalı; aksi hâlde bayrağı eklemek, onu hiç
+ * kullanmayan çağıranları da bozar.
+ */
+export function WhatIfScreen({ embedded = false }: { embedded?: boolean }) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [symbol, setSymbol] = useState('BTC');
   /**
@@ -266,14 +279,16 @@ export function WhatIfScreen() {
   return (
     <View style={styles.screen}>
       {/* --- başlık --- */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Ya Alsaydın</Text>
+      {!embedded && (
+        <View style={styles.header}>
+          <Text style={styles.title}>Ya Alsaydın</Text>
 
-        <View style={styles.liveRow}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>şimdi</Text>
+          <View style={styles.liveRow}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>şimdi</Text>
+          </View>
         </View>
-      </View>
+      )}
 
       {/*
         --- ÖZET ÇUBUĞU: sorunun tamamı tek satırda ---

@@ -49,7 +49,29 @@ type Props = {
  * sunucu artik "bugun" uydurmuyor, `null` donuyor. Burada da tarih yerine
  * cizgi konuyor — yanlis bir tarih gostermektense bosluk daha durust.
  */
-const TARIH_SAAT = new Intl.DateTimeFormat('tr-TR', {
+/*
+  ⚠️ İKİ BİÇİM: BU YIL İÇİN YILSIZ, ESKİ TARİHLER İÇİN YILLI.
+
+  Tek biçim kullanınca satır taşıyordu:
+
+      "31 Ağu 2026 13:17 → 1 Eyl 2026 13:47"   (36 karakter)
+
+  Gönderi kartındaki pozisyon satırı solda ad + tarih, sağda tutar +
+  yüzde taşıyor. Bu uzunluk sağdaki sütunu ekranın DIŞINA itiyordu ve
+  tutarın sonu kırpılıyordu — kırpılan şey para.
+
+  ⚠️ YIL, BU YIL İÇİNSE BİLGİ TAŞIMIYOR. Kullanıcı "31 Ağu" görünce
+  zaten bu yılı anlıyor. Geçmiş yıllarda yıl şart, o zaman yazılıyor.
+  Bilgi kaybı yok, 10 karakter kazanç var.
+*/
+const TARIH_SAAT_KISA = new Intl.DateTimeFormat('tr-TR', {
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+const TARIH_SAAT_YILLI = new Intl.DateTimeFormat('tr-TR', {
   day: 'numeric',
   month: 'short',
   year: 'numeric',
@@ -87,7 +109,9 @@ function tarihSaat(iso: string | null | undefined): string | null {
   const d = new Date(iso);
   // ⚠️ Gecersiz tarih sessizce "Invalid Date" yazar; once yakala.
   if (Number.isNaN(d.getTime())) return null;
-  return TARIH_SAAT.format(d);
+
+  const buYil = d.getFullYear() === new Date().getFullYear();
+  return (buYil ? TARIH_SAAT_KISA : TARIH_SAAT_YILLI).format(d);
 }
 
 function timeAgo(dateString: string) {
@@ -294,7 +318,8 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
                 {isPinned && <Pin size={14} color={colors.accent} />}
               </View>
             <Text style={styles.time}>{isPreview ? 'Şimdi' : timeAgo(post.createdAt)}</Text>
-          </View>          </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
           {!isPreview && (
             <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ padding: 8, marginRight: -8 }}>
               <MoreVertical size={20} color={colors.inkMuted} />
@@ -403,8 +428,8 @@ const buyDateStr = tarihSaat(pos.buy_date) ?? '—';
                   */}
                   <AssetLogo symbol={pos.symbol} size={36} />
 
-                  <View>
-                    <Text style={styles.positionName}>{pos.name}</Text>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.positionName} numberOfLines={1}>{pos.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 }}>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted }}>{buyDateStr}</Text>
                       <Text style={{ fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted }}>➔</Text>
@@ -740,12 +765,28 @@ const styles = StyleSheet.create({
   positionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, /* ⚠️ Satır ayracı: elle yazılmış %3 beyaz yerine tema kenarlığı.
        Tema koyulaşırsa/açılırsa ayraç da onunla gider. */
     borderBottomColor: colors.border },
-  positionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  /*
+    ⚠️ `flex: 1` + `minWidth: 0` BERABER OLMAK ZORUNDA.
+
+    Sol sütun içeriği kadar yer kaplıyordu; uzun tarih satırı onu
+    büyütünce sağdaki tutar ekranın DIŞINA itiliyordu. `flex: 1` "kalan
+    yeri al" diyor, `minWidth: 0` ise "gerekirse içeriğinden de küçül"
+    diyor. İkincisi olmadan flex kutusu içeriğinin altına inemiyor ve
+    taşma devam ediyor — flexbox'ın en sık atlanan kuralı.
+  */
+  positionLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 },
   positionIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surfacePressed, justifyContent: 'center', alignItems: 'center' },
   positionIconText: { fontFamily: fonts.bold, fontSize: 14, color: colors.inkMuted, textTransform: 'uppercase' },
   positionName: { fontFamily: fonts.semibold, fontSize: 14, color: colors.ink },
   positionSymbol: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted },
-  positionRight: { alignItems: 'flex-end' },
+  /*
+    ⚠️ `flexShrink: 0` — SAYILAR ASLA KIRPILMAZ.
+
+    Varsayılan olarak flex çocukları sıkışınca küçülür. Sağdaki sütun
+    para taşıyor; kırpılmış bir tutar yanlış okunur. Sıkışma olacaksa
+    soldaki metin kısalsın, sayı değil.
+  */
+  positionRight: { alignItems: 'flex-end', flexShrink: 0, paddingLeft: 12 },
   positionPnl: { fontFamily: fonts.bold, fontSize: 14 },
   positionPct: { fontFamily: fonts.medium, fontSize: 12, marginTop: 2 },
 

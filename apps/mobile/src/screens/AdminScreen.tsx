@@ -207,6 +207,7 @@ export function AdminScreen({ onClose }: { onClose: () => void }) {
           </View>
 
           <FlatList
+        showsVerticalScrollIndicator={false}
             data={users}
             keyExtractor={(u) => u.id}
             contentContainerStyle={styles.list}
@@ -258,6 +259,7 @@ export function AdminScreen({ onClose }: { onClose: () => void }) {
         </>
       ) : (
         <FlatList
+        showsVerticalScrollIndicator={false}
           data={postlar}
           keyExtractor={(p) => p.id}
           contentContainerStyle={styles.list}

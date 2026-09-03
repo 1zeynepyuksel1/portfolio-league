@@ -178,21 +178,35 @@ export function formatQuantity(decimal: string): string {
  * Ağ koptuğunda sayı "3 dk önce"ye döner — uygulama yalan söylemez,
  * dürüstçe eskir. WebSocket olmadan "canlı" hissini veren şey bu.
  */
-export function formatRelativeTime(isoDate: string | null): string {
+export function formatRelativeTime(
+  isoDate: string | null,
+  /*
+    ⚠️ `compact` YALNIZCA "önce" KELİMESİNİ DÜŞÜRÜR — BİRİMİ DEĞİL.
+
+    Liste satırlarında her varlığın yanında bu metin var; ellisinde
+    birden "önce" yazmak satırı gereksiz uzatıyor. Ama BİRİM
+    kısaltılamaz: 'sn' saniye, 'dk' dakika, 'sa' saat, 'gün' gün.
+    Saat değerini 'sn' diye yazmak 22 saatlik veriyi 22 saniyelik
+    gibi gösterirdi — bir finans uygulamasının yapabileceği en kötü
+    yanlış, çünkü fiyatın TAZE olduğunu iddia eder.
+  */
+  compact = false,
+): string {
   if (!isoDate) return 'fiyat yok';
 
   const seconds = Math.floor((Date.now() - new Date(isoDate).getTime()) / 1000);
+  const son = compact ? '' : ' önce';
 
   if (seconds < 5) return 'şimdi';
-  if (seconds < 60) return `${seconds} sn önce`;
+  if (seconds < 60) return `${seconds} sn${son}`;
 
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} dk önce`;
+  if (minutes < 60) return `${minutes} dk${son}`;
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} sa önce`;
+  if (hours < 24) return `${hours} sa${son}`;
 
-  return `${Math.floor(hours / 24)} gün önce`;
+  return `${Math.floor(hours / 24)} gün${son}`;
 }
 
 /**

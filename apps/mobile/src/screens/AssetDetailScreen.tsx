@@ -112,6 +112,8 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
     open: string | null;
     close: string | null;
     volume: string | null;
+    /** Sunucu hesaplıyor: bu varlık ŞU AN işlem görür mü. */
+    tradable?: boolean;
   } | null>(null);
 
   const load = useCallback(async () => {
@@ -259,7 +261,17 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
           {scrubbed !== null ? (
             <Text style={styles.asOf}>{formatChartDate(scrubbed.ts)}</Text>
           ) : last !== undefined ? (
-            <Text style={styles.asOf}>{formatRelativeTime(last.ts)}</Text>
+            /*
+              ⚠️ BORSA KAPALIYKEN SAAT YERİNE "piyasa kapalı".
+              "16 sa" yazması arıza gibi okunuyordu; oysa hiçbir şey
+              bozuk değil, seans kapalı. Aynı ayrım Piyasa listesinde
+              ve cüzdanda da var.
+            */
+            <Text style={styles.asOf}>
+              {stats?.tradable === false
+                ? 'piyasa kapalı'
+                : formatRelativeTime(last.ts)}
+            </Text>
           ) : null}
         </View>
 

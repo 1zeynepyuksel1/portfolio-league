@@ -295,6 +295,79 @@ export const sectionLabel = {
 
   Oranlar korunarak büyütüldü (%9).
 */
+/**
+ * DEGRADELER — yüzeylere derinlik veren renk geçişleri.
+ *
+ * ⚠️ YÖN DEĞİŞTİ VE BU BİLİNÇLİ. Önceki tercih "sakin, yalın, araç
+ * gibi" idi; ürün sahibi daha ifadeli bir görünüm istedi. Bu bir
+ * hata düzeltmesi değil, bir TERCİH değişikliği.
+ *
+ * ⚠️ AMA KURALSIZ DEĞİL. Üç sınır konuldu:
+ *
+ *   1. DEGRADE SADECE ZEMİNDE, METİNDE DEĞİL. Renk geçişli yazı
+ *      okunurluğu düşürür ve kontrast ölçülemez hâle gelir.
+ *   2. GEÇİŞ DAR TUTULDU. İki ucu birbirine yakın renkler; "mor-pembe
+ *      degrade" gibi geniş geçişler her yapay zekâ üretimi arayüzde
+ *      var ve tam da bu yüzden JENERİK görünüyor.
+ *   3. ANLAM RENKLERİ DEGRADE OLMUYOR. Yeşil kâr, kırmızı zarar
+ *      demek; geçiş onları birbirine yaklaştırır.
+ */
+export const gradients = {
+  /** Bakiye bloğu — koyudan biraz daha koyuya, üstte hafif aydınlık. */
+  hero: ['#1C1C21', '#121215'] as const,
+  /** Vurgu düğmesi — mavinin iki tonu. */
+  accent: ['#4F8DF7', '#2563EB'] as const,
+  /** Kâr rozeti ve alanları. */
+  gain: ['#12D18E', '#059669'] as const,
+  /** Zarar rozeti. */
+  loss: ['#F87171', '#DC2626'] as const,
+  /** Şampiyonluk / madalya. */
+  gold: ['#FBBF4B', '#D97706'] as const,
+  /** Kart üstü ince parlaklık — yüzeyi zeminden ayırıyor. */
+  cardSheen: ['rgba(255,255,255,0.045)', 'rgba(255,255,255,0)'] as const,
+} as const;
+
+/**
+ * GÖLGELER — kartları zeminden ayıran derinlik.
+ *
+ * ⚠️ KOYU TEMADA GÖLGE ZORDUR. Siyah üstüne siyah gölge görünmez;
+ * bu yüzden kartlar bugüne kadar 1 piksellik kenarlıkla ayrılıyordu.
+ * Kenarlık işe yarıyor ama düz duruyor — her kutu aynı kağıt
+ * kalınlığında.
+ *
+ * ⚠️ ÇÖZÜM GÖLGEYİ RENKLENDİRMEK. Saf siyah yerine vurgunun koyu
+ * tonuyla gölge, koyu zeminde bile algılanıyor ve kartı "yüzüyor"
+ * gösteriyor.
+ *
+ * ⚠️ `elevation` ANDROID İÇİN AYRI VERİLMEK ZORUNDA — `shadow*`
+ * özellikleri Android'de hiçbir şey yapmıyor. İkisini birlikte
+ * vermeyen kod iOS'ta derinlikli, Android'de düz görünür.
+ */
+export const shadows = {
+  card: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  raised: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  /** Vurgu düğmesi — rengin kendi ışığı. */
+  accentGlow: {
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+} as const;
+
 export const rowMetrics = {
   paddingVertical: 14,
   logoSize: 32,

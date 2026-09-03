@@ -40,6 +40,7 @@ const MASKOT = require('../../assets/kocai/kocai-full.png');
 export function CoachScreen() {
   return (
     <ScrollView
+        showsVerticalScrollIndicator={false}
       style={styles.screen}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
