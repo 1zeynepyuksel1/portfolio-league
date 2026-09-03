@@ -231,7 +231,7 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
               geriye gerçek soru kaldı.
             */}
             <Text style={styles.groupLabel}>Profilini kimler görebilsin?</Text>
-            <View style={styles.segRow}>
+            <View style={styles.segRow} accessibilityRole="radiogroup">
               {[
                 { v: true,  l: 'Herkes' },
                 { v: false, l: 'Arkadaşlarım' },
@@ -241,6 +241,8 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
                   style={[styles.seg, isPublic === o.v && styles.segOn]}
                   onPress={() => setIsPublic(o.v)}
                   activeOpacity={0.85}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isPublic === o.v }}
                 >
                   <Text style={[styles.segText, isPublic === o.v && styles.segTextOn]}>
                     {o.l}
@@ -252,13 +254,15 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
             <Text style={[styles.groupLabel, styles.groupLabelSpaced]}>
               Portföyünü kimler görebilir?
             </Text>
-            <View style={styles.segRow}>
+            <View style={styles.segRow} accessibilityRole="radiogroup">
               {VISIBILITIES.map((o) => (
                 <TouchableOpacity
                   key={o.value}
                   style={[styles.seg, visibility === o.value && styles.segOn]}
                   onPress={() => setVisibility(o.value)}
                   activeOpacity={0.85}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: visibility === o.value }}
                 >
                   <Text
                     style={[styles.segText, visibility === o.value && styles.segTextOn]}
@@ -273,13 +277,15 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
             <Text style={[styles.groupLabel, styles.groupLabelSpaced]}>
               Paylaşımlarını kimler görsün?
             </Text>
-            <View style={styles.segRow}>
+            <View style={styles.segRow} accessibilityRole="radiogroup">
               {POST_VISIBILITIES.map((o) => (
                 <TouchableOpacity
                   key={o.value}
                   style={[styles.seg, postVisibility === o.value && styles.segOn]}
                   onPress={() => setPostVisibility(o.value)}
                   activeOpacity={0.85}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: postVisibility === o.value }}
                 >
                   <Text
                     style={[styles.segText, postVisibility === o.value && styles.segTextOn]}
@@ -455,6 +461,13 @@ const styles = StyleSheet.create({
     */
     flex: 1,
     minWidth: 0,
+    /*
+      ⚠️ 12pt DOLGU + 12px YAZI = ~40pt YÜKSEKLİK. Platform tabanı
+      44pt. Dolguyu artırmak yerine `minHeight` verildi: sistem yazı
+      boyutu büyüdüğünde kutu da büyüyebilsin, yazı kırpılmasın.
+    */
+    minHeight: 44,
+    justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -462,10 +475,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
   },
-  segOn: { borderColor: colors.accent, backgroundColor: 'rgba(37,99,235,0.12)' },
+  /* ⚠️ Ham `rgba(37,99,235,0.12)` yazılıydı — `accent`'in yakın ama
+     AYRI bir kopyası. `accentSoft` tema değişince otomatik takip eder. */
+  segOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
   segText: {
     fontFamily: fonts.medium,
-    fontSize: type.caption,
+    /*
+      ⚠️ `caption` (12) İDİ. Bu bir yardımcı etiket değil, kullanıcının
+      DOKUNACAĞI birincil denetimin yazısı. Erişilebilirlik kılavuzları
+      gövde için 16px taban öneriyor, 12px altını anti-desen sayıyor;
+      ölçekteki `body` bu rolün doğru kademesi.
+    */
+    fontSize: type.body,
     color: colors.inkMuted,
   },
   segTextOn: { fontFamily: fonts.bold, color: colors.accent },

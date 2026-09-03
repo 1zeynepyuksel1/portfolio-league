@@ -153,7 +153,12 @@ export function AdminScreen({ onClose }: { onClose: () => void }) {
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} hitSlop={12}>
+        <TouchableOpacity
+          onPress={onClose}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Kapat"
+        >
           <X size={24} color={colors.ink} />
         </TouchableOpacity>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -237,7 +242,12 @@ export function AdminScreen({ onClose }: { onClose: () => void }) {
                 */}
                 {item.role !== 'admin' &&
                   (item.bannedAt === null ? (
-                    <TouchableOpacity style={styles.banBtn} onPress={() => setBanHedefi(item)}>
+                    <TouchableOpacity
+                      style={styles.banBtn}
+                      onPress={() => setBanHedefi(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`@${item.username} kullanıcısını banla`}
+                    >
                       <Ban size={16} color={colors.loss} />
                     </TouchableOpacity>
                   ) : (
@@ -282,7 +292,12 @@ export function AdminScreen({ onClose }: { onClose: () => void }) {
                   }).format(new Date(item.createdAt))}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.banBtn} onPress={() => gonderiSil(item)}>
+              <TouchableOpacity
+                style={styles.banBtn}
+                onPress={() => gonderiSil(item)}
+                accessibilityRole="button"
+                accessibilityLabel="Gönderiyi sil"
+              >
                 <Trash2 size={16} color={colors.loss} />
               </TouchableOpacity>
             </View>
@@ -325,7 +340,8 @@ export function AdminScreen({ onClose }: { onClose: () => void }) {
                 <Text style={[styles.cardBtnText, { color: colors.ink }]}>Vazgeç</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.cardBtn, { backgroundColor: colors.loss }]}
+                /* ⚠️ `lossDeep` — beyaz yazı `loss` üstünde 3,76:1 veriyordu, WCAG 4,5:1 istiyor. */
+                style={[styles.cardBtn, { backgroundColor: colors.lossDeep }]}
                 onPress={() => void banla()}
                 disabled={islemde}
               >
@@ -372,10 +388,12 @@ const styles = StyleSheet.create({
   kutuDeger: { fontFamily: fonts.bold, fontSize: 20, color: colors.ink },
   kutuEtiket: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 2 },
   tabRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginBottom: 8 },
-  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: colors.surfacePressed },
-  tabActive: { backgroundColor: colors.accent },
+  /* ⚠️ 8pt dolgu ~32pt veriyordu, taban 44pt. `minHeight` + ortalama eklendi. */
+  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: colors.surfacePressed, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  /* ⚠️ `accentDeep` — beyaz yazı `accent` üstünde 3,68:1 veriyordu, WCAG 4,5:1 istiyor. */
+  tabActive: { backgroundColor: colors.accentDeep },
   tabText: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted },
-  tabTextActive: { color: '#FFF' },
+  tabTextActive: { color: colors.onAccent },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -400,10 +418,11 @@ const styles = StyleSheet.create({
   rowSub: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 2 },
   meta: { fontFamily: fonts.medium, fontSize: 12, color: colors.inkMuted, marginTop: 4 },
   banli: { fontFamily: fonts.medium, fontSize: 12, color: colors.loss, marginTop: 4 },
-  rozet: { backgroundColor: colors.accent, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  rozetText: { fontFamily: fonts.bold, fontSize: 10, color: '#FFF' },
+  rozet: { backgroundColor: colors.accentDeep, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  rozetText: { fontFamily: fonts.bold, fontSize: 10, color: colors.onAccent },
   banBtn: { padding: 12, borderRadius: 10, backgroundColor: 'rgba(239, 68, 68, 0.1)' },
-  unbanBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.surfacePressed },
+  /* ⚠️ 8pt dolgu ~30pt veriyordu, taban 44pt. */
+  unbanBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: colors.surfacePressed, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
   unbanText: { fontFamily: fonts.bold, fontSize: 12, color: colors.ink },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bos: { fontFamily: fonts.medium, color: colors.inkMuted, textAlign: 'center', marginTop: 32 },
@@ -428,5 +447,5 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardBtn: { flex: 1, paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
-  cardBtnText: { fontFamily: fonts.bold, fontSize: 14, color: '#FFF' },
+  cardBtnText: { fontFamily: fonts.bold, fontSize: 14, color: colors.onAccent },
 });

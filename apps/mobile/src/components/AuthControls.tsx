@@ -20,7 +20,7 @@ import {
   View,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { colors, fonts, radius, sizes } from '../theme';
+import { colors, fonts, radius, sizes, type } from '../theme';
 
 // ---------------------------------------------------------------------------
 // İKONLAR
@@ -190,12 +190,13 @@ export function PrimaryButton({
       accessibilityState={{ disabled: blocked, busy: loading }}
       style={({ pressed }) => [
         styles.primary,
-        pressed && !blocked && { backgroundColor: colors.accent },
+        /* ⚠️ `accentDeep` — beyaz yazı `accent` üstünde 3,68:1 veriyordu, WCAG 4,5:1 istiyor. */
+        pressed && !blocked && { backgroundColor: colors.accentDeep },
         blocked && styles.blocked,
       ]}
     >
       {({ pressed }) => {
-        const fg = pressed && !blocked ? '#ffffff' : colors.surface;
+        const fg = pressed && !blocked ? colors.onAccent : colors.surface;
 
         return loading ? (
           <ActivityIndicator color={colors.surface} />
@@ -240,7 +241,11 @@ export function SecondaryButton({
       ]}
     >
       {glyph}
-      <Text style={[styles.secondaryLabel, compact && { fontSize: 15 }]}>
+      {/*
+        ⚠️ `compact` DURUMUNDA 16'DAN 15'E DÜŞÜYORDU — SİLİNDİ. 1 piksellik
+        fark gözle seçilmiyor, tek yaptığı ölçeğe kademe eklemekti.
+      */}
+      <Text style={styles.secondaryLabel}>
         {label}
       </Text>
     </Pressable>
@@ -353,7 +358,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: type.body,
     fontFamily: fonts.regular,
     color: colors.error,
   },
@@ -369,9 +374,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.hairline,
   },
   dividerLabel: {
-    fontSize: 11,
+    fontSize: type.caption,
     fontFamily: fonts.regular,
-    letterSpacing: 0.18 * 11,
+    /*
+      ⚠️ HARF ARALIĞI YAZI BOYUTUNDAN TÜRETİLİYOR (0.18 × boyut). Boyutu
+      token'a bağlayıp çarpanı elle bıraksaydık (`0.18 * 11`) aralık eski
+      oranda kalır, boyut büyüdükçe harfler sıkışık görünürdü.
+    */
+    letterSpacing: 0.18 * type.caption,
     color: colors.inkFaint,
   },
 

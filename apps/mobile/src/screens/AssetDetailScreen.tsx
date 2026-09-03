@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  DeviceEventEmitter,
   Dimensions,
   Pressable,
   ScrollView,
@@ -15,6 +16,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { History } from 'lucide-react-native';
 import { apiFetch } from '../api/client';
 import { useCurrency } from '../lib/currency';
 import {
@@ -22,8 +24,9 @@ import {
   PriceChart,
   type ChartPoint,
 } from '../components/PriceChart';
+import { EVENTS } from './WhatIfScreen';
 import { formatPrice, formatRelativeTime, formatPercent } from '../lib/format';
-import { colors, fonts } from '../theme';
+import { colors, fonts, radius, spacing, type } from '../theme';
 
 type Props = {
   symbol: string;
@@ -225,12 +228,69 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
         başlık kaymaz.
       */}
       <View style={styles.header}>
-        <Pressable onPress={onClose} hitSlop={12}>
-          <Text style={styles.back}>‹ Geri</Text>
+        <View style={styles.headerLeft}>
+          <Pressable onPress={onClose} hitSlop={12}>
+            <Text style={styles.back}>‹ Geri</Text>
+          </Pressable>
+          <Text style={styles.title} numberOfLines={1}>
+            {name} ({symbol})
+          </Text>
+        </View>
+
+        {/*
+          ⚠️ NEDEN VAR — profesörün UX incelemesindeki en somut bulgu:
+          Ya Alsaydın'ı keşfedilebilir kılmak. Önce Discovery akışında bir
+          karosel denendi, ürün sahibi bunun yerine BURAYI istedi:
+          kullanıcı zaten bu varlıkla ilgileniyorken soru ("peki 2020'de
+          alsaydım?") tam olarak burada doğuyor, akışta değil.
+
+          ⚠️ TARİH SABİT — 2023-01-02 ("2023 dibi", `EVENTS[2]`),
+          Pandemi dibi (`EVENTS[0]`) DEĞİL. Ölçüldü: uygulamadaki 48
+          varlığın en genci AVAX (`firstAvailable` 2020-09-22). Pandemi
+          dibini (2020-03-12) varsayılan seçseydik SOL ve AVAX için
+          "geçmiş fiyat kaydı bulunamadı" hatasıyla karşılaşılırdı —
+          onlar henüz listelenmemişti. 2023 dibi her varlık için güvenli.
+
+          ⚠️ `onClose()` ÖNCE ÇAĞRILIYOR. Bu ekran bir katman (App.tsx'te
+          `detailAsset` state'i); Piyasa'ya geçerken katmanın kendisini
+          kapatmazsak kullanıcı geri döndüğünde hâlâ bu ekranın üstünde
+          bulur kendini.
+
+          ⚠️ `setTimeout(..., 100)` — `GlobalShareMenu`'deki aynı desen.
+          `switchTab` App.tsx'te `activeTab`'ı değiştiriyor; MarketScreen
+          o an mount bile olmamış olabilir (kullanıcı Cüzdan'dan geldiyse).
+          Gecikme olmadan `openWhatIf` MarketScreen'in dinleyicisi daha
+          KURULMADAN ateşlenir ve kaybolur — sessizce, hatasız.
+        */}
+        <Pressable
+          onPress={() => {
+            onClose();
+            DeviceEventEmitter.emit('switchTab', 'market');
+            setTimeout(() => {
+              DeviceEventEmitter.emit('openWhatIf', { date: EVENTS[2].date, symbol });
+            }, 100);
+          }}
+          style={styles.whatIfBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`${name} için Ya Alsaydın hesabını aç`}
+        >
+          <History size={16} color={colors.gain} strokeWidth={2.25} />
+          {/*
+            ⚠️ "Ya Alsaydın" YERİNE VARLIĞA ÖZEL CÜMLE. Genel etiket
+            hangi varlığa dokunduğunu söylemiyordu; "Geçmişte Bitcoin
+            alsaydın" hem düğmenin ne yapacağını hem HANGİ varlık için
+            yapacağını tek bakışta veriyor.
+
+            ⚠️ `numberOfLines={2}` — bazı varlık adları uzun ("Avustralya
+            Doları", 18 harf). Sabit kısaltma yazmadım (`name.slice(0,N)`
+            gibi); React Native kendi satır kırma/üç nokta mantığıyla
+            hallediyor, kelimeyi ortasından kesmiyor.
+          */}
+          <Text style={styles.whatIfBtnText} numberOfLines={2}>
+            Geçmişte {name} alsaydın
+          </Text>
         </Pressable>
-        <Text style={styles.title}>
-          {name} ({symbol})
-        </Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -456,14 +516,71 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingBottom: 40 },
 
   // Sabit başlık: yatay boşluğu kendi taşıyor, alt kenarı içeriği ayırıyor.
+  /*
+    ⚠️ `alignItems: 'flex-start'` YALNIZCA VARSAYILAN — `whatIfBtn`
+    kendi `alignSelf: 'stretch'`'iyle bunu EZİYOR (flexbox'ta bir
+    çocuğun `alignSelf`'i ebeveynin `alignItems`'ini geçersiz kılar).
+    Sonuç: `headerLeft` (Geri + başlık) yukarı yapışık kendi
+    yüksekliğinde kalırken, düğme satırın TAMAMINI (o yüksekliği)
+    dolduruyor — ilk sürümde düğme küçük bir hap gibi köşede
+    yüzüyordu, kutunun geri kalanı boş kalıyordu.
+  */
   header: {
-    gap: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
+  },
+  /* `minWidth: 0` olmadan uzun varlık adı sağdaki düğmeyi ekran dışına iter. */
+  headerLeft: { flex: 1, minWidth: 0, gap: 8 },
+  /*
+    ⚠️ SATIR DEĞİL SÜTUN OLDU. Etiket artık tek kelime değil, tam bir
+    cümle ("Geçmişte Ethereum alsaydın") — ikonu metnin YANINA koysaydık,
+    iki satıra sarılan yazının yanında ikon ya üstte ya altta kalır,
+    hiçbir hizada iyi durmazdı. İkon üstte, metin altta, ikisi de ortalı.
+
+    ⚠️ `maxWidth: '58%'` ŞART. "Avustralya Doları" gibi uzun bir ad
+    sınırsız genişleseydi soldaki başlığı ("Geri" + varlık adı) neredeyse
+    tamamen iterdi — `headerLeft`'in `minWidth: 0`'ı onu sıfıra kadar
+    daraltabilir. Sınır, uzun adlarda metnin SARILMASINI zorluyor
+    (`numberOfLines={2}` + bu genişlik), başlığı ezmek yerine.
+  */
+  whatIfBtn: {
+    alignSelf: 'stretch',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 44,
+    maxWidth: '58%',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    /*
+      ⚠️ MAVİYDİ (`accent`), YEŞİLE ÇEVRİLDİ — kopuk durduğu için.
+      Bu ekranda vurgu rengi zaten yeşil: "‹ Geri", Al/Sat düğmesi,
+      seçili aralık düğmesi hepsi `colors.gain`. Mavi tek başına bu
+      ekranda YABANCI bir renk ailesiydi.
+
+      ⚠️ NORMALDE `gain`/`loss` bu projede YÖN taşır (kâr/zarar), süs
+      değil — Segmented ve DesignKit'teki kural bu. Burada istisna:
+      AssetDetailScreen'in KENDİSİ zaten yeşili "birincil eylem" rengi
+      olarak kullanıyor (Geri, Al/Sat), bu düğme o dile katılıyor —
+      yeni bir anlam eklemiyor, var olanı takip ediyor.
+    */
+    backgroundColor: colors.gainSoft,
+  },
+  whatIfBtnText: {
+    fontFamily: fonts.semibold,
+    fontSize: type.micro,
+    color: colors.gain,
+    textAlign: 'center',
   },
   back: { color: colors.gain, fontSize: 16, fontFamily: fonts.semibold },
   title: { color: colors.ink, fontSize: 26, fontFamily: fonts.bold },
@@ -492,6 +609,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     alignItems: 'center',
+    /* ⚠️ 8pt dolgu ~32pt veriyordu, taban 44pt. */
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: colors.fieldFill,
     borderWidth: 1,
     borderColor: colors.hairlineSoft,

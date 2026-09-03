@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Crown, Share2, Trophy } from 'lucide-react-native';
 import { apiFetch } from '../api/client';
-import { colors, fonts } from '../theme';
+import { colors, fonts, medalColor } from '../theme';
 
 /**
  * LeagueResultModal — lig kapandıktan sonraki İLK açılışta çıkan kutlama.
@@ -120,9 +120,14 @@ export function LeagueResultModal() {
         <View style={styles.card}>
           <View style={[styles.iconWrap, madalya && styles.iconWrapGold]}>
             {madalya ? (
+              /*
+                ⚠️ GÜMÜŞ VE BRONZ ELLE YAZILIYDI ('#94A3B8', '#B45309') VE
+                `ProfileScreen`'DEKİ DEĞERLERLE TUTMUYORDU — aynı 2.'lik
+                madalyası iki ekranda iki renk. Artık `theme.medalColor()`.
+              */
               <Crown
                 size={40}
-                color={result.rank === 1 ? colors.gold : result.rank === 2 ? '#94A3B8' : '#B45309'}
+                color={medalColor(result.rank)}
                 strokeWidth={2}
               />
             ) : (
@@ -173,7 +178,7 @@ export function LeagueResultModal() {
             disabled={paylasiliyor || paylasildi}
           >
             <View style={styles.buttonRow}>
-              {!paylasildi && <Share2 size={17} color="#FFF" />}
+              {!paylasildi && <Share2 size={17} color={colors.onAccent} />}
               <Text style={styles.buttonText}>
                 {paylasildi
                   ? 'Akışta paylaşıldı'
@@ -242,14 +247,15 @@ const styles = StyleSheet.create({
   },
   detailStrong: { fontFamily: fonts.bold, color: colors.ink },
   twr: { fontFamily: fonts.bold, fontSize: 34, marginTop: 16, marginBottom: 24 },
+  /* ⚠️ `accentDeep` — beyaz yazı `accent` üstünde 3,68:1 veriyordu, WCAG 4,5:1 istiyor. */
   button: {
-    backgroundColor: colors.accent,
+    backgroundColor: colors.accentDeep,
     paddingVertical: 16,
     borderRadius: 14,
     alignSelf: 'stretch',
     alignItems: 'center',
   },
-  buttonText: { fontFamily: fonts.bold, fontSize: 16, color: '#FFF' },
+  buttonText: { fontFamily: fonts.bold, fontSize: 16, color: colors.onAccent },
   buttonRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   buttonDone: { backgroundColor: colors.gain },
   secondary: {

@@ -13,6 +13,210 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 44. Faz 3 — tasarım tutarlılığı, sıfırdan tekrar kuruldu — 3 Eyl 2026
+
+**Değişti:** 22 dosya — `theme.ts` · `components/DesignKit.tsx` (yeni `Segmented`
+genişletmesi + yeni `ConfirmModal`) · `screens/ProfileScreen.tsx` (tam
+`StyleSheet` göçü) · `components/PostCard.tsx` (tam `StyleSheet` göçü) ·
+`components/AllocationBar.tsx` · `components/LeagueResultModal.tsx` ·
+`components/AuthControls.tsx` · `components/ErrorBoundary.tsx` ·
+`components/GlobalShareMenu.tsx` · `components/SharePostModal.tsx` ·
+`screens/AdminScreen.tsx` · `screens/DiscoveryScreen.tsx` ·
+`screens/FriendsScreen.tsx` · `screens/MarketScreen.tsx` ·
+`screens/OnboardingScreen.tsx` · `screens/PortfolioScreen.tsx` ·
+`screens/RegisterScreen.tsx`
+
+**Bu, bir tekrar.** Aynı iş bir önceki oturumda yapılmış, commit'lenmeden bir
+restore ile tamamen silinmişti. Bu kez dört adımın hepsi bitene kadar
+commit'lenmedi — tek commit'te kaybolma riskini kabul ederek, ama iş
+parçalanmadan bitirilsin diye.
+
+**Adım 1 — Segmentli denetim.** 4 kopya (Piyasa, Profil, Arkadaşlar,
+Onboarding) → `DesignKit.Segmented` bileşeni genişletildi (`icon`/`badge`/
+`fill` prop'ları). Onboarding bilerek bağlanmadı — sekme (`tab`) ile seçim
+grubu (`radio`) ekran okuyucuda farklı okunur.
+
+**Adım 2 — ProfileScreen.** 113 satır içi stil → 2 (ikisi de veri-bağımlı,
+kalması gerekiyor). Yol boyunca çıkan gerçek hatalar: ölü `getAssetColor` +
+iki elle yazılmış palet kopyası, 10. varlıkta kaybolan dağılım dilimi
+(`opacity: 1 - i*0.1`), bildirim kutusu kontrastı (2,54:1/3,76:1).
+
+**Adım 3 — Token turu.** Dağılım paleti (`AllocationBar` ↔ `ProfileScreen`) ve
+madalya rengi (`LeagueResultModal` ↔ `ProfileScreen`) `theme.ts`'te
+birleştirildi. Beyazın dört yazımı (`'#FFF'/'#fff'/'#FFFFFF'/'#ffffff'`) →
+`onAccent`; bu tarama sırasında **7 yerde** beyaz yazı `accent`/`loss` zemininde
+kontrast sınavından kaldığı çıktı (3,68:1 / 3,76:1, WCAG 4,5:1 istiyor) —
+hepsi `accentDeep`/`lossDeep`'e taşındı. Ayrıca: `DiscoveryScreen`'de bir
+gölge token'ının kendi üstüne yazılan dört satırla ezildiği hata, `PostCard`
+ve `GlobalShareMenu`'de aynı emoji simgesinin (🕰️) iki ayrı yerde kalıntı
+olarak durduğu, `GlobalShareMenu`'de üç "Geri" düğmesinin ikisinin oksuz
+yazıldığı.
+
+**Adım 4 — PostCard + ConfirmModal.** 55 satır içi stil → 0. Beş "emin
+misin?" kutusu (Sabitlendi, kendi silme, yönetici silme, ban, `ProfileScreen`
+ban) → tek `DesignKit.ConfirmModal`. Seçilen tasarım (64px simge + alt alta
+düğme) çoğunluk olduğu için değil, yıkıcı düğmenin "Vazgeç"in hemen yanında
+DURMAMASI için seçildi — yan yana dizilimde 4mm'lik bir kayma yanlışlıkla
+silmeye dönüşür.
+
+**Doğrulama:** `tsc` iki workspace'te de temiz · API testleri 300/300 ·
+uygulama genelinde satır içi stil 21 (hepsi gerekçeli, ya veri-bağımlı ya da
+işlevsel) · ham hex sadece yorumlarda + `AssetLogo`'nun marka renklerinde.
+
+---
+
+### 43. Ya Alsaydın girişi — karoselden vazgeçildi, varlık detayına taşındı — 3 Eyl 2026
+
+**Değişti:** `screens/WhatIfScreen.tsx` · `screens/MarketScreen.tsx` ·
+`screens/AssetDetailScreen.tsx` · `screens/DiscoveryScreen.tsx`
+**Silindi:** `components/WhatIfCarousel.tsx` (yazıldı, denendi, kullanıcı geri aldı)
+
+Profesörün yedi ses kaydını (`docs/ui-ux-tasarımrevize.md`) baştan sona okudum;
+tek somut, hiç dokunulmamış bulgu Ya Alsaydın'ın keşfedilebilirliğiydi. İlk
+denemem Discovery akışına bir karoseldi (Lig kartının yanına, `LeagueRankCard`
+deseniyle). **Ürün sahibi denedikten sonra geri çevirdi**: akışta göstermek
+yerine, herhangi bir varlığın detay ekranından (`AssetDetailScreen`) o varlığa
+özel Ya Alsaydın'a doğrudan gitmeyi istedi — soru zaten kullanıcı o varlığa
+bakarken doğuyor, akışta değil.
+
+**Karoselin altyapısı silinmedi, TAŞINDI** — `WhatIfScreen`'e eklenen
+`initialDate`/`initialSymbol` props'ları ve `MarketScreen`'in `openWhatIf`
+yük taşıma mekanizması aynen kaldı, sadece çağıran değişti (Discovery değil
+AssetDetailScreen). `components/WhatIfCarousel.tsx` silindi çünkü hiçbir
+yerden çağrılmıyordu — bu projede "yazılmış ama çağrılmayan kod" defalarca
+soruna yol açtı, bir tane daha eklemedim.
+
+**Okurken şunlara dikkat et:**
+
+1. **Varlık detayının başlığı satır oldu.** Önce `< Geri` + isim alt alta
+   tek sütundu; sağda boş alan vardı (ekran görüntüsünde kırmızı kutuyla
+   işaretlenen yer). `header` artık `flexDirection: row`, sol tarafta bu
+   ikisi (`headerLeft`, `flex:1 minWidth:0`), sağda yeni düğme.
+
+2. **Varsayılan tarih Pandemi dibi DEĞİL, 2023 dibi (`EVENTS[2]`).** Ölçtüm:
+   uygulamadaki 48 varlığın en genci AVAX (`firstAvailable` 2020-09-22).
+   Pandemi dibini (2020-03-12) varsayılan seçseydim SOL ve AVAX için
+   `curl` ile doğruladığım gerçek hata ("SOL varlığı için 2020-03-12
+   tarihli geçmiş fiyat kaydı bulunamadı") tetiklenirdi — onlar henüz
+   listelenmemişti. 2023 dibi her varlık için güvenli; bunu ayrı bir
+   `firstAvailable` taşıma zinciri kurmadan, var olan üç preset'ten
+   doğru olanı seçerek çözdüm.
+
+3. **`setTimeout(..., 100)` — kendi icadım değil, `GlobalShareMenu`'de
+   zaten var olan çalışan bir desen.** `switchTab` `activeTab`'ı
+   değiştiriyor; kullanıcı Cüzdan'dan geldiyse `MarketScreen` o an mount
+   bile değil. Gecikme olmadan `openWhatIf` dinleyici KURULMADAN ateşlenir
+   ve sessizce kaybolur — hata vermez, sadece hiçbir şey olmaz. Bunu
+   `WhatIfCarousel`'da YANLIŞ yapmıştım (gecikmesiz emit); silinmeden
+   önce fark ettim, `AssetDetailScreen`'e doğru haliyle taşıdım.
+
+4. **`key` prop'u hâlâ gerekli — MarketScreen'de duruyor.** `WhatIfScreen`'in
+   `date`/`symbol` state'i yalnızca ilk montajda okunuyor; farklı bir
+   varlıktan art arda "Ya Alsaydın"a basarsan `key={date-symbol}` olmadan
+   ikinci dokunuş öncekinde takılı kalırdı.
+
+5. **İkon emoji değil, `lucide-react-native`'den `History`.**
+   `GlobalShareMenu`'nün aynı özellik için kullandığı 🕰️ emojisini
+   BİLEREK kopyalamadım — bu proje emoji simgeleri zaten kaldırmıştı
+   (commit `c2f73a5`), oraya yeni bir tane eklemek geri adım olurdu.
+   ⚠️ `GlobalShareMenu`'deki emoji kendisi hâlâ duruyor, bu görevin
+   kapsamı dışında bırakıldı — ayrı bir temizlik gerektiriyor.
+
+**Aynı gün ek düzeltme — ekran görüntüsü üzerinden geri bildirim:**
+
+8. **Düğme kırmızı kutuyu doldurmuyordu.** İlk sürümde küçük bir hap
+   köşede duruyordu, kutunun geri kalanı boştu. Sebep: `header` satırı
+   `alignItems: 'flex-start'`, yani düğme kendi 44pt yüksekliğinde kalıp
+   yukarı yapışıyordu. `whatIfBtn`'e `alignSelf: 'stretch'` eklendi —
+   flexbox'ta bir çocuğun `alignSelf`'i ebeveynin `alignItems`'ini SADECE
+   o çocuk için geçersiz kılıyor; `headerLeft` (Geri + başlık) etkilenmedi,
+   yalnızca düğme satırın tam yüksekliğine gerildi.
+
+9. **"Direkt Ya Alsaydın'a atar gibi olmasın."** İlk sürüm doğrudan
+   `WhatIfScreen`'i (kapalı panelle) açıyordu — kullanıcı hangi tarihin
+   kullanıldığını GÖRMEDEN bir ekrana düşüyordu. `panelOpen`'ın varsayılanı
+   artık `initialSymbol !== undefined` — yani bu düğmeden gelindiğinde
+   panel (tarih/tutar/özel günler) baştan AÇIK. Sonuca geçiş hâlâ otomatik
+   değil: ekranın zaten sahip olduğu `"{isim}'i gör →"` düğmesine
+   kullanıcı kendisi basıyor (`showResult` dokunulmadı, varsayılanı `false`
+   kaldı). ⚠️ Yeni bir "gör" düğmesi YAZMADIM — ekranda `selectedName`'e
+   göre zaten dinamik üretilen bu düğme vardı, ben sadece paneli önüne
+   açtım ki kullanıcı ona basmadan önce neyi göreceğini bilsin.
+
+10. **Etiket "Ya Alsaydın"dan "Geçmişte {isim} alsaydın"a döndü.** Genel
+    etiket hangi varlığa dokunduğunu söylemiyordu. `/assets`'i çektim,
+    en uzun ismi ölçtüm ("Avustralya Doları", 18 harf) — sabit bir
+    kısaltma yazmak yerine düğmeyi ikon-üstte/metin-altta sütuna çevirdim,
+    `numberOfLines={2}` ile React Native'in kendi satır kırmasına
+    bıraktım. `maxWidth: '58%'` şart: yoksa uzun bir isim soldaki
+    başlığı (`headerLeft`, `minWidth:0`) sıfıra kadar daraltabilirdi.
+
+**Doğrulama:** `tsc` iki workspace'te de temiz · `what-if.test.ts` 9/9 ·
+`/assets` listesi çekilip en geç `firstAvailable` gerçekten kontrol edildi.
+
+---
+
+### 42. App.tsx kök zemin, simge düğmesi etiketleri, 44pt dokunma — 3 Eyl 2026
+
+**Değişti:** `App.tsx` · `components/BehaviorChat.tsx` · `components/DesignKit.tsx` ·
+`components/GlobalShareMenu.tsx` · `components/PostCard.tsx` · `components/SharePostModal.tsx` ·
+`screens/AdminScreen.tsx` · `screens/AssetDetailScreen.tsx` · `screens/DiscoveryScreen.tsx` ·
+`screens/FriendsScreen.tsx` · `screens/MarketScreen.tsx` · `screens/ProfileScreen.tsx`
+
+Önceki oturumda başlanan "görsel tur" (Faz 3, Adım 4) commit edilmeden geri
+alınmıştı — o işin TAMAMI değil, yalnızca üç dar madde tekrar yapıldı: bunlar.
+Segmentli denetim / ProfileScreen StyleSheet taşıma / ConfirmModal gibi Faz 3'ün
+geri kalanı **kasıtlı olarak tekrarlanmadı** — kapsam kayması olurdu.
+
+**Okurken şunlara dikkat et:**
+
+1. **`App.tsx`'in kök zemini hâlâ lacivertti (#0B132B) — ve eski yorum
+   "düzelttik" diyordu.** Düzeltme başka bir stile (`mainContainer`, giriş
+   yapılınca çizilen bir ÇOCUK View) yazılmıştı; kök `SafeAreaView`'ın kendi
+   güvenli-alan dolgusu (iOS çentik + alt çubuk şeridi) hâlâ eskiye
+   bakıyordu. Üst çubuk eklenince açılan boşlukta bu şerit görünür oluyordu.
+   ⚠️ **Yorum niyeti anlatıyor, kod başka şey yapıyordu** — ikisini birlikte
+   okumadan "düzeltilmiş" sanmak kolay.
+
+2. **`onAuthFlow` yaması artık gereksizdi.** Kimlik ekranları (Welcome,
+   Login, Register, ForgotPassword, Onboarding) ile giriş sonrası
+   `mainContainer` — hepsi zaten `colors.surface` kullanıyor; ölçüldü, altı
+   dosyanın altısı da aynı token. Yama bir FARKI telafi ediyordu, fark artık
+   yok. Kök zemin token'a bağlanınca yama tamamen silindi.
+
+3. **16 stil anahtarı hiçbir yerden çağrılmıyordu** — eski cüzdan sekmesinden
+   kalma (`notice`, `topTabBar`, `tabButton` ailesi, `walletContainer`,
+   `welcomeEmoji`/`card`/`logoutButton` ailesi). Hepsi 0 referans, ölçülüp
+   silindi. `App.tsx` 1103 satırdan 1004'e indi.
+
+4. **12 dosyada simge-only düğmeye `accessibilityLabel` eklendi** (kapat ×5,
+   menü, banla, gönderi sil, paylaş FAB, yönetim, ayarlar, avatar seçici).
+   Ekran okuyucu öncesinde yalnızca "düğme" diyordu, ne yaptığını söylemiyordu.
+   Avatar seçici ayrıca `radio` rolü + `selected` durumu kazandı — o bir
+   liste değil, TEK seçimli bir grup.
+
+5. **11 gerçek 44pt ihlali** düzeltildi (BehaviorChat/DesignKit çipleri,
+   AdminScreen tab/unbanBtn, AssetDetailScreen rangeButton, FriendsScreen'de
+   beş düğme, MarketScreen subTab). Hepsi `minHeight: 44` + `justifyContent:
+   'center'` aldı — `height` değil, çünkü sistem yazı boyutu büyüdüğünde kutu
+   büyüyebilmeli.
+   ⚠️ **Taramada `paddingVertical: 16` gibi değerleri ELEDİM** — onlar zaten
+   44'ü kolayca geçiyor (16×2+~20≈52pt); yalnızca ≤8pt olanlar gerçek ihlaldi.
+   Kaba bir tarama "24 sorun var" derdi, gerçeği 11'di.
+
+6. **`DesignKit.tsx`'teki `Segmented` bileşenine DOKUNULMADI** — hâlâ hiçbir
+   yerden çağrılmıyor (Faz 3'te genişlettiğim sürüm de geri alındı, bu onun
+   ÖNCESİNDEKİ hâli). Kendi `segment` stilinin de 44pt altı olduğunu gördüm
+   ama düzeltmedim: kullanıcı hiç görmüyor, dead-code'u onarmak asıl işi
+   geciktirir. Faz 3'e dönülünce hatırlanmalı.
+
+7. **Kalan ham hex'lere DOKUNULMADI** (`PostCard` 4, `SharePostModal` 3,
+   `AdminScreen` 3, `ProfileScreen` 15). Onlar Faz 3'ün "token turu" adımının
+   kapsamıydı — bu oturumun konusu değil. Kapsam kayması alarmı: "madem
+   oradayım, şunu da düzelteyim" demedim.
+
+---
+
 ### 41. `+` menüsü ve sol üstteki avatar — 2 Eyl 2026
 
 **Değişti:** `components/UserAvatar.tsx` (yeni) · `components/QuickCreateSheet.tsx` (yeni) ·

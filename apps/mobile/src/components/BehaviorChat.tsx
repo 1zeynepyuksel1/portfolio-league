@@ -534,6 +534,15 @@ const styles = StyleSheet.create({
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   chip: {
+    /*
+      ⚠️ 44pt PLATFORM TABANI. Dolgu tek başına ~34pt veriyordu (iOS 44pt
+      / Android 48dp altında). `minHeight` verildi, `height` değil —
+      sistem yazı boyutu büyüdüğünde kutu büyüyebilsin, yazı kırpılmasın.
+      `justifyContent: 'center'` şart: minHeight kutuyu içerikten uzun
+      yaptığı an, onsuz yazı üste yapışır.
+    */
+    minHeight: 44,
+    justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,

@@ -586,20 +586,8 @@ function AppShell() {
     setAuthView('login');
   }
 
-  // ⚠️ Kimlik ekranları farklı bir yüzey rengi kullanıyor (#111112),
-  // ana uygulama hâlâ eski lacivert (#0B132B). SafeAreaView'un rengi
-  // sabit kalsaydı, iOS'ta çentik ve alt çubuk hizasında yanlış renkte
-  // bir şerit görünürdü. Ana uygulama da tasarım diline geçince bu
-  // koşul kalkacak.
-  const onAuthFlow = !currentUser;
-
   return (
-    <SafeAreaView
-      style={[
-        styles.container,
-        onAuthFlow && { backgroundColor: colors.surface },
-      ]}
-    >
+    <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
 
       {restoring || !fontsLoaded ? (
@@ -964,49 +952,46 @@ const styles = StyleSheet.create({
     height: 16,
     paddingHorizontal: 4,
     borderRadius: 8,
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.loss,
     alignItems: 'center',
     justifyContent: 'center',
     // Rozet avatarın üstüne biniyor; ince kenarlık ikisini ayırıyor.
     borderWidth: 1.5,
-    borderColor: '#0F0F10',
+    borderColor: colors.surface,
   },
   avatarBadgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.ink,
   },
 
-  notice: {
-    color: colors.inkMuted,
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
   container: {
     flex: 1,
-    backgroundColor: '#0B132B',
+    /*
+      ⚠️ BURASI LACİVERTTİ (#0B132B) — VE ESKİ YORUM "DÜZELTTİK" DİYORDU
+      AMA DÜZELTME BAŞKA BİR STİLE (`mainContainer`) YAZILMIŞTI.
+
+      `mainContainer` yalnızca giriş yapılmışken çizilen bir ÇOCUK View;
+      kök `SafeAreaView`'ın kendi güvenli-alan dolgusu (iOS'ta çentik ve
+      alt çubuk şeridi) hâlâ bu stile bakıyordu. Yani lacivert şerit hâlâ
+      oradaydı, sadece ekranın geri kalanı üstünü örttüğü için
+      görünmüyordu — üst çubuk eklenince açığa çıkan boşluk buydu.
+
+      ⚠️ Kaba bir yama da vardı: `onAuthFlow && { backgroundColor: colors.surface }`
+      yalnızca kimlik ekranlarında (`currentUser` yokken) doğru rengi
+      veriyordu. Bugün her ekran zaten `colors.surface` kullanıyor —
+      WelcomeScreen, LoginScreen, RegisterScreen, ForgotPasswordScreen,
+      OnboardingScreen, `mainContainer` — hepsi. Yama bir FARKI telafi
+      ediyordu ve o fark artık yok; kökün kendisi doğru rengi taşıyınca
+      yamaya gerek kalmadı.
+
+      ⚠️ Bu, `...shadows.accentGlow`'un ezilmesiyle aynı sınıf hata:
+      YORUM NİYETİ ANLATIYOR, KOD BAŞKA ŞEY YAPIYOR. İkisini birlikte
+      okumadan "düzeltilmiş" sanmak kolay.
+    */
+    backgroundColor: colors.surface,
     paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
   },
-  /*
-    ⚠️ ZEMİN RENGİ BURAYA EKLENDİ — VE SEBEBİ ÖĞRETİCİ.
-
-    Kök `SafeAreaView` (`styles.container`) lacivert bir zemin taşıyor:
-    `#0B132B`. Bugüne kadar hiç görünmedi, çünkü her ekran alanın
-    TAMAMINI dolduruyor ve kendi zeminini (`colors.surface`, #0F0F10)
-    çiziyordu. Lacivert, hiçbir zaman göze çarpmayan bir kalıntıydı.
-
-    Üst çubuğu ekleyince ekranın üstünde ~50 piksellik bir şerit açıldı
-    ve o şeritte hiçbir ekran yoktu — kök zemin ortaya çıktı. "Arka plan
-    neden mavi oldu?" sorusunun cevabı bu: renk YENİ DEĞİL, sadece
-    ilk kez görünür oldu.
-
-    ⚠️ Çözümü üst çubuğa değil BURAYA yazdık. Yalnızca `topBar`a zemin
-    verseydik hata bir kez daha ortaya çıkardı — ileride altta ya da
-    arada başka bir boşluk açıldığında lacivert yine sızardı.
-    Kabın kendisi doğru rengi taşırsa boşluk nerede açılırsa açılsın
-    doğru görünüyor.
-  */
   mainContainer: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -1015,91 +1000,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  topTabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#1C2541',
-    padding: 6,
-    marginHorizontal: 12,
-    marginTop: 10,
-    borderRadius: 12,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  tabButtonActive: {
-    backgroundColor: '#10B981',
-  },
-  tabButtonText: {
-    color: '#94A3B8',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  tabButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  walletContainer: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  welcomeEmoji: {
-    fontSize: 50,
-    marginBottom: 10,
-  },
-  welcomeTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    fontSize: 13,
-    color: '#94A3B8',
-    marginTop: 4,
-    marginBottom: 24,
-  },
-  card: {
-    backgroundColor: '#1C2541',
-    borderColor: '#10B981',
-    borderWidth: 1.5,
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  cardTitle: {
-    color: '#94A3B8',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  cardAmount: {
-    color: '#10B981',
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginVertical: 8,
-  },
-  cardInfo: {
-    color: '#E2E8F0',
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 18,
-  },
-  logoutButton: {
-    backgroundColor: '#EF4444',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 10,
-  },
-  logoutButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 15,
   },
 });

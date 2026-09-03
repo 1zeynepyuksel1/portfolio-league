@@ -63,11 +63,46 @@ export const colors = {
   */
   bronze: '#b45309',
   accent: '#3b82f6',
+  /*
+    ⚠️ `accent` BEYAZ YAZI TAŞIYAMIYOR — ÖLÇÜLDÜ: 3,68:1.
+
+    WCAG normal metin için 4,5:1 istiyor. "Büyük metin" muafiyeti
+    (18,66px kalın) 14-15px sekme/rozet yazısını kurtarmıyor. Yani
+    `backgroundColor: accent` + beyaz yazı yazan her yer sınavdan
+    kalıyor.
+
+    ⚠️ ÇÖZÜM RENGİ AÇMAK DEĞİL, KOYULTMAK. Maviyi açarsak beyazla
+    farkı daha da azalır. Koyulttuğumuzda 6,70:1 çıkıyor.
+
+    KULLANIM SINIRI: `accent` çizgi, kenarlık, simge ve ÜSTÜNE YAZI
+    GELMEYEN zeminler için. Üstünde beyaz yazı olacaksa `accentDeep`.
+  */
+  accentDeep: '#1d4ed8',
+  /*
+    ⚠️ `loss` DA BEYAZ YAZI TAŞIYAMIYOR — 3,76:1. Aynı hikâye: "SİL"
+    gibi yıkıcı düğmeler kırmızı zemin + beyaz yazı taşıyor. En
+    tehlikeli düğmenin en kötü okunan düğme olması kabul edilemez.
+    Koyu kırmızı 6,47:1.
+  */
+  lossDeep: '#b91c1c',
   error: '#ef4444',
   inverse: '#E9E9EA',
   onInverse: '#0F0F10',
   onInverseMuted: '#4E4E53',
-  
+  /*
+    ⚠️ RENKLİ ZEMİN ÜSTÜNDEKİ YAZI — `ink` İLE AYNI DEĞER, AYRI ROL.
+
+    Uygulamada bu renk DÖRT FARKLI YAZIMLA elle geçiyordu: '#FFF',
+    '#fff', '#FFFFFF', '#ffffff'. Dördü aynı renk; arama yapan biri
+    üçünü kaçırıyor.
+
+    ⚠️ NEDEN `ink` DEĞİL DE AYRI TOKEN — `gold`/`warn` DERSİNİN AYNISI.
+    `ink` "koyu zemin üstündeki metin" demek; bu ise "renkli düğme
+    zemini üstündeki metin". Bugün ikisi de beyaz — ama açık tema
+    gelirse `ink` koyulaşır, mavi düğmenin yazısı beyaz kalmalı.
+  */
+  onAccent: '#FFFFFF',
+
   gainSoft: 'rgba(16, 185, 129, 0.15)',
   lossSoft: 'rgba(239, 68, 68, 0.15)',
   warnSoft: 'rgba(245, 158, 11, 0.15)',
@@ -312,6 +347,50 @@ export const sectionLabel = {
  *   3. ANLAM RENKLERİ DEGRADE OLMUYOR. Yeşil kâr, kırmızı zarar
  *      demek; geçiş onları birbirine yaklaştırır.
  */
+
+/**
+ * DAĞILIM PALETİ — varlık dilimlerini birbirinden ayırmak için.
+ *
+ * ⚠️ İKİ EKRAN AYNI ŞEYİ FARKLI RENKLERLE ÇİZİYORDU. `AllocationBar`
+ * (Cüzdan) sekiz tonluk kendi paletini kullanıyordu; `ProfileScreen`
+ * kendi `ASSET_COLORS` dizisini. Aynı BTC, Cüzdan'da kırmızı, Profil'de
+ * maviydi. Kullanıcı iki ekranı yan yana koyduğunda hangi rengin ne
+ * demek olduğunu öğrenemiyor.
+ *
+ * ⚠️ BU BİR ANLAM PALETİ DEĞİL, AYIRT ETME PALETİ. "Yeşil = kâr" gibi
+ * bir şey söylemiyor; yalnızca dilimlerin birbirinden ayrılmasını
+ * sağlıyor. Bu yüzden anlam token'larından (`gain`, `loss`) türetilmiyor.
+ *
+ * ⚠️ AÇIK BORÇ — PALETTEKİ KIRMIZI `loss` İLE NEREDEYSE AYNI.
+ * Ölçüldü (RGB Öklid mesafesi): #F0483E ↔ #ef4444 -> 7,3 (ayırt
+ * edilemiyor); kıyasla paletin kendi turuncu/sarısı -> 33,2. En büyük
+ * dilim bugün "zararda" gibi okunabiliyor. Düzeltmesi kırmızıyı
+ * değiştirmek — ama bu görülür bir değişiklik, karar ürün sahibinde.
+ */
+export const allocationPalette = [
+  '#F0483E', // kırmızı
+  '#3E9BF0', // mavi
+  '#F5A524', // turuncu
+  '#37C978', // yeşil
+  '#A855F7', // mor
+  '#22D3EE', // camgöbeği
+  '#EAB308', // sarı
+  '#EC4899', // pembe
+] as const;
+
+/**
+ * Derece -> madalya rengi.
+ *
+ * ⚠️ İKİ EKRANDA İKİ FARKLI GÜMÜŞ VARDI. `ProfileScreen` `colors.silver`
+ * (#cbd5e1) kullanıyordu, `LeagueResultModal` elle '#94A3B8' yazıyordu.
+ * Aynı 2.'lik madalyası iki ekranda iki renk.
+ */
+export function medalColor(rank: number | null | undefined): string {
+  if (rank === 1) return colors.gold;
+  if (rank === 2) return colors.silver;
+  return colors.bronze;
+}
+
 export const gradients = {
   /** Bakiye bloğu — koyudan biraz daha koyuya, üstte hafif aydınlık. */
   hero: ['#1C1C21', '#121215'] as const,

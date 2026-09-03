@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { apiFetch } from '../api/client';
+import { Segmented } from '../components/DesignKit';
 import { colors, fonts } from '../theme';
 /*
   ⚠️ EMOJİLER SİMGE OLARAK KULLANILIYORDU (👥 📬 🏆 ⚠️) — KALDIRILDI.
@@ -379,55 +380,30 @@ export function FriendsScreen({
           )}
         </View>}
 
-        {/* 2. Sekmeler (Arkadaşlarım vs İstekler) */}
-      {<View style={styles.subTabContainer}>
-        <TouchableOpacity
-          style={[styles.subTabButton, activeTab === 'list' && styles.subTabButtonActive]}
-          onPress={() => {
-            setActiveTab('list');
-            setErrorMsg(null);
-            setSuccessMsg(null);
-          }}
-        >
-          <View style={styles.tabLabelRow}>
-            <Users
-              size={15}
-              color={activeTab === 'list' ? colors.ink : colors.inkMuted}
-              strokeWidth={2.5}
-            />
-            <Text style={[styles.subTabText, activeTab === 'list' && styles.subTabTextActive]}>
-              Arkadaşlarım ({friends.length})
-            </Text>
-          </View>
-        </TouchableOpacity>
+        {/*
+          ⚠️ ÜÇÜNCÜ KOPYA. Burada kap `fieldFill` ve yarıçap 10'du;
+          Piyasa/Profil'de `surfaceRaised` ve 999. Aynı denetim, üç
+          farklı görünüm — üçü de aynı ekranda değil diye kimse fark
+          etmiyordu.
 
-        <TouchableOpacity
-          style={[styles.subTabButton, activeTab === 'requests' && styles.subTabButtonActive]}
-          onPress={() => {
-            setActiveTab('requests');
-            setErrorMsg(null);
-            setSuccessMsg(null);
-          }}
-        >
-          <View style={styles.tabBadgeRow}>
-            <View style={styles.tabLabelRow}>
-              <Inbox
-                size={15}
-                color={activeTab === 'requests' ? colors.ink : colors.inkMuted}
-                strokeWidth={2.5}
-              />
-              <Text style={[styles.subTabText, activeTab === 'requests' && styles.subTabTextActive]}>
-                İstekler
-              </Text>
-            </View>
-            {incomingCount > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>{incomingCount}</Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      </View>}
+          ⚠️ SEKME DEĞİŞİNCE HATA/BAŞARI MESAJI SİLİNİYOR. Bir sekmede
+          çıkan hata öteki sekmede asılı kalırsa kullanıcı onu yeni
+          sekmenin hatası sanır.
+        */}
+        <View style={styles.subTabWrap}>
+          <Segmented
+            options={[
+              { key: 'list' as const, label: `Arkadaşlarım (${friends.length})`, icon: Users },
+              { key: 'requests' as const, label: 'İstekler', icon: Inbox, badge: incomingCount },
+            ]}
+            value={activeTab}
+            onChange={(key) => {
+              setActiveTab(key);
+              setErrorMsg(null);
+              setSuccessMsg(null);
+            }}
+          />
+        </View>
 
       {/* 3. İçerik Alanı */}
       {loading ? (
@@ -635,7 +611,6 @@ const styles = StyleSheet.create({
   // Simge + metin satırları: taban çizgisi yerine dikey ortalama, çünkü
   // simge kare ve metnin x-yüksekliğinden farklı bir kutu kaplıyor.
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  tabLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   messageRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
 
   backRow: {
@@ -754,48 +729,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
   },
-  subTabContainer: {
-    flexDirection: 'row',
-    backgroundColor: colors.fieldFill,
-    borderRadius: 10,
-    padding: 4,
-    marginHorizontal: 16,
-    marginTop: 12,
-  },
-  subTabButton: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  subTabButtonActive: {
-    backgroundColor: colors.accent,
-  },
-  subTabText: {
-    color: colors.inkMuted,
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-  },
-  subTabTextActive: {
-    color: colors.ink,
-    fontFamily: fonts.bold,
-  },
-  tabBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  notificationBadge: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  notificationBadgeText: {
-    color: colors.ink,
-    fontSize: 12,
-    fontFamily: fonts.bold,
-  },
+  subTabWrap: { marginHorizontal: 16, marginTop: 12 },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -865,12 +799,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
+    /* ⚠️ 8pt dolgu ~30pt veriyordu, taban 44pt. */
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   rejectButton: {
     backgroundColor: colors.accent,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionButtonText: {
     color: colors.ink,
@@ -901,6 +842,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 6,
+    /* ⚠️ 4pt dolgu ~26pt veriyordu, taban 44pt — en dar olanıydı. */
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cancelButtonText: {
     color: colors.inkMuted,
@@ -947,6 +892,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: colors.accent,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   removeButtonText: {
     color: colors.error,

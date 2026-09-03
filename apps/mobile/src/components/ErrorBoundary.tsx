@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { colors, fonts, radius, spacing, type } from '../theme';
 
 /**
  * ErrorBoundary — çöken ekranı BOŞ SAYFA yerine okunur hata gösterir.
@@ -64,38 +65,57 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
+/*
+  ⚠️ RENKLER ELLE YAZILIYDI ('#111112', '#EF4444', '#f5f4f3') VE ÜÇÜ DE
+  TEMADAKİ DEĞERLERDEN AZ FARKLIYDI. Sonuç: çöken ekran, uygulamanın
+  geri kalanından biraz farklı bir uygulamaya benziyordu.
+
+  ⚠️ "HATA SINIRI TEMAYA BAĞLANMASIN, TEMA ÇÖKERSE O DA ÇÖKER" DİYE
+  DÜŞÜNÜLEBİLİR — ama `theme.ts` yalnızca sabit nesneler; içinde
+  çalışabilecek bir mantık yok. Çöktüğü senaryoda zaten hiçbir ekran
+  çizilemez, sınırın kendisi de yüklenemez. Bağımsızlıktan kazanç yok,
+  tutarsızlıktan kayıp var.
+*/
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111112',
-    padding: 24,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
     justifyContent: 'center',
   },
   title: {
-    color: '#EF4444',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 12,
+    color: colors.loss,
+    fontFamily: fonts.bold,
+    fontSize: type.title,
+    marginBottom: spacing.group,
   },
   message: {
-    color: '#f5f4f3',
-    fontSize: 16,
-    marginBottom: 16,
+    color: colors.inkBright,
+    fontFamily: fonts.regular,
+    fontSize: type.emphasis,
+    marginBottom: spacing.md,
   },
   stackBox: {
     maxHeight: 260,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.sm,
+    padding: spacing.group,
   },
   stack: {
-    color: 'rgba(245,244,243,0.7)',
-    fontSize: 12,
+    color: colors.inkMuted,
+    fontSize: type.caption,
+    /*
+      ⚠️ `'monospace'` PLATFORM ADI, TEMA FONTU DEĞİL — VE BİLEREK ÖYLE.
+      Yığın izinde satır hizası okunabilirliği belirliyor; uygulama
+      fontu yüklenememişse (ki hata anında olabilir) sistem mono'su
+      her zaman var.
+    */
     fontFamily: 'monospace',
   },
   hint: {
-    color: 'rgba(245,244,243,0.45)',
-    fontSize: 12,
-    marginTop: 16,
+    color: colors.inkFaint,
+    fontFamily: fonts.regular,
+    fontSize: type.caption,
+    marginTop: spacing.md,
   },
 });

@@ -217,7 +217,14 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
         ) : null}
 
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} hitSlop={12}><X size={24} color={colors.ink} /></TouchableOpacity>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Kapat"
+            >
+              <X size={24} color={colors.ink} />
+            </TouchableOpacity>
             <Text style={styles.title}>
               {scope?.type === 'what_if' ? 'Zaman Yolculuğu' : scope?.type === 'horoscope' ? 'Falı Paylaş' : scope?.type === 'wheel' ? 'Ödülü Paylaş' : 'Kâr/Zarar Paylaş'}
             </Text>
@@ -265,9 +272,9 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
                 {!loading && !!preview && (
                   <View style={[styles.footer, { marginTop: 20, borderTopWidth: 0, paddingHorizontal: 0 }]}>
                     <TouchableOpacity style={styles.shareBtn} onPress={handleShare} disabled={sharing}>
-                      {sharing ? <ActivityIndicator color="#fff" /> : (
+                      {sharing ? <ActivityIndicator color={colors.onAccent} /> : (
                         <>
-                          <Share2 size={20} color="#fff" />
+                          <Share2 size={20} color={colors.onAccent} />
                           <Text style={styles.shareBtnText}>Paylaş</Text>
                         </>
                       )}
@@ -299,6 +306,7 @@ const styles = StyleSheet.create({
   visText: { fontFamily: fonts.medium, fontSize: 14, color: colors.inkMuted },
   visTextActive: { color: colors.accent },
   footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border },
-  shareBtn: { backgroundColor: colors.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 20 },
-  shareBtnText: { fontFamily: fonts.bold, fontSize: 16, color: '#fff' }
+  /* ⚠️ `accentDeep` — beyaz yazı `accent` üstünde 3,68:1 veriyordu, WCAG 4,5:1 istiyor. */
+  shareBtn: { backgroundColor: colors.accentDeep, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 20 },
+  shareBtnText: { fontFamily: fonts.bold, fontSize: 16, color: colors.onAccent }
 });

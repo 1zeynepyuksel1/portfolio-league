@@ -28,7 +28,7 @@ import {
   HomeIndicator,
   PrimaryButton,
 } from '../components/AuthControls';
-import { colors, fonts, spacing } from '../theme';
+import { colors, fonts, spacing, type } from '../theme';
 
 type AuthUser = { id: string; email: string; displayName: string };
 
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   ctaWrap: { marginTop: 8 },
   stepBadge: {
     fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontSize: type.caption,
     letterSpacing: 1.2,
     color: colors.inkFaint,
     marginBottom: 10,

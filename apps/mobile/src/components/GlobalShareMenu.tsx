@@ -2,7 +2,7 @@
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, SafeAreaView, DeviceEventEmitter } from 'react-native';
 import { SharePostModal, ShareScope } from './SharePostModal';
 import { AssetLogo } from './AssetLogo';
-import { TrendingUp, TrendingDown, Coins, Sparkles, X, ChevronRight, Calendar } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Coins, Sparkles, X, ChevronRight, Calendar, History } from 'lucide-react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 import * as SecureStore from 'expo-secure-store';
@@ -62,7 +62,14 @@ export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onCl
               <Text style={styles.headerTitle}>
                 {step === 'main' ? 'Ne Paylaşmak İstersin?' : step === 'asset' || step === 'market_asset' ? 'Varlık Seç' : 'Dönem Seç'}
               </Text>
-              <TouchableOpacity onPress={onClose} hitSlop={12}><X size={24} color={colors.inkMuted} /></TouchableOpacity>
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Kapat"
+              >
+                <X size={24} color={colors.inkMuted} />
+              </TouchableOpacity>
             </View>
 
             {step === 'main' && (
@@ -124,8 +131,14 @@ export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onCl
                     }, 100);
                   }}
                 >
+                  {/*
+                    ⚠️ EMOJİ (🕰️) YERİNE VEKTÖR İKON — `PostCard`'daki Ya
+                    Alsaydın rozetiyle ve `AssetDetailScreen`'in düğmesiyle
+                    aynı ikon. Bu proje emoji simgeleri zaten kaldırmıştı
+                    (commit c2f73a5); bu ikinci bir kalıntıydı.
+                  */}
                   <View style={[styles.iconBox, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
-                    <Text style={{ fontSize: 24 }}>🕰️</Text>
+                    <History size={24} color={colors.gain} strokeWidth={2} />
                   </View>
                   <View style={styles.optionTexts}>
                     <Text style={styles.optionTitle}>Zaman Yolculuğu (Ya Alsaydın)</Text>
@@ -139,7 +152,8 @@ export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onCl
 
             {step === 'market_asset' && (
               <View style={styles.assetPicker}>
-                <TouchableOpacity onPress={() => setStep('main')} style={{ marginBottom: 16 }}><Text style={styles.backBtn}>Geri</Text></TouchableOpacity>
+                {/* ⚠️ Üç geri düğmesinden biri okla, ikisi oksuz yazılmıştı — tutarsız. */}
+                <TouchableOpacity onPress={() => setStep('main')} style={{ marginBottom: 16 }}><Text style={styles.backBtn}>← Geri</Text></TouchableOpacity>
                 <FlatList
         showsVerticalScrollIndicator={false} 
                   data={marketAssets}

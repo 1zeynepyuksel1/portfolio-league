@@ -16,7 +16,7 @@ import { apiFetch } from '../api/client';
 import { formatPrice, formatRelativeTime } from '../lib/format';
 import { useCurrency } from '../lib/currency';
 import { CurrencyToggle } from '../components/CurrencyToggle';
-import { AssetBadge, ChangeText, Chip, SectionLabel } from '../components/DesignKit';
+import { AssetBadge, ChangeText, Chip, SectionLabel, Segmented } from '../components/DesignKit';
 import { colors, fonts, rowMetrics, spacing } from '../theme';
 import { WhatIfScreen } from './WhatIfScreen';
 
@@ -118,12 +118,27 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
   const [error, setError] = useState<string | null>(null);
 
   /*
+    ⚠️ BELİRLİ BİR SENARYOYLA AÇILMA — Discovery'deki Ya Alsaydın
+    karoseli bir kart için "Kasım zirvesi · ETH" gibi bir sonuç
+    gösteriyor; dokununca WhatIfScreen'in VARSAYILAN (Pandemi dibi ·
+    BTC) senaryosuyla açılması, gördüğü sayıyla eşleşmeyen bir ekrana
+    düşmek olurdu. `null` = payload yok, eski davranış (varsayılan).
+  */
+  const [whatIfInitial, setWhatIfInitial] = useState<{ date: string; symbol: string } | null>(null);
+
+  /*
     Paylaş menüsündeki "Ya Alsaydın" Keşfet alt sekmesine gidiyordu.
     Alsaydın Piyasa'ya taşınınca o olay dinleyicisiz kaldı; menü
     Piyasa'ya geçip bu olayı basıyor.
   */
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('openWhatIf', () => setView('whatif'));
+    const sub = DeviceEventEmitter.addListener(
+      'openWhatIf',
+      (payload?: { date: string; symbol: string }) => {
+        setWhatIfInitial(payload ?? null);
+        setView('whatif');
+      },
+    );
     return () => sub.remove();
   }, []);
 
@@ -245,32 +260,25 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
 
   const sekmeler = (
     /*
-      ⚠️ SEGMENTLİ DENETİM (segmented control) — iki pili yan yana
-      koymak yerine ortak bir kabın içine aldık.
+      ⚠️ ELLE YAZILAN SEGMENTLİ DENETİM `DesignKit.Segmented`'E TAŞINDI.
 
-      Ayrı iki pil, seçili olmayanı "yok" gibi gösteriyordu; kap
-      ikisinin de var olduğunu ve AYNI GRUBA ait olduğunu söylüyor.
-      Kullanıcı burada iki seçenek arasında geçiş yaptığını
-      biçimden anlıyor, metni okumadan.
+      Aynı denetim Profil ve Arkadaşlar ekranlarında da vardı; üçünün
+      ölçüsü birbirini tutmuyordu. Buradaki sürüm 15px yazı ve 34pt
+      yükseklik kullanıyordu — 44pt platform tabanının altında.
+
+      `fill={false}`: iki seçenek satırı doldurmasın, başlıkta
+      ortalansın. Doldursaydı "Ya Alsaydın" bu ekranın ana işiymiş
+      gibi görünürdü; oysa ikincil bir görünüm.
     */
-    <View style={styles.subTabs}>
-      {([
+    <Segmented
+      options={[
         { key: 'market' as const, label: 'Piyasa' },
         { key: 'whatif' as const, label: 'Ya Alsaydın' },
-      ]).map((s) => (
-        <TouchableOpacity
-          key={s.key}
-          onPress={() => setView(s.key)}
-          style={[styles.subTab, view === s.key && styles.subTabOn]}
-          accessibilityRole="button"
-          accessibilityState={{ selected: view === s.key }}
-        >
-          <Text style={[styles.subTabText, view === s.key && styles.subTabTextOn]}>
-            {s.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+      ]}
+      value={view}
+      onChange={setView}
+      fill={false}
+    />
   );
 
   /*
@@ -285,7 +293,20 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
     return (
       <View style={styles.screen}>
         <View style={styles.header}>{sekmeler}</View>
-        <WhatIfScreen embedded />
+        {/*
+          ⚠️ `key` ŞART. `initialDate`/`initialSymbol` yalnızca İLK montajda
+          okunur (useState). Karoselde bir senaryoya dokunup ekranı kapatıp
+          farklı bir senaryoya tekrar dokunursak, bileşen React tarafından
+          YENİDEN KULLANILIR — yeni prop'lar gelir ama state eskisinde kalır.
+          `key` değişince React eski örneği atıp yenisini kurar, state
+          gerçekten sıfırlanır.
+        */}
+        <WhatIfScreen
+          key={whatIfInitial ? `${whatIfInitial.date}-${whatIfInitial.symbol}` : 'varsayilan'}
+          embedded
+          initialDate={whatIfInitial?.date}
+          initialSymbol={whatIfInitial?.symbol}
+        />
       </View>
     );
   }
@@ -513,44 +534,6 @@ const styles = StyleSheet.create({
     başlık, biri sekme. Aynı kelimeyi iki kez yazmak, kullanıcıya
     ikisinin farklı şeyler olduğunu düşündürür.
   */
-  subTabs: {
-    flexDirection: 'row',
-    gap: 4,
-    // Ortak kap: iki seçeneğin aynı gruba ait olduğunu gösteriyor.
-    backgroundColor: colors.surfaceRaised,
-    borderRadius: 999,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  subTab: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 999,
-    /*
-      ⚠️ SEÇİLİ OLMAYAN DA AYNI DOLGUYU TAŞIYOR (zemini saydam).
-      Dolguyu yalnızca seçiliye verseydik seçim değiştiğinde
-      pilin genişliği değişir ve satır her dokunuşta oynardı.
-    */
-    backgroundColor: 'transparent',
-  },
-  /*
-    ⚠️ AKTİF PİL VURGU RENGİNDE — ama yazı BEYAZ, `colors.ink` değil.
-
-    Mavi zemin üstünde tema mürekkebi yeterli karşıtlık vermiyor.
-    Erişilebilirlik eşiği (WCAG AA) normal metin için 4.5:1; beyaz
-    bunu sağlıyor, kırık beyaz sağlamıyor.
-  */
-  subTabOn: { backgroundColor: colors.accent },
-  subTabText: {
-    fontFamily: fonts.medium,
-    fontSize: 15,
-    color: colors.inkMuted,
-  },
-  subTabTextOn: {
-    fontFamily: fonts.bold,
-    color: '#FFFFFF',
-  },
   liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   // Yeşil nokta "veri akıyor" demek — fiyatın yönüyle ilgisi yok.
   liveDot: {

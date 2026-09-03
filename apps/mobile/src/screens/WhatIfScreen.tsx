@@ -76,8 +76,13 @@ const AMOUNTS = ['1000', '5000', '10000', '50000'] as const;
  *
  * Rastgele tarihler seçseydik sonuçlar "ilginç" olmazdı. Kat değerleri
  * sunucudan geliyor, koda gömülmüyor: piyasa değiştikçe rakam da değişir.
+ *
+ * ⚠️ EXPORT EDİLDİ — `AssetDetailScreen`'in Ya Alsaydın düğmesi
+ * `EVENTS[2]`'yi (2023 dibi) güvenli varsayılan tarih olarak kullanıyor.
+ * İkinci bir yerde aynı tarihi elle yazsaydık, biri güncellenip diğeri
+ * unutulduğunda iki ekran FARKLI tarihler gösterirdi.
  */
-const EVENTS = [
+export const EVENTS = [
   { date: '2020-03-12', label: 'Pandemi dibi' },
   { date: '2021-11-10', label: 'Kasım zirvesi' },
   { date: '2023-01-02', label: '2023 dibi' },
@@ -123,10 +128,24 @@ export function formatMultiple(value: number): string {
  * davranışı DEĞİŞMİYOR. Yeni bir bayrağın varsayılanı her zaman
  * "eski davranış" olmalı; aksi hâlde bayrağı eklemek, onu hiç
  * kullanmayan çağıranları da bozar.
+ *
+ * ⚠️ `initialDate` / `initialSymbol` AYNI SEBEPLE OPSİYONEL.
+ * Discovery akışındaki Ya Alsaydın karoseli belirli bir senaryoya
+ * (örn. "Kasım zirvesi · ETH") dokunulduğunda ekranı O senaryoyla
+ * açmak istiyor — varsayılan Pandemi dibi + BTC değil. Vermezsen
+ * eski davranış aynen sürüyor.
  */
-export function WhatIfScreen({ embedded = false }: { embedded?: boolean }) {
+export function WhatIfScreen({
+  embedded = false,
+  initialDate,
+  initialSymbol,
+}: {
+  embedded?: boolean;
+  initialDate?: string;
+  initialSymbol?: string;
+}) {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [symbol, setSymbol] = useState('BTC');
+  const [symbol, setSymbol] = useState(initialSymbol ?? 'BTC');
   /**
    * ⚠️ VARSAYILAN TARİH VAR — `null` DEĞİL. Bilinçli bir geri alma.
    *
@@ -139,7 +158,7 @@ export function WhatIfScreen({ embedded = false }: { embedded?: boolean }) {
    * de sonuçları çarpıcı — kullanıcı ekranın ne işe yaradığını ilk
    * saniyede anlıyor, sonra kendi tarihini seçiyor.
    */
-  const [date, setDate] = useState<string | null>(EVENTS[0].date);
+  const [date, setDate] = useState<string | null>(initialDate ?? EVENTS[0].date);
 
   /**
    * Kontrol paneli açık mı.
@@ -148,8 +167,15 @@ export function WhatIfScreen({ embedded = false }: { embedded?: boolean }) {
    * tutar alanı ve özel günler ekranın dört bloğunu kaplıyordu; cevap
    * listesi ekranın DIŞINA taşıyordu. Panel kapalıyken hepsi tek bir
    * özet satırına iniyor ve cevap ilk ekranda görünüyor.
+   *
+   * ⚠️ `initialSymbol` VERİLDİYSE PANEL AÇIK BAŞLIYOR — bilinçli istisna.
+   * Varlık detayından "Ya Alsaydın"a basan kullanıcı hangi TARİHİN
+   * kullanılacağını görmeden bir sonuca düşerse "beni bir yere attı"
+   * hissi oluşur. Panel açık gelince tarih (ve gerekirse değiştirme
+   * imkânı) ilk anda görünür oluyor — sonuca geçiş hâlâ kullanıcının
+   * kendi dokunuşuyla ("{isim}'i gör →" düğmesi), otomatik değil.
    */
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(initialSymbol !== undefined);
   const [amount, setAmount] = useState('10000');
   const [kind, setKind] = useState<string>('all');
   const amountInputRef = useRef<TextInput>(null);

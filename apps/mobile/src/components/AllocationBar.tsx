@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors, fonts } from '../theme';
+import { allocationPalette, colors, fonts } from '../theme';
 
 /**
  * AllocationBar — portföy dağılımı.
@@ -22,43 +22,21 @@ import { colors, fonts } from '../theme';
  */
 
 /**
- * Dilim renkleri — TEMEL RENKLER, kırmızı ve yeşil dahil.
+ * Dilim renkleri.
  *
- * ⚠️ ÜÇÜNCÜ PALET. Yol şöyle oldu:
+ * ⚠️ PALET `theme.ts`'E TAŞINDI — GEREKÇESİYLE BİRLİKTE (üç aşamalı
+ * seçim süreci, kırmızı/yeşilin bilinen kazanç/kayıp riski ve neden
+ * kabul edildiği orada anlatılıyor).
  *
- *   1. Gri tonlar -> beş dilimin dördü birbirine benziyordu, hangi çubuğun
- *      hangi varlık olduğu görünmüyordu.
- *   2. Renkli ama kırmızı/yeşil YOK -> ayırt edilebilirlik arttı ama
- *      kalan tonlar (mor/çivit/eflatun, sarı/turuncu) hâlâ birbirine
- *      yakındı; küçük dilimlerde fark seçilmiyordu.
- *   3. Bu palet: temel renk çemberinden altı ayrı ton.
+ * ⚠️ BURADA DURDUĞU SÜRECE `ProfileScreen` ONDAN HABERDAR DEĞİLDİ ve
+ * kendi dizisini yazmıştı: aynı varlık iki ekranda iki renk. Bir
+ * tasarım kararı iki ekranı ilgilendiriyorsa bileşenin içinde yaşayamaz.
  *
- * ⚠️ KIRMIZI VE YEŞİLİN BİLİNEN RİSKİ VAR — kayıt için burada duruyor.
- *
- * Bu uygulamada yeşil KAZANÇ, kırmızı KAYIP demek. Dağılım çubuğunda
- * kırmızı bir dilim "bu varlık zararda" gibi okunabilir. Palet bunu
- * KABUL EDİYOR, çünkü:
- *
- *   - Çubuk bir BÜYÜKLÜK gösteriyor, yön değil. Yanındaki her sayı
- *     ayrıca kendi yön rengiyle yazılıyor.
- *   - Tonlar yön renklerinden BİLEREK farklı seçildi: gain #34C28A
- *     (nane), buradaki yeşil #37C978 (çimen); loss #E5484D (mercan),
- *     buradaki kırmızı #F0483E (turuncuya çalan). Yan yana konduğunda
- *     aynı renk olmadıkları görülüyor.
- *   - Ayırt edilememek daha büyük bir zarar: kullanıcı hangi dilimin
- *     hangi varlık olduğunu göremiyorsa çubuk hiçbir işe yaramıyor.
+ * `colors.inkDisabled` ("artanlar") burada kalıyor — yalnızca bu
+ * ekranın taşma durumu, `theme.allocationPalette`'in genel sözleşmesine
+ * dahil değil.
  */
-export const SLICE_COLORS = [
-  '#F0483E', // kırmızı
-  '#3E9BF0', // mavi
-  '#F5A524', // turuncu
-  '#37C978', // yeşil
-  '#A855F7', // mor
-  '#22D3EE', // camgöbeği
-  '#EAB308', // sarı
-  '#EC4899', // pembe
-  colors.inkDisabled, // artanlar
-] as const;
+export const SLICE_COLORS = [...allocationPalette, colors.inkDisabled] as const;
 
 export type Slice = {
   label: string;

@@ -58,8 +58,13 @@ export function DiscoveryScreen({ onSelectUser, currentUser, onOpenLeague }: { o
       */}
       {/* Ekranda tek içerik var; koşula gerek kalmadı. */}
       {(
-      <TouchableOpacity style={styles.fab} onPress={() => setShareMenuVisible(true)}>
-        <Plus size={24} color="#FFF" />
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setShareMenuVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Paylaş"
+      >
+        <Plus size={24} color={colors.ink} />
       </TouchableOpacity>
       )}
       <GlobalShareMenu visible={shareMenuVisible} onClose={() => setShareMenuVisible(false)}  />
@@ -127,6 +132,12 @@ function FeedTab({ onSelectUser, currentUser, onOpenLeague }: { onSelectUser?: (
         ⚠️ `ListEmptyComponent` İLE BİRLİKTE ÇALIŞIR — akış boşken
         bile başlık çizilir. Yani hiç gönderi yokken bile kullanıcı
         lig kartını görüyor; boş ekranda yapacak bir şey kalıyor.
+
+        ⚠️ Ya Alsaydın için burada bir karosel DENENDİ, geri alındı.
+        Ürün sahibinin kararı: akışta göstermek yerine, herhangi bir
+        varlığın detay ekranından (`AssetDetailScreen`) o varlığa özel
+        Ya Alsaydın'a doğrudan gitmek daha doğru — kullanıcı zaten o
+        varlıkla ilgileniyorken soru orada doğuyor, akışta değil.
       */
       ListHeaderComponent={
         onOpenLeague ? <LeagueRankCard username={currentUser?.username} onPress={onOpenLeague} /> : null
@@ -197,15 +208,17 @@ const styles = StyleSheet.create({
       ⚠️ YÜZEN DÜĞME GERÇEKTEN YÜZMELİ. Gölgesiz hâlde içeriğin üstüne
       yapıştırılmış bir daire gibi duruyordu; renkli gölge onu
       zeminden ayırıyor ve "bu katman farklı" diyor.
+
+      ⚠️ BU DÖRT SATIR `shadows.accentGlow`'U EZİYORDU — SİLİNDİ.
+      `...shadows.accentGlow` yayıldıktan SONRA `shadowColor: '#000'`,
+      `shadowOffset`, `shadowOpacity`, `shadowRadius` ve `elevation`
+      elle yazılıydı. Nesne yayılımında SONRA gelen kazanır: renkli
+      gölge yazıldığı anda siyaha dönüyordu. Üstteki yorum ("renkli
+      gölge...") bir NİYETİ anlatıyordu, çalışan kodu değil.
     */
     ...shadows.accentGlow,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 6
   },
   container: {
     flex: 1,

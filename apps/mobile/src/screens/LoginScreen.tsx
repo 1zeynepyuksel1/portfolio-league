@@ -1,11 +1,10 @@
 /**
  * LoginScreen — tasarım: design_handoff_portfolioyun_auth (v4, koyu)
  *
- * ⚠️ METİNLERDE ÜRÜNE UYARLAMA YAPILDI.
- * Tasarımdaki `THYAO +1,86%` / `ASELS −0,42%` BIST hisseleri. BIST Faz 3'e
- * ertelendi ve uygulamada işlem görmüyorlar. Olmayan bir varlığı fiyatıyla
- * göstermek, kullanıcıya alabileceği bir şey vaat etmek olur. Yerlerine
- * gerçekten işlem gören BTC ve ETH yazıldı; düzen, boyut, renk aynı.
+ * ⚠️ KOTASYON SATIRI (`BTC +1,86% / ETH −0,42%`) KALDIRILDI — ürün
+ * sahibinin kararı, 3 Eyl 2026. Tasarımda BIST hisseleriydi
+ * (`THYAO`/`ASELS`), önce gerçekten işlem gören BTC/ETH'e uyarlanmıştı;
+ * sonra tamamen kaldırıldı. "Portföyünüz sizi bekliyor." başlığı kaldı.
  *
  * ⚠️ APPLE / GOOGLE DÜĞMELERİ HENÜZ BAĞLI DEĞİL.
  * Backend'de OAuth yok — kendi JWT auth'umuz var. Düğmeler tasarımdaki
@@ -23,7 +22,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import Svg, { Path, Polyline } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { checkEmail } from '../lib/validation';
 import { apiFetch, saveSession } from '../api/client';
 import { useGoogleSignIn } from '../lib/useGoogleSignIn';
@@ -63,22 +62,6 @@ type Props = {
  */
 
 const MIN_PASSWORD_LENGTH = 6;
-
-/** Küçük yön işareti — kotasyon satırındaki yukarı/aşağı ok. */
-function Chevron({ up, color }: { up: boolean; color: string }) {
-  return (
-    <Svg width={12} height={12} viewBox="0 0 12 12">
-      <Polyline
-        points={up ? '1,8 6,3 11,8' : '1,4 6,9 11,4'}
-        fill="none"
-        stroke={color}
-        strokeWidth={2.6}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
 
 function AppleGlyph() {
   return (
@@ -208,23 +191,6 @@ export function LoginScreen({ onLoginSuccess, onGoToRegister, onGoToForgotPasswo
           <View style={styles.hero}>
             <Text style={styles.title}>Tekrar{'\n'}hoş geldiniz.</Text>
             <Text style={styles.subtitle}>Portföyünüz sizi bekliyor.</Text>
-
-            <View style={styles.quoteRow}>
-              <View style={styles.quote}>
-                <Chevron up color={colors.gain} />
-                <Text style={[styles.quoteText, { color: colors.gain }]}>
-                  BTC +1,86%
-                </Text>
-              </View>
-              <View style={styles.quote}>
-                <Chevron up={false} color={colors.accent} />
-                {/* Gerçek eksi işareti (U+2212), kısa çizgi değil —
-                    tasarımın açık isteği, rakamlarla aynı genişlikte. */}
-                <Text style={[styles.quoteText, { color: colors.accent }]}>
-                  ETH −0,42%
-                </Text>
-              </View>
-            </View>
           </View>
 
           {/* Form */}
@@ -382,21 +348,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.inkDim,
     marginTop: 20,
-  },
-  quoteRow: {
-    flexDirection: 'row',
-    gap: 18,
-    marginTop: 16,
-  },
-  quote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  quoteText: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    letterSpacing: 0.04 * 12,
   },
 
   form: {

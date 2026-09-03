@@ -35,7 +35,7 @@ import {
   Chip,
   SectionLabel,
 } from '../components/DesignKit';
-import { colors, fonts, gradients, radius, rowMetrics, shadows, spacing } from '../theme';
+import { colors, fonts, gradients, radius, rowMetrics, shadows, spacing, type } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 /**
@@ -1206,13 +1206,13 @@ const styles = StyleSheet.create({
   },
   chartEmptyTitle: {
     fontFamily: fonts.semibold,
-    fontSize: 15,
+    fontSize: type.emphasis,
     color: colors.inkMuted,
     textAlign: 'center',
   },
   chartEmptyText: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: type.body,
     color: colors.inkFaint,
     textAlign: 'center',
     marginTop: 4,
