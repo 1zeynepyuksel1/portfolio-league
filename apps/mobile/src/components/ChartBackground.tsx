@@ -69,14 +69,66 @@ type Spark = {
  * başlığın yeri, oraya bilerek şekil konmadı.
  */
 const SPARKS: Spark[] = [
-  { points: '0,26 14,12 26,20 40,4 55,14 68,0', color: colors.gain,   opacity: 0.52, rotation: -12, origin: '278, 62' },
-  { points: '0,18 12,26 24,10 38,16 50,2 62,8',  color: colors.gain,   opacity: 0.40, rotation:   8, origin: '246, 152' },
-  { points: '0,2 13,14 25,8 39,22 52,16 64,30',  color: colors.accent, opacity: 0.46, rotation: -20, origin: '26, 268' },
-  { points: '0,34 15,20 28,28 44,8 58,18 72,0',  color: colors.gain,   opacity: 0.50, rotation:  15, origin: '268, 246' },
-  { points: '0,24 14,14 27,22 41,6 54,16 66,4',  color: colors.gain,   opacity: 0.34, rotation:  -8, origin: '6, 438' },
-  { points: '0,6 12,18 25,10 38,24 51,18 63,28', color: colors.accent, opacity: 0.44, rotation: -26, origin: '18, 430' },
-  { points: '0,28 14,16 27,24 40,8 53,18 67,2',  color: colors.gain,   opacity: 0.48, rotation:  18, origin: '298, 636' },
-  { points: '0,4 13,16 26,8 38,20 50,14 62,26',  color: colors.accent, opacity: 0.38, rotation:  12, origin: '288, 688' },
+  /*
+    ⚠️ YERLEŞİM ARTIK RASTGELE DEĞİL — METİN BÖLGELERİ KORUNUYOR.
+
+    Önceki dağılım ekrana serpiştirilmişti ve iki çizgi tam maskotun
+    üstüne düşüyordu; kalınlık artınca da bunlar "arka plan" olmaktan
+    çıkıp lekeye dönüştü. Arka planın kuralı şu: ne kadar canlı olursa
+    olsun, OKUNAN HİÇBİR ŞEYİN ARKASINDAN GEÇMEZ.
+
+    viewBox 390 x 844. Yasak bölgeler (metin var):
+
+        kilit      x   0-300   y  50-175
+        başlık     x   0-380   y 195-375
+        metin+çip  x   0-335   y 385-515
+        düğmeler   x  15-375   y 620-790
+
+    Serbest bölgeler (aşağıdaki 22 çizgi buralara dağıtıldı):
+
+        sağ üst kolon        x 300-390  y  40-180
+        çiplerin sağı        x 330-390  y 380-510
+        ORTA BANT            x   0-390  y 520-615   <- en yoğun
+        alt şerit            x   0-390  y 795-840
+
+    ⚠️ ORTA BANT NEDEN EN YOĞUN. Ekranın o kısmında hiç metin yok ve
+    tam görsel merkeze denk geliyor — canlılık hissi oradan geliyor,
+    kenarlardan değil.
+  */
+
+  /* --- sağ üst kolon --- */
+  { points: '0,26 14,12 26,20 40,4 55,14 68,0',   color: colors.gain, opacity: 0.86, rotation: -12, origin: '312, 58' },
+  { points: '0,4 13,16 26,8 38,20 50,14 62,26',   color: colors.loss, opacity: 0.74, rotation:  16, origin: '328, 126' },
+
+  /* --- çiplerin sağı --- */
+  { points: '0,18 12,26 24,10 38,16 50,2 62,8',   color: colors.gain, opacity: 0.78, rotation:   8, origin: '334, 394' },
+  { points: '0,2 13,14 25,8 39,22 52,16 64,30',   color: colors.loss, opacity: 0.70, rotation: -20, origin: '342, 460' },
+
+  /* --- başlığın sağ kenarı (yalnızca uçta) --- */
+  { points: '0,20 13,8 26,16 39,2 52,12 65,0',    color: colors.gain, opacity: 0.62, rotation:  22, origin: '356, 204' },
+  { points: '0,12 13,24 26,14 39,28 52,20 65,32', color: colors.loss, opacity: 0.60, rotation: -18, origin: '362, 342' },
+
+  /* --- ORTA BANT · üst sıra --- */
+  { points: '0,34 15,20 28,28 44,8 58,18 72,0',   color: colors.gain, opacity: 0.92, rotation: -10, origin: '8, 524' },
+  { points: '0,6 12,18 25,10 38,24 51,18 63,28',  color: colors.loss, opacity: 0.84, rotation:  14, origin: '74, 546' },
+  { points: '0,28 14,16 27,24 40,8 53,18 67,2',   color: colors.gain, opacity: 0.88, rotation:  -6, origin: '140, 520' },
+  { points: '0,8 14,20 27,12 40,26 53,18 66,30',  color: colors.loss, opacity: 0.80, rotation:  18, origin: '206, 550' },
+  { points: '0,24 14,14 27,22 41,6 54,16 66,4',   color: colors.gain, opacity: 0.90, rotation: -14, origin: '272, 526' },
+  { points: '0,30 12,16 25,24 38,10 51,20 64,6',  color: colors.loss, opacity: 0.76, rotation:  10, origin: '330, 556' },
+
+  /* --- ORTA BANT · alt sıra --- */
+  { points: '0,18 12,26 24,10 38,16 50,2 62,8',   color: colors.loss, opacity: 0.82, rotation:  20, origin: '28, 590' },
+  { points: '0,26 14,12 26,20 40,4 55,14 68,0',   color: colors.gain, opacity: 0.94, rotation:  -8, origin: '94, 608' },
+  { points: '0,4 13,16 26,8 38,20 50,14 62,26',   color: colors.loss, opacity: 0.78, rotation:  12, origin: '160, 584' },
+  { points: '0,34 15,20 28,28 44,8 58,18 72,0',   color: colors.gain, opacity: 0.86, rotation: -20, origin: '226, 612' },
+  { points: '0,2 13,14 25,8 39,22 52,16 64,30',   color: colors.loss, opacity: 0.72, rotation:   6, origin: '292, 588' },
+  { points: '0,12 13,24 26,14 39,28 52,20 65,32', color: colors.gain, opacity: 0.84, rotation: -16, origin: '344, 614' },
+
+  /* --- alt şerit (düğmelerin altı) --- */
+  { points: '0,20 13,8 26,16 39,2 52,12 65,0',    color: colors.gain, opacity: 0.70, rotation:  10, origin: '14, 800' },
+  { points: '0,6 12,18 25,10 38,24 51,18 63,28',  color: colors.loss, opacity: 0.64, rotation: -14, origin: '108, 818' },
+  { points: '0,28 14,16 27,24 40,8 53,18 67,2',   color: colors.gain, opacity: 0.72, rotation:  16, origin: '204, 798' },
+  { points: '0,8 14,20 27,12 40,26 53,18 66,30',  color: colors.loss, opacity: 0.66, rotation:  -8, origin: '296, 816' },
 ];
 
 type Candle = { x: number; bodyY: number; bodyH: number; up: boolean };
@@ -91,11 +143,34 @@ const CANDLES_A: Candle[] = [
   { x: 0,  bodyY: 8,  bodyH: 20, up: false },
   { x: 11, bodyY: 2,  bodyH: 26, up: true },
   { x: 22, bodyY: 12, bodyH: 14, up: true },
+  { x: 33, bodyY: 6,  bodyH: 18, up: false },
+  { x: 44, bodyY: 0,  bodyH: 24, up: true },
+  { x: 55, bodyY: 10, bodyH: 16, up: false },
 ];
 
 const CANDLES_B: Candle[] = [
   { x: 0,  bodyY: 6,  bodyH: 22, up: true },
   { x: 11, bodyY: 14, bodyH: 12, up: false },
+  { x: 22, bodyY: 4,  bodyH: 20, up: true },
+  { x: 33, bodyY: 16, bodyH: 10, up: false },
+  { x: 44, bodyY: 8,  bodyH: 18, up: true },
+];
+
+/**
+ * ⚠️ ÜÇÜNCÜ GRUP — YOĞUNLUK İÇİN, DOLGU İÇİN DEĞİL.
+ *
+ * İki grup ekranın sol-üst ve sağ-alt köşesindeydi; ortada geniş bir
+ * boşluk kalıyordu. Üçüncüsü o boşluğu kapatıyor.
+ *
+ * ⚠️ ARKA PLAN OKUNURLUĞU BOZMAMALI. Bu yüzden mum SAYISI arttı ama
+ * opaklık artmadı: doku sıklaşıyor, öne çıkmıyor. Üstündeki başlık
+ * hâlâ ilk okunan şey olmalı — arka plan bir zemin, bir içerik değil.
+ */
+const CANDLES_C: Candle[] = [
+  { x: 0,  bodyY: 10, bodyH: 16, up: false },
+  { x: 11, bodyY: 2,  bodyH: 24, up: true },
+  { x: 22, bodyY: 14, bodyH: 12, up: false },
+  { x: 33, bodyY: 4,  bodyH: 22, up: true },
 ];
 
 /** Hacim çubukları — 6px genişlik, değişken yükseklik. */
@@ -241,7 +316,19 @@ function Candles({
   return (
     <G x={x} y={y} rotation={rotation} origin={`${x}, ${y}`}>
       {data.map((c, i) => {
-        const stroke = c.up ? colors.gain : colors.accent;
+        /*
+          ⚠️ DÜŞÜŞ MAVİ ÇİZİLİYORDU (`colors.accent`) — VE BU YANLIŞTI.
+
+          Yorumda "kırmızılar içi boş" yazıyordu ama kod mavi
+          kullanıyordu; yani belge ile davranış ayrışmıştı. Mum
+          grafiğinin evrensel dili yeşil/kırmızı — mavi bir mum
+          "düşüş" değil, "başka bir şey" okunur.
+
+          `colors.loss` zaten temada ve uygulamanın her yerinde
+          düşüşü o gösteriyor. Arka planın farklı konuşmasının
+          sebebi yoktu.
+        */
+        const stroke = c.up ? colors.gain : colors.loss;
         const centerX = c.x + 3;
 
         return (
@@ -253,7 +340,7 @@ function Candles({
               x2={centerX}
               y2={c.bodyY + c.bodyH + 5}
               stroke={stroke}
-              strokeWidth={1.2}
+              strokeWidth={1.8}
             />
             <Rect
               x={c.x}
@@ -261,7 +348,7 @@ function Candles({
               width={6}
               height={c.bodyH}
               stroke={stroke}
-              strokeWidth={1.2}
+              strokeWidth={1.8}
               // Yükseliş mumu dolu, düşüş mumu içi boş — tasarımın kuralı.
               fill={c.up ? stroke : 'none'}
             />
@@ -323,7 +410,7 @@ function Floater({
           x={x}
           y={y}
           fill="none"
-          stroke={up ? colors.gain : colors.accent}
+          stroke={up ? colors.gain : colors.loss}
           strokeWidth={2.2}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -477,7 +564,18 @@ export function ChartBackground() {
                 origin={s.origin}
                 fill="none"
                 stroke={s.color}
-                strokeWidth={1.6}
+                /*
+                  ⚠️ 1.6 -> 2.2: ÇİZGİ KALINLIĞI DA RENGİN PARÇASI.
+
+                  Opaklığı artırmak tek başına yetmiyordu — ince bir
+                  çizgi ne kadar opak olursa olsun ekranda az piksel
+                  kaplıyor, yani "renkli" hissi vermiyor. Aynı rengi
+                  daha kalın çizmek, opaklığı daha da artırmaktan
+                  hem daha etkili hem metin okunurluğu için daha az
+                  riskli: kalın çizgiler ARALIKLI, yüksek opaklık ise
+                  her yeri kaplıyor.
+                */
+                strokeWidth={2.2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 opacity={s.opacity}
@@ -498,7 +596,8 @@ export function ChartBackground() {
           viewBox={`0 0 ${VB_WIDTH} ${VB_HEIGHT}`}
           preserveAspectRatio="xMidYMid slice"
         >
-          <Candles data={CANDLES_A} x={18} y={122} rotation={-18} />
+          {/* ⚠️ (18,122) MASKOTUN TAM ARKASIYDI — orta banda taşındı. */}
+          <Candles data={CANDLES_A} x={44} y={546} rotation={-14} />
         </Svg>
       </Animated.View>
 
@@ -513,6 +612,8 @@ export function ChartBackground() {
           preserveAspectRatio="xMidYMid slice"
         >
           <Candles data={CANDLES_B} x={302} y={548} rotation={12} />
+          {/* ⚠️ (188,356) BAŞLIĞIN ARKASIYDI — alt banda taşındı. */}
+          <Candles data={CANDLES_C} x={196} y={606} rotation={8} />
         </Svg>
       </Animated.View>
 
@@ -532,7 +633,7 @@ export function ChartBackground() {
           strokeWidth={1.6}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={0.16}
+          opacity={0.42}
           strokeDasharray={`${TRACE_DASH}`}
           strokeDashoffset={dashOffset}
         />

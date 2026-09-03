@@ -1,193 +1,316 @@
 import React, { useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-/*
-  ⚠️ BU EKRAN TEMAYI HİÇ KULLANMIYORDU — 22 RENK ELLE YAZILIYDI.
-
-  Ve renkler uygulamanın palettiyle TUTMUYORDU: vurgu #38BDF8 (gök
-  mavisi) iken uygulamanın vurgusu #3b82f6; yüzeyler beyazın yüzdesiydi
-  (%8, %10, %12, %22) oysa temada dört kademeli yüzey merdiveni var.
-
-  ⚠️ EN ÇOK BURADA ÖNEMLİ: kullanıcının GÖRDÜĞÜ İLK ekran burası. İlk
-  izlenim başka bir uygulamadan alınmış gibi duruyordu.
-*/
-import { colors } from '../theme';
-/*
-  ⚠️ EMOJİLER SİMGE OLARAK KULLANILIYORDU — HEM ROZETTE HEM KARTTA.
-
-  Kartlar `badge: '🏆 UYUMLU GETİRİ HESABI'` ve `icon: '⚖️'` taşıyordu.
-  Emoji platformdan platforma farklı çiziliyor, temaya bağlanamıyor ve
-  yazı satırında hizalanmıyor. Uygulamanın İLK gördüğü ekran burası;
-  profesyonel görünmesi gereken ilk yer de burası.
-
-  `lucide-react-native` zaten projede ve diğer ekranlar onu kullanıyor.
-*/
-import { Wallet, LineChart, Trophy, ShieldCheck } from 'lucide-react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Sparkles, Gift, EyeOff } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { colors, fonts, radius, spacing, type } from '../theme';
+
+/**
+ * OnboardingScreen — kayıt sonrası üç adım.
+ *
+ * ⚠️ DÖRT ANLATAN KARTTAN ÜÇ ADIMA — VE İKİSİ SORU SORUYOR.
+ *
+ * Eski hâli dört karttı ve dördü de ürünü ANLATIYORDU: başlangıç
+ * bakiyesi, canlı veri, TWR ligi, gizlilik. Yalnızca sonuncusu bir
+ * soru içeriyordu.
+ *
+ * İki kart silindi:
+ *
+ *   "Gerçek Zamanlı Borsa Verileri" -> Bir özellik duyurusu. İlk
+ *      kullanımda zaten görülüyor; anlatmaya gerek yok.
+ *
+ *   "Haftalık Performans Ligi (TWR)" -> Metni şuydu: "Uluslararası
+ *      Zaman Ağırlıklı Getiri (TWR) standartlarına göre hesaplanan..."
+ *      Yatırımdan korkan bir kullanıcıya uygulamanın ilk 30 saniyesinde
+ *      söylenecek cümle bu değil. TWR açıklaması Lig ekranına ait —
+ *      oraya ULAŞAN kullanıcı için anlamlı.
+ *
+ * ⚠️ ADIM 1 PERSONA KARARININ TEK UYGULAMA YOLU.
+ *
+ * Ürün iki kullanıcıya birden hizmet edecek: yatırımdan korkan
+ * (varsayılan) ve prova yapmak isteyen. İkisi giriş kapısında
+ * BİRBİRİNİN ZITTINI ister — biri güvence, öteki hız. Tahmin etmek
+ * yerine kullanıcıya SORUYORUZ.
+ *
+ * ⚠️ 100.000 ₺ ARTIK BURADA, KARŞILAMA EKRANINDA DEĞİL.
+ * Karşılamada rakam çerçevesizdi ve "sorumluluk" diye okunabiliyordu.
+ * Burada bir ÖDÜL ANI: "sıfır risk" cümlesiyle birlikte geliyor.
+ */
+
+type Level = 'new' | 'some' | 'experienced';
+type AllocationVisibility = 'public' | 'friends' | 'private';
+type PostVisibility = 'public' | 'friends_only';
+
+export type OnboardingResult = {
+  isPublic: boolean;
+  allocationVisibility: AllocationVisibility;
+  postVisibility: PostVisibility;
+  level: Level;
+};
 
 type Props = {
   userName: string;
-  onFinishOnboarding: (isPublic: boolean) => void;
+  onFinishOnboarding: (result: OnboardingResult) => void;
 };
 
-const CARDS = [
-  {
-    badge: 'SANAL SERMAYE: 100.000 ₺',
-    Icon: Wallet,
-    title: '100.000 ₺ Başlangıç Portföyü',
-    description:
-      'Hesabınıza aktarılan sanal bakiyenizle hiçbir finansal risk almadan yatırım stratejilerinizi test edin. Ayrıca her 24 saatte bir 1.000 ₺ ek kaynak kazanabilirsiniz.',
-  },
-  {
-    badge: 'CANLI PİYASA ENTEGRASYONU',
-    Icon: LineChart,
-    title: 'Gerçek Zamanlı Borsa Verileri',
-    description:
-      'Bitcoin, Ethereum, Gram Altın ve Döviz kurlarının canlı borsa fiyatlarını anlık takip edin, derinlikli analizlerle alım-satım emirlerinizi yönetin.',
-  },
-  {
-    badge: 'UYUMLU GETİRİ HESABI (TWR)',
-    Icon: Trophy,
-    title: 'Haftalık Performans Ligi',
-    description:
-      'Uluslararası Zaman Ağırlıklı Getiri (TWR) standartlarına göre hesaplanan yatırım başarınızla haftalık ligde yarışın, liderlik podyumunda yerinizi alın.',
-  },
-  {
-    badge: 'GİZLİLİK VE ANONİMLİK',
-    Icon: ShieldCheck,
-    title: 'Profil Görünürlük Yapılandırması',
-    description:
-      'Haftalık lig sıralama tablosunda adınızın nasıl görüneceğini belirleyin. Bu ayarı dilediğiniz zaman profil ayarlarınızdan değiştirebilirsiniz.',
-  },
+const LEVELS: { value: Level; title: string; hint: string }[] = [
+  { value: 'new',         title: 'İlk kez deniyorum', hint: 'Hiç yatırım yapmadım' },
+  { value: 'some',        title: 'Biraz biliyorum',   hint: 'Denedim ama uzman değilim' },
+  { value: 'experienced', title: 'Deneyimliyim',      hint: 'Yarışmak için buradayım' },
 ];
 
+const VISIBILITIES: { value: AllocationVisibility; label: string }[] = [
+  { value: 'public',  label: 'Herkes' },
+  { value: 'friends', label: 'Arkadaşlarım' },
+  { value: 'private', label: 'Hiç kimse' },
+];
+
+/**
+ * Paylaşımların varsayılan görünürlüğü.
+ *
+ * ⚠️ İKİ SEÇENEK, ÜÇ DEĞİL — VE FARK ÖNEMLİ.
+ *
+ * Portföy üç seçenekli çünkü "hiç kimse" anlamlı: portföyünü kimseye
+ * göstermeyebilirsin. Paylaşım öyle değil — kimsenin görmeyeceği bir
+ * paylaşım zaten paylaşım değildir. Sunucudaki alan da bu yüzden iki
+ * değerli (`posts.visibility`: 'public' | 'friends_only').
+ *
+ * ⚠️ BU BİR VARSAYILAN, KİLİT DEĞİL. Paylaşım kutusunda her gönderi
+ * için ayrı seçim zaten var; buradaki cevap yalnızca o kutunun
+ * başlangıç değerini belirliyor.
+ */
+const POST_VISIBILITIES: { value: PostVisibility; label: string }[] = [
+  { value: 'public',       label: 'Herkes' },
+  { value: 'friends_only', label: 'Arkadaşlarım' },
+];
+
+const TOPLAM_ADIM = 3;
+
 export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [step, setStep] = useState(0);
+
+  const [level, setLevel] = useState<Level | null>(null);
   const [isPublic, setIsPublic] = useState(true);
+  const [visibility, setVisibility] = useState<AllocationVisibility>('friends');
+  const [postVisibility, setPostVisibility] = useState<PostVisibility>('public');
 
-  const card = CARDS[currentStep]!;
   /*
-    ⚠️ BÜYÜK HARFLE BAŞLAYAN DEĞİŞKEN ŞART. JSX'te `<card.Icon />`
-    yazmak da çalışırdı ama `<cardIcon />` gibi küçük harfli bir ad
-    React tarafından HTML etiketi sanılır ve sessizce hiçbir şey
-    çizilmez. Ayrı bir değişkene almak niyeti görünür kılıyor.
-  */
-  const CardIcon: LucideIcon = card.Icon;
-  const isLastStep = currentStep === CARDS.length - 1;
+    ⚠️ 1. ADIMDA CEVAP ZORUNLU, 3. ADIMDA DEĞİL.
 
-  function handleNext() {
-    if (isLastStep) {
-      onFinishOnboarding(isPublic);
-    } else {
-      setCurrentStep((prev) => prev + 1);
+    Seviye sorusunun varsayılanı YOK — çünkü "hangisi olduğunu
+    bilmiyoruz" ile "kullanıcı şunu seçti" farklı şeyler. Varsayılan
+    verseydik seçmeyen herkes o kutuya düşer ve veri yalan söylerdi.
+
+    Gizlilik ayarlarının varsayılanı VAR çünkü orada bir cevap
+    ZORUNLU: hesap bir ayarla açılmak zorunda, boş kalamaz.
+  */
+  const ileriKapali = step === 0 && level === null;
+
+  function ileri() {
+    if (step < TOPLAM_ADIM - 1) {
+      setStep((s) => s + 1);
+      return;
     }
+
+    onFinishOnboarding({
+      isPublic,
+      allocationVisibility: visibility,
+      postVisibility,
+      // `level` bu noktada asla null olamaz — 1. adım geçilmedi demektir.
+      level: level ?? 'some',
+    });
   }
+
+  const ADIMLAR: { Icon: LucideIcon; baslik: string; altBaslik?: string }[] = [
+    { Icon: Sparkles, baslik: `Hoş geldin, ${userName}`, altBaslik: 'Yatırımda kendini nerede görüyorsun?' },
+    { Icon: Gift,     baslik: 'Hesabın hazır' },
+    { Icon: EyeOff,   baslik: 'Gizlilik ayarların' },
+  ];
+
+  const adim = ADIMLAR[step]!;
+  const AdimIcon = adim.Icon;
+  const sonAdim = step === TOPLAM_ADIM - 1;
 
   return (
     <View style={styles.container}>
-      {/* İlerleme Çubuğu */}
+      {/* --- ilerleme --- */}
       <View style={styles.topHeader}>
         <Text style={styles.stepIndicator}>
-          ADIM {currentStep + 1} / {CARDS.length}
+          ADIM {step + 1} / {TOPLAM_ADIM}
         </Text>
         <View style={styles.progressBarBackground}>
           <View
-            style={[
-              styles.progressBarFill,
-              { width: `${((currentStep + 1) / CARDS.length) * 100}%` },
-            ]}
+            style={[styles.progressBarFill, { width: `${((step + 1) / TOPLAM_ADIM) * 100}%` }]}
           />
         </View>
       </View>
 
-      {/* BUZLU CAM KARŞILAMA KARTI */}
-      <View style={styles.glassCard}>
-        <View style={styles.badgeContainer}>
-          <Text style={styles.badgeText}>{card.badge}</Text>
-        </View>
-
-        {/*
-          ⚠️ SİMGE BİR BİLEŞEN, METİN DEĞİL. Emoji `<Text>` içindeyken
-          boyutu font boyutuna, rengi de hiçbir şeye bağlıydı. Bileşen
-          olarak `size` ve `color` temadan geliyor.
-        */}
+      <View style={styles.card}>
         <View style={styles.iconWrap}>
-          <CardIcon size={34} color={colors.accent} strokeWidth={1.8} />
+          <AdimIcon size={30} color={colors.accent} strokeWidth={1.8} />
         </View>
 
-        <Text style={styles.cardTitle}>
-          {currentStep === 0 ? `Hoş Geldiniz, ${userName}` : card.title}
-        </Text>
+        <Text style={styles.title}>{adim.baslik}</Text>
+        {adim.altBaslik !== undefined && (
+          <Text style={styles.subtitle}>{adim.altBaslik}</Text>
+        )}
 
-        <Text style={styles.cardDescription}>{card.description}</Text>
-
-        {/* 4. KARTTA GİZLİLİK ŞALTERİ */}
-        {isLastStep && (
-          <View style={styles.privacyOptionContainer}>
-            <Text style={styles.privacyLabel}>
-              Liderlik Tablosunda Profil Görünümü:
-            </Text>
-
-            <View style={styles.privacyToggleRow}>
-              <TouchableOpacity
-                style={[
-                  styles.privacyButton,
-                  isPublic && styles.privacyButtonActive,
-                ]}
-                onPress={() => setIsPublic(true)}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.privacyButtonText,
-                    isPublic && styles.privacyButtonTextActive,
-                  ]}
+        {/* ---------------- ADIM 1 · SEVİYE ---------------- */}
+        {step === 0 && (
+          <View style={styles.optionList}>
+            {LEVELS.map((s) => {
+              const secili = level === s.value;
+              return (
+                <TouchableOpacity
+                  key={s.value}
+                  style={[styles.option, secili && styles.optionOn]}
+                  onPress={() => setLevel(s.value)}
+                  activeOpacity={0.85}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: secili }}
                 >
-                  🌐 Tam İsimle Görün
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.privacyButton,
-                  !isPublic && styles.privacyButtonActive,
-                ]}
-                onPress={() => setIsPublic(false)}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.privacyButtonText,
-                    !isPublic && styles.privacyButtonTextActive,
-                  ]}
-                >
-                  🔒 Anonim / Gizli Kal
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  <Text style={[styles.optionTitle, secili && styles.optionTitleOn]}>
+                    {s.title}
+                  </Text>
+                  <Text style={styles.optionHint}>{s.hint}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
-      </View>
 
-      {/* Alt Navigasyon Butonları */}
-      <View style={styles.footer}>
-        {currentStep > 0 ? (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => setCurrentStep((prev) => prev - 1)}
-          >
-            <Text style={styles.backButtonText}>← Önceki Adım</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 100 }} />
+        {/* ---------------- ADIM 2 · ÖDÜL ---------------- */}
+        {step === 1 && (
+          <View style={styles.rewardBlock}>
+            {/*
+              ⚠️ RAKAM BÜYÜK AMA YALNIZ DEĞİL. Altındaki "sıfır risk"
+              satırı olmadan 100.000 ₺ yine çerçevesiz kalırdı —
+              karşılama ekranından çıkarma sebebimiz tam olarak buydu.
+            */}
+            <LinearGradient
+              colors={['rgba(18,209,142,0.18)', 'rgba(18,209,142,0.04)']}
+              style={styles.rewardCard}
+            >
+              <Text style={styles.rewardAmount}>100.000 ₺</Text>
+              <Text style={styles.rewardLabel}>sanal bakiye</Text>
+            </LinearGradient>
+
+            <Text style={styles.rewardNote}>
+              Gerçek fiyatlarla işlem yap, sıfır risk al. Her gün
+              1.000 ₺ ek bakiye kazanabilirsin.
+            </Text>
+          </View>
+        )}
+
+        {/* ---------------- ADIM 3 · GİZLİLİK ---------------- */}
+        {step === 2 && (
+          <View style={styles.privacyBlock}>
+            {/*
+              ⚠️ İKİ SORU AYNI ADIMDA — VE BU BİLİNÇLİ.
+
+              Miller yasası "her adımda az öğe" der, ama parçalamanın
+              ölçüsü öğe sayısı değil KONU sayısıdır. İkisi de
+              gizlilik; ayrı adımlara bölmek kullanıcıya iki farklı
+              konu olduğunu düşündürürdü.
+            */}
+            {/*
+              ⚠️ BU SORUNUN ETİKETİ YANLIŞTI — VE HATA BENDEYDİ.
+
+              "Adımla / Takma adla" yazmıştım, ama `isPublic` adın
+              nasıl görüneceğini BELİRLEMİYOR. Sunucuda tek işi var
+              (`profile/service.ts` → `canSee`): profilini
+              arkadaşın olmayan biri görebilsin mi?
+
+              Yanlış etiket, yanlış zihinsel model üretir: kullanıcı
+              "takma adla" seçer, adının gizlendiğini sanır, oysa
+              profilini kapatmış olur. İkisi tamamen farklı sonuçlar.
+
+              ⚠️ AD ZATEN HİÇ GÖSTERİLMİYOR. Lig tablosu ve arkadaş
+              listesi artık kullanıcı adını gösteriyor; gerçek ad
+              yabancılara hiç gitmiyor. Yani o seçim ortadan kalktı,
+              geriye gerçek soru kaldı.
+            */}
+            <Text style={styles.groupLabel}>Profilini kimler görebilsin?</Text>
+            <View style={styles.segRow}>
+              {[
+                { v: true,  l: 'Herkes' },
+                { v: false, l: 'Arkadaşlarım' },
+              ].map((o) => (
+                <TouchableOpacity
+                  key={o.l}
+                  style={[styles.seg, isPublic === o.v && styles.segOn]}
+                  onPress={() => setIsPublic(o.v)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.segText, isPublic === o.v && styles.segTextOn]}>
+                    {o.l}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.groupLabel, styles.groupLabelSpaced]}>
+              Portföyünü kimler görebilir?
+            </Text>
+            <View style={styles.segRow}>
+              {VISIBILITIES.map((o) => (
+                <TouchableOpacity
+                  key={o.value}
+                  style={[styles.seg, visibility === o.value && styles.segOn]}
+                  onPress={() => setVisibility(o.value)}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[styles.segText, visibility === o.value && styles.segTextOn]}
+                    numberOfLines={1}
+                  >
+                    {o.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={[styles.groupLabel, styles.groupLabelSpaced]}>
+              Paylaşımlarını kimler görsün?
+            </Text>
+            <View style={styles.segRow}>
+              {POST_VISIBILITIES.map((o) => (
+                <TouchableOpacity
+                  key={o.value}
+                  style={[styles.seg, postVisibility === o.value && styles.segOn]}
+                  onPress={() => setPostVisibility(o.value)}
+                  activeOpacity={0.85}
+                >
+                  <Text
+                    style={[styles.segText, postVisibility === o.value && styles.segTextOn]}
+                    numberOfLines={1}
+                  >
+                    {o.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/*
+              ⚠️ "SONRA DEĞİŞTİREBİLİRSİN" CÜMLESİ SÜS DEĞİL.
+              Gizlilik sorusu kullanıcıyı durdurur çünkü geri
+              alınamaz sanılır. Değiştirilebilir olduğunu söylemek,
+              kararı ucuzlatıp akışı sürdürüyor.
+            */}
+            <Text style={styles.privacyNote}>
+              Üçünü de sonra değiştirebilirsin.
+            </Text>
+          </View>
         )}
 
         <TouchableOpacity
-          style={styles.glowingPillButton}
-          onPress={handleNext}
+          style={[styles.cta, ileriKapali && styles.ctaOff]}
+          onPress={ileri}
+          disabled={ileriKapali}
           activeOpacity={0.85}
         >
-          <Text style={styles.glowingPillButtonText}>
-            {isLastStep ? '🚀 Portföye Giriş Yap' : 'Devam Et →'}
+          <Text style={[styles.ctaText, ileriKapali && styles.ctaTextOff]}>
+            {sonAdim ? 'Başla' : 'Devam'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -198,152 +321,179 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#081226',
-    paddingHorizontal: 20,
-    paddingVertical: 36,
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.screen,
+    justifyContent: 'center',
   },
-  topHeader: {
-    width: '100%',
-    maxWidth: 380,
-    gap: 8,
-    marginTop: 12,
-  },
+
+  topHeader: { marginBottom: 24 },
   stepIndicator: {
-    color: colors.accent,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.5,
+    fontFamily: fonts.semibold,
+    fontSize: type.micro,
+    letterSpacing: 1.2,
+    color: colors.inkFaint,
+    marginBottom: 8,
   },
   progressBarBackground: {
     height: 4,
+    borderRadius: radius.full,
     backgroundColor: colors.surfacePressed,
-    borderRadius: 6,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: colors.gain,
-    borderRadius: 6,
-  },
-  glassCard: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: colors.surfaceRaised,
-    borderColor: colors.borderStrong,
-    borderWidth: 1.5,
-    borderRadius: 28,
-    padding: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 12,
-    marginVertical: 16,
-    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(20px)' } : {}),
-  },
-  badgeContainer: {
-    alignSelf: 'center',
-    backgroundColor: colors.gainSoft,
-    borderColor: colors.gainSoft,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-  },
-  badgeText: {
-    color: '#34D399',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  iconWrap: { alignItems: 'center', marginBottom: 16 },
-  cardTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: colors.inkBright,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  privacyOptionContainer: {
-    width: '100%',
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    alignItems: 'center',
-  },
-  privacyLabel: {
-    color: colors.inkBright,
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  privacyToggleRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceSunken,
-    borderRadius: 14,
-    padding: 4,
-    width: '100%',
-  },
-  privacyButton: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  privacyButtonActive: {
+    borderRadius: radius.full,
     backgroundColor: colors.accent,
   },
-  privacyButtonText: {
-    color: colors.inkDisabled,
-    fontSize: 12,
-    fontWeight: '600',
+
+  card: {
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 22,
   },
-  privacyButtonTextActive: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  footer: {
-    width: '100%',
-    maxWidth: 380,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  iconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
+    marginBottom: 18,
   },
-  backButton: {
-    paddingVertical: 12,
+  title: {
+    fontFamily: fonts.bold,
+    fontSize: type.title,
+    color: colors.ink,
+    letterSpacing: -0.4,
+  },
+  subtitle: {
+    fontFamily: fonts.regular,
+    fontSize: type.body,
+    color: colors.inkMuted,
+    marginTop: 6,
+  },
+
+  /* --- adım 1 --- */
+  optionList: { marginTop: 20, gap: 10 },
+  option: {
     paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  backButtonText: {
-    color: colors.inkDisabled,
-    fontSize: 14,
-    fontWeight: '600',
+  optionOn: {
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(37,99,235,0.12)',
   },
-  glowingPillButton: {
-    backgroundColor: colors.gain,
-    borderRadius: 28,
-    paddingVertical: 16,
-    paddingHorizontal: 28,
-    shadowColor: colors.gain,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    elevation: 8,
+  optionTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: type.body,
+    color: colors.ink,
   },
-  glowingPillButtonText: {
-    color: '#022C22',
-    fontSize: 16,
-    fontWeight: 'bold',
+  optionTitleOn: { color: colors.accent },
+  optionHint: {
+    fontFamily: fonts.regular,
+    fontSize: type.caption,
+    color: colors.inkMuted,
+    marginTop: 2,
   },
+
+  /* --- adım 2 --- */
+  rewardBlock: { marginTop: 20 },
+  rewardCard: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(18,209,142,0.35)',
+    paddingVertical: 22,
+    alignItems: 'center',
+  },
+  rewardAmount: {
+    fontFamily: fonts.bold,
+    fontSize: 38,
+    color: colors.gain,
+    letterSpacing: -1,
+  },
+  rewardLabel: {
+    fontFamily: fonts.medium,
+    fontSize: type.caption,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: colors.inkMuted,
+    marginTop: 2,
+  },
+  rewardNote: {
+    fontFamily: fonts.regular,
+    fontSize: type.body,
+    lineHeight: type.body * 1.45,
+    color: colors.inkMuted,
+    marginTop: 16,
+  },
+
+  /* --- adım 3 --- */
+  privacyBlock: { marginTop: 20 },
+  groupLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: type.caption,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: colors.inkFaint,
+    marginBottom: 8,
+  },
+  groupLabelSpaced: { marginTop: 20 },
+  segRow: { flexDirection: 'row', gap: 8 },
+  seg: {
+    /*
+      ⚠️ `flex: 1` + `minWidth: 0`: üç seçenek eşit genişlikte.
+      İçeriğe göre büyüselerdi "Arkadaşlarım" en geniş kutu olur ve
+      görsel olarak "önerilen seçenek" gibi okunurdu.
+    */
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+  },
+  segOn: { borderColor: colors.accent, backgroundColor: 'rgba(37,99,235,0.12)' },
+  segText: {
+    fontFamily: fonts.medium,
+    fontSize: type.caption,
+    color: colors.inkMuted,
+  },
+  segTextOn: { fontFamily: fonts.bold, color: colors.accent },
+  privacyNote: {
+    fontFamily: fonts.regular,
+    fontSize: type.caption,
+    color: colors.inkFaint,
+    marginTop: 14,
+  },
+
+  cta: {
+    marginTop: 24,
+    height: 52,
+    borderRadius: radius.full,
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  /*
+    ⚠️ KAPALI DÜĞME GİZLENMİYOR, SÖNÜKLEŞİYOR. Gizleseydik kullanıcı
+    "devam edemiyorum" değil "devam yok" sanardı; sönük bir düğme
+    "bir şey eksik" der ve gözü yukarı, seçeneklere geri gönderir.
+  */
+  ctaOff: { backgroundColor: colors.surfacePressed },
+  ctaText: {
+    fontFamily: fonts.bold,
+    fontSize: type.body,
+    color: colors.surface,
+  },
+  ctaTextOff: { color: colors.inkFaint },
 });
