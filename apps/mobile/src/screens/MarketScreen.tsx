@@ -17,6 +17,7 @@ import { useCurrency } from '../lib/currency';
 import { CurrencyToggle } from '../components/CurrencyToggle';
 import { AssetBadge, ChangeText, Chip, SectionLabel } from '../components/DesignKit';
 import { colors, fonts, rowMetrics, spacing } from '../theme';
+import { WhatIfScreen } from './WhatIfScreen';
 
 /**
  * MarketScreen — `docs/export/9a-piyasa.html`
@@ -99,6 +100,20 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
   const [rateAsOf, setRateAsOf] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  /*
+    ⚠️ ALSAYDIN KEŞFET'TEN BURAYA TAŞINDI.
+
+    Gerekçe "yer mi araç mı" ayrımı: Alsaydın bir ARAÇ — kimse
+    "Alsaydın'a bakayım" diye uygulamayı açmaz; bir merak gelir,
+    hesaplatır, çıkar. Araca kalıcı bir sekme vermek yer israfı,
+    ama boşlukta da duramaz.
+
+    Piyasa'nın içi doğru yer çünkü ikisi de aynı şeyle ilgili:
+    varlıklar. Kullanıcı bir coin'e bakarken "peki 2020'de
+    alsaydım?" diye düşünür — o soru Keşfet'te değil BURADA doğuyor.
+  */
+  const [view, setView] = useState<'market' | 'whatif'>('market');
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
@@ -217,20 +232,102 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
 
   const searching = search.trim() !== '';
 
+  const sekmeler = (
+    /*
+      ⚠️ SEGMENTLİ DENETİM (segmented control) — iki pili yan yana
+      koymak yerine ortak bir kabın içine aldık.
+
+      Ayrı iki pil, seçili olmayanı "yok" gibi gösteriyordu; kap
+      ikisinin de var olduğunu ve AYNI GRUBA ait olduğunu söylüyor.
+      Kullanıcı burada iki seçenek arasında geçiş yaptığını
+      biçimden anlıyor, metni okumadan.
+    */
+    <View style={styles.subTabs}>
+      {([
+        { key: 'market' as const, label: 'Piyasa' },
+        { key: 'whatif' as const, label: 'Ya Alsaydın' },
+      ]).map((s) => (
+        <TouchableOpacity
+          key={s.key}
+          onPress={() => setView(s.key)}
+          style={[styles.subTab, view === s.key && styles.subTabOn]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: view === s.key }}
+        >
+          <Text style={[styles.subTabText, view === s.key && styles.subTabTextOn]}>
+            {s.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  /*
+    ⚠️ ERKEN DÖNÜŞ — mevcut çizimi SARMADIK.
+
+    `{view === 'market' && (...)}` diye tüm gövdeyi sarmak da olurdu
+    ama 160 satırlık JSX'i bir koşulun içine almak, yalnızca girinti
+    değiştiği için okunamaz bir fark üretirdi. Erken dönüş iki bloğu
+    da düz tutuyor.
+  */
+  if (view === 'whatif') {
+    return (
+      <View style={styles.screen}>
+        <View style={styles.header}>{sekmeler}</View>
+        <WhatIfScreen embedded />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.screen}>
-      {/* --- başlık --- */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Piyasa</Text>
+      {/*
+        --- başlık ---
 
-        <View style={styles.liveRow}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>
-            {formatRelativeTime(assets[0]?.asOf ?? null)}
-          </Text>
-        </View>
-      </View>
+        ⚠️ ÜÇ SÜTUNLU DÜZEN DENENDİ VE KIRILDI.
 
+        Sekmeler + sağdaki "22 sa önce" satırı, ekran genişliğini
+        birlikte AŞIYORDU. Orta blokta `flexShrink` engeli olmadığı
+        için sıkışan taraf sekmeler oldu: "Ya Alsaydın" yazısının
+        başı kırpıldı.
+
+        ⚠️ Asıl hata düzen değil, İÇERİK FAZLALIĞIYDI. "22 sa önce"
+        bilgisi zaten AŞAĞIDA, her varlık satırının içinde yazıyor
+        (Bitcoin · 22 sa önce). Aynı bilgi ekranda elli bir kez
+        görünüyordu; başlıktaki kopyası hiçbir şey eklemiyordu.
+
+        Onu kaldırınca sekmeler tek başına kaldı ve gerçekten
+        ortalanabildi — sıkıştırma hilesine gerek kalmadan.
+      */}
+      <View style={styles.header}>{sekmeler}</View>
+
+      {/*
+        ⚠️ ARAMA VE ÇİPLER LİSTENİN BAŞLIĞINA TAŞINDI.
+
+        Önce hepsi `FlatList`'in KARDEŞİYDİ, yani sabitti: başlık +
+        arama + çipler + para birimi ekranın üstünde ~330 piksel yer
+        kaplıyor ve hiç kaybolmuyordu. Küçük bir telefonda listeye
+        kalan alan yarıdan azdı.
+
+        ⚠️ NE SABİT KALMALI, NE KAYMALI — AYRIM ŞU:
+          sabit  -> nerede olduğunu söyleyen şey (sekmeler)
+          kayan  -> içeriğe AİT olan şey (arama, filtre, liste)
+
+        Arama ve filtre listenin araçları; liste kayarken onların
+        ekranı işgal etmesi için sebep yok. Kullanıcı yukarı
+        kaydırdığında geri geliyorlar.
+
+        ⚠️ `ListHeaderComponent` bir FONKSİYON DEĞİL, ELEMAN olarak
+        veriliyor. Fonksiyon versek her çizimde yeni bir bileşen tipi
+        üretilir, React onu "başka bir bileşen" sanar ve TextInput
+        her harfte odağını kaybederdi.
+      */}
+      <FlatList
+        showsVerticalScrollIndicator={false}
+        data={visible}
+        keyExtractor={(item) => item.symbol}
+        ListHeaderComponent={
+          <>
       {/* --- arama --- */}
       <View style={styles.searchWrap}>
         <Text style={styles.searchIcon}>⌕</Text>
@@ -289,12 +386,14 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
         <CurrencyToggle />
       </View>
 
+      {/*
+        ⚠️ HATA SATIRI DA BAŞLIKTA — taşıma sırasında düşürmüştüm.
+        Listenin üstünde durmalı: hata listeyle ilgili ("fiyatlar
+        okunamadı") ve liste kayınca onunla birlikte kaymalı.
+      */}
       {error !== null && <Text style={styles.error}>{error}</Text>}
-
-      <FlatList
-        showsVerticalScrollIndicator={false}
-        data={visible}
-        keyExtractor={(item) => item.symbol}
+          </>
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -340,7 +439,7 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
                 {item.tradable === false ? (
                   <Text style={styles.rowClosed}>piyasa kapalı</Text>
                 ) : (
-                  formatRelativeTime(item.asOf)
+                  formatRelativeTime(item.asOf, true)
                 )}
               </Text>
             </View>
@@ -391,16 +490,55 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row',
+    // Tek çocuk var ve o ortalanıyor — hile yok.
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.screen,
     paddingTop: 20,
   },
-  title: {
-    fontFamily: fonts.semibold,
-    fontSize: 26,
-    color: colors.ink,
-    letterSpacing: -0.6,
+  /*
+    ⚠️ BÜYÜK "Piyasa" BAŞLIĞI SEKMELERLE DEĞİŞTİ. İkisini birden
+    tutsaydık "Piyasa" kelimesi ekranda iki kez görünürdü — biri
+    başlık, biri sekme. Aynı kelimeyi iki kez yazmak, kullanıcıya
+    ikisinin farklı şeyler olduğunu düşündürür.
+  */
+  subTabs: {
+    flexDirection: 'row',
+    gap: 4,
+    // Ortak kap: iki seçeneğin aynı gruba ait olduğunu gösteriyor.
+    backgroundColor: colors.surfaceRaised,
+    borderRadius: 999,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  subTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 999,
+    /*
+      ⚠️ SEÇİLİ OLMAYAN DA AYNI DOLGUYU TAŞIYOR (zemini saydam).
+      Dolguyu yalnızca seçiliye verseydik seçim değiştiğinde
+      pilin genişliği değişir ve satır her dokunuşta oynardı.
+    */
+    backgroundColor: 'transparent',
+  },
+  /*
+    ⚠️ AKTİF PİL VURGU RENGİNDE — ama yazı BEYAZ, `colors.ink` değil.
+
+    Mavi zemin üstünde tema mürekkebi yeterli karşıtlık vermiyor.
+    Erişilebilirlik eşiği (WCAG AA) normal metin için 4.5:1; beyaz
+    bunu sağlıyor, kırık beyaz sağlamıyor.
+  */
+  subTabOn: { backgroundColor: colors.accent },
+  subTabText: {
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    color: colors.inkMuted,
+  },
+  subTabTextOn: {
+    fontFamily: fonts.bold,
+    color: '#FFFFFF',
   },
   liveRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   // Yeşil nokta "veri akıyor" demek — fiyatın yönüyle ilgisi yok.

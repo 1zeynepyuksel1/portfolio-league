@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView, Image, SafeAreaView, Platform, StatusBar as RNStatusBar } from 'react-native';
-import { colors, fonts } from '../theme';
+import { StyleSheet, Text, TouchableOpacity, View, Image, Platform, StatusBar as RNStatusBar } from 'react-native';
+import { colors, fonts, shadows } from '../theme';
+import { LeagueRankCard } from '../components/LeagueRankCard';
 import { apiFetch } from '../api/client';
 import { PostCard } from '../components/PostCard';
 import { ActivityIndicator, FlatList, RefreshControl } from 'react-native';
@@ -10,54 +11,44 @@ import { GlobalShareMenu } from '../components/GlobalShareMenu';
 import { getMe } from '../lib/me';
 import { EmptyState } from '../components/EmptyState';
 import { Newspaper } from 'lucide-react-native';
-import { WhatIfScreen } from './WhatIfScreen';
-import { FriendsScreen } from './FriendsScreen';
-import { LeaderboardScreen } from './LeaderboardScreen';
 
 /**
- * ⚠️ 'league' EKLENDİ — alt çubuktaki Lig sekmesi buraya taşındı.
+ * ⚠️ 'league' BURADAN ÇIKTI — TEKRAR ALT ÇUBUĞA DÖNDÜ.
  *
- * Sıra rastgele değil: Akış en sık açılan, Lig onun hemen yanında çünkü
- * ikisi de "başkaları ne yapıyor" sorusunun cevabı. Alsaydın ve Sosyal
- * daha nadir kullanılıyor, sağda kalıyorlar.
+ * Lig bir dönem burada alt sekmeydi. Profesörün itirazı ("3'de bunu
+ * çok saklamışsınız") ve iki kapılı yapının yarattığı kararsızlık
+ * sonrası kendi sekmesine geri alındı.
+ *
+ * ⚠️ Ama Lig BURADAN DA görünüyor: akışın en üstündeki `LeagueRankCard`
+ * bir GİRİŞ NOKTASI. Sekme "Lig var" der, kart "Lig'de 4. sıradasın"
+ * der. İkisi aynı şey değil ve ikisi de gerekli.
  */
-type DiscoveryTab = 'feed' | 'league' | 'whatif' | 'social';
+/*
+  ⚠️ ALT SEKMELER TAMAMEN KALKTI — İKİ AYRI SEBEPLE.
 
-export function DiscoveryScreen({ onSelectUser, currentUser, onOpenFriends }: { onSelectUser?: (username: string) => void; currentUser?: any; onOpenFriends?: () => void }) {
+  1) İSİM ÇAKIŞMASI. Alt çubuktaki sekmenin adı "Akış"tı ve içinde
+     yine "Akış" adlı bir alt sekme vardı. Aynı kelime iki kademede:
+     kullanıcı ikisinin farklı şeyler olduğunu sanar.
+
+  2) ÜÇÜNCÜ KAPI. "Sosyal" arkadaş listesini açıyordu — ama o liste
+     Lig ekranından ZATEN iki yoldan erişilebiliyor ("Arkadaşlarım"
+     alt sekmesi ve arkadaş katmanı düğmesi). Yani aynı şeye üç kapı
+     vardı. `+` menüsünü bıraktıran kararsızlığın aynısı.
+
+  Şimdi Keşfet TEK İŞ yapıyor: akışı göstermek. Tek çocuğu olan bir
+  sekme çubuğuna gerek yok — bir seçenek sunan menü, menü değildir.
+
+  ⚠️ Arkadaşlar KAYBOLMADI, Lig'in içinde. `onOpenFriends` propu
+  burada artık kullanılmıyor ama imzada duruyor: App.tsx onu hâlâ
+  geçiriyor ve ileride akıştan bir giriş noktası açılabilir.
+*/
+export function DiscoveryScreen({ onSelectUser, currentUser, onOpenLeague }: { onSelectUser?: (username: string) => void; currentUser?: any; onOpenFriends?: () => void; onOpenLeague?: (() => void) | undefined }) {
   const [shareMenuVisible, setShareMenuVisible] = useState(false);
-
-  const [activeTab, setActiveTab] = useState<DiscoveryTab>('feed');
 
   return (
     <View style={styles.container}>
-      <SafeAreaView>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topTabBar}>
-          <TouchableOpacity onPress={() => setActiveTab('feed')} style={[styles.tabButton, activeTab === 'feed' && styles.tabButtonActive]}>
-            <Text style={[styles.tabText, activeTab === 'feed' && styles.tabTextActive]}>Akış</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setActiveTab('league')} style={[styles.tabButton, activeTab === 'league' && styles.tabButtonActive]}>
-            <Text style={[styles.tabText, activeTab === 'league' && styles.tabTextActive]}>Lig</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setActiveTab('whatif')} style={[styles.tabButton, activeTab === 'whatif' && styles.tabButtonActive]}>
-            <Text style={[styles.tabText, activeTab === 'whatif' && styles.tabTextActive]}>Alsaydın</Text>
-          </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setActiveTab('social')} style={[styles.tabButton, activeTab === 'social' && styles.tabButtonActive]}>
-            <Text style={[styles.tabText, activeTab === 'social' && styles.tabTextActive]}>Sosyal</Text>
-          </TouchableOpacity>
-        </ScrollView>
-        <View style={styles.tabBorderLine} />
-      </SafeAreaView>
-
       <View style={styles.content}>
-        {activeTab === 'feed' && <FeedTab onSelectUser={onSelectUser} currentUser={currentUser} />}
-        {activeTab === 'league' && (
-          <LeaderboardScreen
-            onOpenFriends={onOpenFriends ?? (() => setActiveTab('social'))}
-            onSelectUser={onSelectUser}
-          />
-        )}
-        {activeTab === 'whatif' && <WhatIfScreen />}
-        {activeTab === 'social' && <FriendsScreen onSelectUser={onSelectUser} />}
+        <FeedTab onSelectUser={onSelectUser} currentUser={currentUser} onOpenLeague={onOpenLeague} />
       </View>
       {/*
         ⚠️ Paylaş düğmesi yalnızca Akış sekmesinde. Lig sıralamasına ya da
@@ -65,7 +56,8 @@ export function DiscoveryScreen({ onSelectUser, currentUser, onOpenFriends }: { 
         belirsiz bırakıyordu; düğme her zaman görünür olunca kullanıcı onu
         bulunduğu sekmeyle ilişkilendiriyor.
       */}
-      {activeTab === 'feed' && (
+      {/* Ekranda tek içerik var; koşula gerek kalmadı. */}
+      {(
       <TouchableOpacity style={styles.fab} onPress={() => setShareMenuVisible(true)}>
         <Plus size={24} color="#FFF" />
       </TouchableOpacity>
@@ -75,7 +67,7 @@ export function DiscoveryScreen({ onSelectUser, currentUser, onOpenFriends }: { 
   );
 }
 
-function FeedTab({ onSelectUser, currentUser }: { onSelectUser?: (username: string) => void; currentUser?: any }) {
+function FeedTab({ onSelectUser, currentUser, onOpenLeague }: { onSelectUser?: (username: string) => void; currentUser?: any; onOpenLeague?: (() => void) | undefined }) {
   
   const [posts, setPosts] = React.useState<any[]>([]);
   /*
@@ -119,10 +111,26 @@ function FeedTab({ onSelectUser, currentUser }: { onSelectUser?: (username: stri
 
   return (
     <FlatList
+        showsVerticalScrollIndicator={false}
       data={posts}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.feedContent}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadFeed(true)} tintColor={colors.accent} />}
+      /*
+        ⚠️ KART `ListHeaderComponent`'TE, AYRI BİR `View`'DA DEĞİL.
+
+        Listenin üstüne ayrı bir kutu koysaydık kart SABİT kalır,
+        yalnızca gönderiler kayardı. O zaman ekranın üstünden 70
+        piksel kalıcı olarak giderdi. Başlık olarak verilince kart
+        akışın bir parçası: aşağı kaydırınca yukarı çıkıyor.
+
+        ⚠️ `ListEmptyComponent` İLE BİRLİKTE ÇALIŞIR — akış boşken
+        bile başlık çizilir. Yani hiç gönderi yokken bile kullanıcı
+        lig kartını görüyor; boş ekranda yapacak bir şey kalıyor.
+      */
+      ListHeaderComponent={
+        onOpenLeague ? <LeagueRankCard username={currentUser?.username} onPress={onOpenLeague} /> : null
+      }
       ListEmptyComponent={
         <EmptyState
           icon={Newspaper}
@@ -185,6 +193,12 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.accent,
+    /*
+      ⚠️ YÜZEN DÜĞME GERÇEKTEN YÜZMELİ. Gölgesiz hâlde içeriğin üstüne
+      yapıştırılmış bir daire gibi duruyordu; renkli gölge onu
+      zeminden ayırıyor ve "bu katman farklı" diyor.
+    */
+    ...shadows.accentGlow,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -198,41 +212,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
   },
-  topTabBar: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  tabBorderLine: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginTop: -1,
-  },
-  tabButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabButtonActive: {
-    borderBottomColor: colors.inkBright,
-    zIndex: 1, // stays above the border line
-  },
-  tabText: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
-    color: colors.inkMuted,
-  },
-  tabTextActive: {
-    fontFamily: fonts.bold,
-    color: colors.inkBright,
-  },
   content: {
     flex: 1,
   },
   feedContent: {
     padding: 16,
-    paddingBottom: 40,
+    // Üstteki sekme çubuğuyla arasında zaten çizgi var; 16 fazlaydı.
+    paddingTop: 12,
+    /*
+      ⚠️ ALT BOŞLUK FAB'IN ALTINI KURTARIYOR.
+
+      Yüzen `+` düğmesi alttan 24, yüksekliği 56 — yani ekranın alt 80
+      pikselini kaplıyor. Liste 40 piksel boşlukla bitince SON kartın
+      düğmeleri o dairenin altında kalıyordu; kullanıcı beğen/yorum
+      simgesine basmak isterken paylaşım menüsü açılıyordu.
+
+      104 = 56 (düğme) + 24 (alt boşluk) + 24 (nefes payı).
+    */
+    paddingBottom: 104,
     gap: 16,
   },
   postCard: {

@@ -215,9 +215,25 @@ export function LeaderboardScreen({
   // 4. ve sonraki sıralamadaki yarışmacılar
   const restEntries = entries.filter((e) => e.rank > 3);
 
-  return (
-    <View style={styles.container}>
-      {/* 1. Üst Başlık & Geri Sayım Rozeti */}
+  /*
+    ⚠️ LİG BİLGİSİ ARTIK SABİT DEĞİL, LİSTEYLE KAYIYOR.
+
+    Tarih aralığı, geri sayım ve yarışmacı sayısı ekranın üstünde
+    ~100 piksel yer kaplıyor ve hiç kaybolmuyordu. Piyasa'da
+    uyguladığımız ayrım burada da geçerli:
+
+      sabit -> nerede olduğunu söyleyen şey (Genel Lig / Arkadaşlarım)
+      kayan -> içeriğe ait olan şey (lig bilgisi, podyum, sıralama)
+
+    Geri sayım faydalı ama bir kez bakılan bilgi; kalıcı olarak
+    ekranın altıda birini işgal etmesi için sebep yok.
+
+    ⚠️ DEĞİŞKENE ALINDI ÇÜNKÜ İKİ YERDE ÇİZİLİYOR: dolu listede
+    `ListHeaderComponent` içinde, boş/hata durumunda doğrudan.
+    JSX'i kopyalasaydık biri güncellenip öteki geride kalırdı.
+  */
+  // 1. Üst başlık & geri sayım rozeti
+  const ligBilgisi = (
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <SectionLabel>HAFTALIK LİG</SectionLabel>
@@ -253,6 +269,10 @@ export function LeaderboardScreen({
         </Text>
       </View>
 
+  );
+
+  return (
+    <View style={styles.container}>
       {/* 2. Sekmeler (Genel Lig / Arkadaşlarım) */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
@@ -286,11 +306,20 @@ export function LeaderboardScreen({
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.emptyContainer}>
+          {ligBilgisi}
+          {/*
+            ⚠️ ÜÇÜNCÜ CÜMLE EKSİKTİ (K6 kuralı: ne yok · neden yok ·
+            NE YAPMALIYIM).
+
+            Eski metin ilk ikisini söylüyor, üçüncüsünü söylemiyordu:
+            "arkadaş listeniz boş" — peki ne yapayım? Üçüncü cümle
+            olmayan bir boş durum, bir özürdür.
+          */}
           <Text style={styles.emptyTitle}>Henüz sıralama oluşmadı</Text>
           <Text style={styles.emptyText}>
             {activeTab === 'friends'
-              ? 'Arkadaşlarınız henüz işlem yapmadı veya arkadaş listeniz boş.'
-              : 'Bu haftaki ligde henüz yarışmacı skoru girilmedi.'}
+              ? 'Arkadaşların henüz işlem yapmamış ya da listen boş. Arkadaş ekleyerek kendi mini ligini kurabilirsin.'
+              : 'Bu hafta kimse işlem yapmamış. İlk alımını yapan ilk sıraya geçer.'}
           </Text>
 
           {/*
@@ -324,7 +353,9 @@ export function LeaderboardScreen({
           contentContainerStyle={styles.listContent}
           // Podyumu Listenin Başına (Header) Koyuyoruz
           ListHeaderComponent={
-            top1 || top2 || top3 ? (
+            <>
+              {ligBilgisi}
+              {top1 || top2 || top3 ? (
               <View style={styles.podiumContainer}>
                 {/* 2. Sıra (Gümüş Podyum) */}
                 <TouchableOpacity
@@ -410,7 +441,8 @@ export function LeaderboardScreen({
                   )}
                 </TouchableOpacity>
               </View>
-            ) : null
+              ) : null}
+            </>
           }
           // 4., 5., 6... Sıradaki Kullanıcı Satırları
           renderItem={({ item }) => {

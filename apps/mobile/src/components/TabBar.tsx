@@ -1,53 +1,55 @@
 import React, { ReactElement } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Wallet, LineChart, Trophy, User, Compass } from 'lucide-react-native';
+import { Wallet, LineChart, Trophy, Compass } from 'lucide-react-native';
 import { colors, fonts } from '../theme';
 
 /**
- * ⚠️ 'league' BURADAN KALDIRILDI — SEKME SİLİNMEDİ, TAŞINDI.
+ * ⚠️ SEKMELER İKİ TUR DEĞİŞTİ — SON HÂLİ VE NEDENİ.
  *
- * Lig artık Keşfet'in içinde bir üst sekme (`Akış · Lig · Alsaydın ·
- * Sosyal`). Gerekçe: altı alt sekme ekranın her birine ~%16 veriyordu ve
- * etiketler sığmıyordu; ayrıca Lig kavramsal olarak zaten sosyal tarafa
- * ait — sıralama, arkadaşlar ve akış aynı yerde.
+ * Tur 1: Lig, Keşfet'in içine alt sekme olarak taşındı (yer kazanmak
+ *        için). Profesör itiraz etti: "3'de bunu çok saklamışsınız."
+ * Tur 2: Profil sekmeden çıkarıldı, yerine `+` menüsü kondu. Menü
+ *        Lig/Alsaydın/Sosyal taşıyordu — ama o üçü Keşfet'in içinde
+ *        DE duruyordu. Aynı şeye iki kapı: kararsız bir yapı.
  *
- * ⚠️ TİPTEN ÇIKARMAK BİLİNÇLİ: `'league'` bir yerde hâlâ kullanılıyorsa
- * TypeScript onu gösterir. Tipte bıraksaydık ölü bir dal sessizce
- * kalırdı ve hiçbir zaman çizilmeyen bir sekmeye geçiş yapan kod
- * fark edilmezdi.
+ * ŞİMDİ: her şey bir tek yerde.
+ *
+ *   Akış · Piyasa · Lig · Cüzdan · KocAI        ← beş YER
+ *   Profil       → sol üstteki avatar
+ *   Ya Alsaydın  → Piyasa'nın alt sekmesi  (varlıkla ilgili bir ARAÇ)
+ *   Sosyal       → Keşfet'in alt sekmesi
+ *
+ * ⚠️ AYRIMIN ADI: YER Mİ, ARAÇ MI. Bir "yer"e geri dönersin ve içeriği
+ * zamanla değişir — sekmeye layık olan budur. Bir "araç"ı kullanır,
+ * cevabını alır, çıkarsın; ona kalıcı bir kutu vermek yer israfıdır.
+ * Alsaydın bir araç: kimse "Alsaydın'a bakayım" diye uygulamayı açmaz.
+ *
+ * ⚠️ LİG İKİ YERDEN GÖRÜNÜYOR AMA TEKRAR DEĞİL. Sekme "Lig var" der;
+ * akışın üstündeki `LeagueRankCard` "Lig'de 4. sıradasın" der. Biri
+ * navigasyon, öbürü davet. İkisi farklı iş yapıyor.
+ *
+ * ⚠️ ALTINCI SEKME EKLENMEMELİ. Beş, etiketlerin rahat okunduğu sınır.
+ * Yeni bir özellik gelirse mevcut bir sekmenin İÇİNE alt sekme olarak
+ * konmalı.
+ *
+ * ⚠️ SIRA İLE `START_TAB` AYRI ŞEYLER. Bu dizi sekmelerin ÇİZİLME
+ * sırasını belirler; uygulamanın hangi sekmeyle AÇILDIĞINI App.tsx'teki
+ * `START_TAB` söyler. Artık ikisi de 'discovery' — ama tesadüfen değil,
+ * ayrı ayrı karar verildi.
  */
 export type TabKey =
-  | 'coach'
-  | 'wallet'
-  | 'market'
   | 'discovery'
-  | 'profile';
+  | 'market'
+  | 'league'
+  | 'wallet'
+  | 'coach';
 
-/**
- * ⚠️ ALTINCI SEKME: KocAI — davranış göstergeleri + yapay zekâ.
- *
- * Beş sekmeye bir tane daha eklendi. Bedeli gerçek: her sekmeye ekranın
- * ~%16'sı düşüyor. Etiket bu yüzden kısa ('KocAI', beş harf); uzun bir ad
- * altı sekmenin tamamını daraltırdı.
- *
- * ⚠️ YEDİNCİ SEKME EKLENMEMELİ. Altı, etiketlerin okunabildiği sınır.
- * Yeni bir özellik gelirse mevcut bir sekmenin İÇİNE alt sekme olarak
- * konmalı — nitekim 'Ya alsaydın', çark ve astro tam olarak öyle yapıldı
- * (`DiscoveryScreen`).
- *
- * ⚠️ SIRA DEĞİŞTİ AMA `START_TAB` DEĞİŞMEDİ — VE İKİSİ AYRI ŞEYLER.
- *
- * Bu dizi sekmelerin ÇİZİLME sırasını belirliyor; uygulamanın hangi
- * sekmeyle AÇILDIĞINI `App.tsx`'teki `START_TAB` söylüyor ve o hâlâ
- * 'wallet'. Yani KocAI en solda duruyor ama uygulama Cüzdan'da açılıyor.
- * Karıştırılırsa "diziyi sıraladım, ilk sekme açılır" sanılır; ilişki yok.
- */
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'coach', label: 'KocAI' },
+  { key: 'discovery', label: 'Akış' },
   { key: 'market', label: 'Piyasa' },
-  { key: 'discovery', label: 'Keşfet' },
+  { key: 'league', label: 'Lig' },
   { key: 'wallet', label: 'Cüzdan' },
-  { key: 'profile', label: 'Profil' },
+  { key: 'coach', label: 'KocAI' },
 ];
 
 function WalletIcon({ color }: { color: string }) {
@@ -118,16 +120,12 @@ function CoachIcon({ color }: { color: string }) {
   );
 }
 
-function ProfileIcon({ color }: { color: string }) {
-  return <User size={24} color={color} strokeWidth={2} />;
-}
-
 const ICONS: Record<TabKey, (props: { color: string }) => ReactElement> = {
-  coach: CoachIcon,
-  wallet: WalletIcon,
-  market: MarketIcon,
   discovery: DiscoveryIcon,
-  profile: ProfileIcon,
+  market: MarketIcon,
+  league: LeagueIcon,
+  wallet: WalletIcon,
+  coach: CoachIcon,
 };
 
 export function TabBar({
@@ -226,6 +224,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   indicatorOn: { backgroundColor: colors.accent },
+
   coachIcon: { width: 26, height: 26 },
   label: {
     fontFamily: fonts.medium,
