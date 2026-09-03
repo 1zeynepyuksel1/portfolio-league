@@ -13,6 +13,128 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 47. Kaynak değişmedi, açıklama eklendi — AssetDetailScreen — 3 Eyl 2026
+
+**Karar:** #46'daki tartışmanın sonucu — TCMB (kripto/döviz) ve LBMA fixing
+(altın/gümüş) korundu, Binance'in kendi USDT/TRY'sine ya da PAXG (canlı
+altın) gibi "borsayla eşleşsin" kaynaklarına **geçilmedi**. Gerekçe ölçüldü:
+
+- USDTTRY Binance'te sadece **1 Aralık 2019'a** gidiyor (`curl` ile doğrulandı,
+  `interval=1M&startTime=0` → ilk mum `2019-12-01`) — 2017-2019 arası kripto
+  geçmişi (`Ya Alsaydın`) bu kaynakla kırılırdı.
+- PAXG zaten docs/00'da ölçülüp reddedilmişti (LBMA'ya göre sistematik
+  +%0,44-%0,94, 4/4 örnekte aynı yönde).
+- İkisi de lig sıralamasına (TWR, haftalık) kripto piyasasının kendi
+  oynaklığını sızdırırdı — TCMB'nin durağan, herkese eşit resmi kuru
+  bilerek seçilmişti.
+
+**Değişen tek şey:** [AssetDetailScreen.tsx](../apps/mobile/src/screens/AssetDetailScreen.tsx)'teki
+fiyat bloğuna küçük bir açıklama cümlesi eklendi: *"TL fiyatı TCMB'nin resmi
+kuruyla hesaplanır — borsalardaki anlık fiyattan küçük farklar (~%0,3-0,5)
+olması normaldir."* `kind`'a göre ayrı metin yazılmadı (kripto/döviz/maden
+üçü de aynı TCMB kuruna bağlı; ayrıca `PortfolioScreen`'in `Position`
+tipinde `kind` hiç yok — eklemek sunucu tarafını da değiştirirdi).
+
+⚠️ **Görsel olarak test edilmedi** — mobile `tsc` temiz ama tarayıcıda/
+simülatörde açıp bakmadım. Metro zaten çalışıyor (port 8081), açıp
+kontrol etmen gerekiyor.
+
+---
+
+### 46. TCMB Alış → Satış — Google'la sistematik %0,18 fark — 3 Eyl 2026
+
+**Sebep:** "dolar kuru Google'da 48,31 ken uygulamada 48,22" bildirildi. Aynı anın
+TCMB belgesini çektim (`curl tcmb.gov.tr/kurlar/.../03092026.xml`):
+
+```
+ForexBuying  = 48.2238   ← o ana kadar kullandığımız
+ForexSelling = 48.3107   ← Google'ın 48,31'i ile birebir
+```
+
+[tcmb.ts](../apps/api/src/market/tcmb.ts)'teki `parseRate` daha önce bilerek
+`ForexBuying`'i okuyordu ("hangisi seçilirse seçilsin tutarlı olmak yeterli"
+gerekçesiyle) — ama bu seçim, uygulamanın döviz kurunu Google/XE gibi herkesin
+gördüğü kaynaklardan HER GÜN, SİSTEMATİK olarak ~%0,18 düşük göstermesine yol
+açıyordu. Kullanıcıya "hesap yanlış" izlenimi veriyordu, oysa sadece TCMB'nin
+dört kurundan (alış/satış × döviz/efektif) farklı biri seçilmişti.
+
+**Değişiklik:** `<ForexBuying>` → `<ForexSelling>` (tek satır, `parseRate`
+içinde). `tcmb.test.ts`'teki sahte XML üreticisi de güncellendi: artık
+`ForexSelling` alanına gerçek test değerini yazıyor, `ForexBuying`'e ise
+gerçek TCMB belgesini taklit etmek için sabit bir çöp değer (`1.2345`) —
+ayrıştırıcının artık o alana hiç bakmadığını kanıtlıyor. 15/15 test geçti,
+`npm test` 331/331, canlı sunucuda doğrulandı: USD kuru `48.2238` → `48.3107`.
+
+⚠️ **Bu değişiklik Binance TR farkını KAPATMAZ** — ayrı bir konu, aşağıda.
+
+⚠️ **Aynı oturumda soruldu, kod değişikliği gerekmedi — sadece ölçüldü:**
+- *"Dövizleri/altın-gümüşü daha sık çekelim"* → zaten kriptoyla aynı anda
+  (her 15 sn) çekiliyorlar (`/assets` çıktısında `asOf` damgaları birebir aynı).
+  Kaynağın kendisi (TCMB, LBMA) günde bir(-iki) kez yayımlıyor; daha sık
+  sorman aynı sayıyı tekrar tekrar almak demek. `docs/00-veri-saglayici-dogrulama.md`
+  bunu zaten araştırmış, hibrit bir çözümü bilerek reddetmiş (satır ~189).
+- *"Kripto fiyatı Binance'le tam uyuşmuyor"* → canlı, aynı anda ölçüldü:
+  BTCUSDT karşılaştırmasında fark ~%0,002 (piyasa hareketinden farksız).
+  Binance TR'nin KENDİ BTC/TRY piyasasıyla (ekran görüntüsüyle bildirilen,
+  3.903.511 ₺) aradaki ~%0,25'lik fark ise yapısal: o gerçek bir TRY emir
+  defteri, bizimki BTCUSDT × TCMB kuru ile hesaplanan sentetik bir sayı —
+  kripto-TL çiftleri kendi arz-talebiyle işlem görüyor, TCMB kuru bağımsız.
+  CLAUDE.md'nin kilitli kararı zaten bunu göze almıştı (USDT paritesi tarihsel
+  derinlik için seçildi, Binance TR'nin TL fiyatını birebir tutturmak için değil).
+- **Devamı — ETH ve BNB'de de aynı fark görüldü (~%0,41-0,45), her ikisi de
+  AYNI YÖNDE** (uygulama hep yüksek). Rastgele piyasa gürültüsü olsaydı yön
+  bazen ters dönerdi; hep aynı yönde olması hesabı iki bacağa ayırıp ayrı
+  ayrı doğrulamayı gerektirdi:
+    1. Dolar bacağı: bizim örtük USD fiyatımız (TL ÷ kur) küresel Binance
+       ETHUSDT/BNBUSDT ticker'ıyla aynı anda karşılaştırıldı → fark ~%0,02
+       ve ~%0,002 — gürültü düzeyinde, doğru.
+    2. Kur bacağı: TCMB'nin o anki XML'i tekrar çekildi → `ForexSelling`
+       uygulamanın kullandığı değerle birebir aynı.
+  İki bacak da ayrı ayrı doğru çıktığı için hata bizim tarafta olamaz —
+  iki doğru sayının çarpımı. Kalan ~%0,4, Binance TR'nin düşük hacimli
+  (~350-420M ₺/24s, küresel USDT hacminin yanında küçük) TRY piyasasının
+  "adil değer"in biraz altında işlem görmesinden kaynaklanıyor — düzeltilecek
+  bir kod hatası değil, gözlemlenen bir piyasa mikroyapısı farkı.
+
+---
+
+### 45. TCMB önbelleği hiç çalışmıyordu — modül seviyesine taşındı — 3 Eyl 2026
+
+**Sebep:** "dövizleri ve gümüş/altını daha sık fiyat çekebilecek şekilde düzenleyelim"
+dendi. Önce ölçtüm: `curl localhost:3000/assets` çıktısında **fx ve metal varlıkların
+`asOf` damgası kriptoyla birebir aynıydı** (`17:57:15.169Z`, hepsi) — yani zaten
+her 15 saniyelik cron turunda yazılıyorlar, kripto kadar sık. Daha sık çekmenin
+bir faydası yok çünkü kaynak (TCMB, LBMA) **günde bir kez** yayımlıyor; 15
+saniyede bir sorsan da saatte bir sorsan da aynı günün aynı sayısını alırsın.
+
+**Ama gerçek bir hata bulundu, o düzeltildi:** [tcmb.ts](../apps/api/src/market/tcmb.ts)'teki
+belge önbelleği (`documents` Map) **sınıfın örneğine bağlıydı** (`private readonly`).
+[price-cron.ts](../apps/api/src/market/price-cron.ts)'teki `fetchAndStorePrices()`
+her cron turunda parametresiz çağrılıyor → her turda SIFIRDAN `new TcmbAdapter()`
+→ önbellek bir sonraki turdan önce siliniyordu. Sonuç: kod "günde 1 istek" için
+yazılmıştı ama gerçekte **günde ~5.760 istek** atıyordu (her 15 saniyede TCMB'den
+aynı günün XML'i baştan indiriliyordu). `lbma.ts` bu tuzağa düşmemişti çünkü
+oradaki önbellek zaten modül seviyesindeydi (sınıfın dışında bir `const cache`).
+
+**Düzeltme:** `documents` Map'i sınıfın dışına, modül seviyesine taşıdım —
+`lbma.ts`'teki desenin birebir aynısı. `clearTcmbCache()` eklendi (test için),
+`tcmb.test.ts`'in `afterEach`'ine `clearTcmbCache()` çağrısı eklendi — yoksa
+testler artık kalıcı olan önbelleği birbirinden miras alıp sayıma dayalı
+testleri (`"10 istek atıldı"` gibi) sessizce bozardı.
+
+⚠️ **Bunu okurken not et:** kullanıcı isteği ("daha sık çekelim") ile gerçek
+ihtiyaç (ölçünce çıkan "zaten sık çekiliyor, asıl sorun boşuna tekrar istek"
+bulgusu) FARKLI çıktı. Talebi olduğu gibi uygulamadım — önce `curl` ile ölçtüm,
+öyle karar verdim. `npm test` 331/331, `tsc` temiz.
+
+⚠️ **Kripto/Binance karşılaştırması da bu sırada soruldu, ayrıca not:** anlık
+BTCUSDT (81.053,76 $) ile bizim TL fiyatımızı kurdan geri bölünce (3.908.345,61
+₺ ÷ 48,2238 ≈ 81.041 $) fark **~%0,016** — 15 saniyelik anlık görüntü ile canlı
+fiyat arasındaki normal sapma. Hata değil; WebSocket canlı akış zaten
+CLAUDE.md'de "Reddedilenler" listesinde ("periyodik çekim yeterli").
+
+---
+
 ### 44. Faz 3 — tasarım tutarlılığı, sıfırdan tekrar kuruldu — 3 Eyl 2026
 
 **Değişti:** 22 dosya — `theme.ts` · `components/DesignKit.tsx` (yeni `Segmented`

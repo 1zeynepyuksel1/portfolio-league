@@ -73,23 +73,39 @@ export interface FxRateProvider {
   getUsdTry(date: string): Promise<FxRate>;
 }
 
-export class TcmbAdapter implements FxRateProvider {
-  /**
-   * Gün -> o güne ait XML BELGESİ (yoksa null).
-   *
-   * ⚠️ ÖNBELLEK KURU DEĞİL BELGEYİ TUTUYOR — ve fark önemli.
-   * TCMB tek dosyada bütün para birimlerini yayımlıyor. Önbellek "kod|tarih"
-   * anahtarlı olsaydı 8 döviz için AYNI dosya 8 kez indirilirdi; cron 15
-   * saniyede bir çalıştığı için bu günde ~46.000 gereksiz istek demekti.
-   *
-   * Belgeyi bir kez indirip 8 kez ayrıştırmak, 8 kez indirip 8 kez
-   * ayrıştırmaktan farksız görünür ama ağ maliyeti sekizde bire iner.
-   *
-   * `null` değeri "o gün dosya yok" demek — bu da önbelleğe alınır, yoksa
-   * her hafta sonu sorgusunda cumartesi ve pazar tekrar tekrar sorulur.
-   */
-  private readonly documents = new Map<string, string | null>();
+/**
+ * Gün -> o güne ait XML BELGESİ (yoksa null).
+ *
+ * ⚠️ ÖNBELLEK KURU DEĞİL BELGEYİ TUTUYOR — ve fark önemli.
+ * TCMB tek dosyada bütün para birimlerini yayımlıyor. Önbellek "kod|tarih"
+ * anahtarlı olsaydı 8 döviz için AYNI dosya 8 kez indirilirdi; cron 15
+ * saniyede bir çalıştığı için bu günde ~46.000 gereksiz istek demekti.
+ *
+ * Belgeyi bir kez indirip 8 kez ayrıştırmak, 8 kez indirip 8 kez
+ * ayrıştırmaktan farksız görünür ama ağ maliyeti sekizde bire iner.
+ *
+ * `null` değeri "o gün dosya yok" demek — bu da önbelleğe alınır, yoksa
+ * her hafta sonu sorgusunda cumartesi ve pazar tekrar tekrar sorulur.
+ *
+ * ⚠️ MODÜL DÜZEYİNDE — SINIFIN İÇİNDE DEĞİL, VE BU BİLEREK ÖYLE.
+ * Eskiden `private readonly documents` idi, yani `TcmbAdapter` ÖRNEĞİNE
+ * bağlıydı. `price-cron.ts` her cron turunda `fetchAndStorePrices()`'ı
+ * parametresiz çağırıyor — bu da her turda SIFIRDAN bir `new TcmbAdapter()`
+ * demek. Sonuç: önbellek bir sonraki turdan önce zaten çöpe gidiyordu ve
+ * yukarıdaki "günde 1 istek" hesabı hiç gerçekleşmiyordu — her 15 saniyede
+ * TCMB'den AYNI günün belgesi baştan indiriliyordu (günde ~5.760 istek).
+ * LBMA tarafında (lbma.ts) önbellek zaten modül seviyesindeydi, TCMB'de
+ * unutulmuştu. Modüle taşımak, kaç `TcmbAdapter` örneği oluşturulursa
+ * oluşturulsun önbelleğin süreç ömrü boyunca paylaşılmasını sağlıyor.
+ */
+const documents = new Map<string, string | null>();
 
+/** Test için: önbelleği boşaltır. Aksi hâlde testler birbirinin önbelleğini görür. */
+export function clearTcmbCache(): void {
+  documents.clear();
+}
+
+export class TcmbAdapter implements FxRateProvider {
   async getRate(code: string, date: string): Promise<FxRate> {
     if (FX_UNITS[code] === undefined) {
       throw new MarketDataError(`Desteklenmeyen para birimi: ${code}`, "tcmb");
@@ -129,11 +145,11 @@ export class TcmbAdapter implements FxRateProvider {
   }
 
   private async documentOf(date: string): Promise<string | null> {
-    const cached = this.documents.get(date);
+    const cached = documents.get(date);
     if (cached !== undefined) return cached;
 
     const xml = await fetchDay(date);
-    this.documents.set(date, xml);
+    documents.set(date, xml);
     return xml;
   }
 }
@@ -171,19 +187,32 @@ async function fetchDay(date: string): Promise<string | null> {
 }
 
 /**
- * XML'den bir para biriminin alış kurunu çıkarır — BİR BİRİM başına.
+ * XML'den bir para biriminin satış kurunu çıkarır — BİR BİRİM başına.
  *
  * Yapı sabit olduğu için XML ayrıştırıcı bağımlılığı eklenmedi, hedefli
  * düzenli ifade kullanıldı.
  *
- * KARAR: ForexBuying (döviz alış) kullanılıyor. TCMB dört kur yayımlıyor
- * (alış/satış x döviz/efektif). Hangisi seçilirse seçilsin tutarlı olmak
- * yeterli; ForexBuying rapordaki doğrulamada da kullanılan kur.
+ * KARAR: ForexSelling (döviz satış), ForexBuying (döviz alış) DEĞİL —
+ * 3 Eylül 2026'da değiştirildi. TCMB dört kur yayımlıyor (alış/satış x
+ * döviz/efektif); ikisi arasında birkaç on binde birlik sabit bir marj var
+ * (bugün USD için 48,2238 / 48,3107 — fark ~%0,18).
+ *
+ * ⚠️ NEDEN ÖNEMLİ: Alış kullanılırken uygulamadaki dolar kuru Google/XE
+ * gibi genel kullanılan kaynaklardan HER GÜN, SİSTEMATİK OLARAK düşük
+ * çıkıyordu (Batuhan'ın bildirdiği örnek: Google 48,31, uygulama 48,22) —
+ * kullanıcıya "uygulama yanlış hesaplıyor" izlenimi veren, ama aslında
+ * sadece FARKLI bir resmî kur seçilmiş olmaktan kaynaklanan bir sapmaydı.
+ * ForexSelling, Google'ın gösterdiği sayıya çok daha yakın (bkz. tcmb.test.ts).
+ *
+ * ⚠️ BU DEĞİŞİKLİK BAŞKA BİR SORUNU ÇÖZMEZ: Binance TR'nin kendi BTC/TRY
+ * piyasası (gerçek emir defteri) ile bizim BTCUSDT × TCMB kuru hesabımız
+ * yine de birebir tutmaz — o fark yapısal (kripto-TL çiftleri kendi arz
+ * talebiyle işlem görüyor, TCMB kuru sadece BİZİM çevrim katmanımızda).
  *
  * ⚠️ ÖNCE BLOK, SONRA ALAN — ve bu sıra bir hata sınıfını kapatıyor.
- * Eski hâli `CurrencyCode="USD"[\s\S]*?<ForexBuying>` diye tek seferde
- * arıyordu. `[\s\S]*?` belge sonuna kadar gidebildiği için, aradığımız
- * para biriminin ForexBuying alanı O GÜN BOŞSA (`<ForexBuying/>` — nadir
+ * Eski hâli `CurrencyCode="USD"[\s\S]*?<ForexSelling>` diye tek seferde
+ * arasaydı, `[\s\S]*?` belge sonuna kadar gidebildiği için, aradığımız
+ * para biriminin ForexSelling alanı O GÜN BOŞSA (`<ForexSelling/>` — nadir
  * ama oluyor) desen SONRAKİ para biriminin kurunu yakalardı. Hata vermez,
  * makul bir sayı döner, yanlıştır.
  *
@@ -207,10 +236,10 @@ export function parseRate(xml: string, code: string, date: string): Price {
     );
   }
 
-  const raw = block.match(/<ForexBuying>([\d.]+)<\/ForexBuying>/)?.[1];
+  const raw = block.match(/<ForexSelling>([\d.]+)<\/ForexSelling>/)?.[1];
   if (!raw) {
     throw new MarketDataError(
-      `${date} tarihli TCMB verisinde ${code} alış kuru boş`,
+      `${date} tarihli TCMB verisinde ${code} satış kuru boş`,
       "tcmb",
     );
   }

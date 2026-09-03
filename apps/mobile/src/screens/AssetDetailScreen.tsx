@@ -333,6 +333,27 @@ export function AssetDetailScreen({ symbol, name, onClose, onTrade }: Props) {
                 : formatRelativeTime(last.ts)}
             </Text>
           ) : null}
+
+          {/*
+            ⚠️ NEDEN VAR — Batuhan'ın bir oturumda üç kez sorduğu soru:
+            "Binance'te / Google'da farklı sayı görüyorum, bug mu bu?"
+            Değil — TL fiyatı HER ZAMAN TCMB'nin resmi kuruyla hesaplanıyor
+            (kripto ve maden USD → TL bu kurla çevriliyor, döviz varlıkları
+            zaten bu kurun kendisi). Binance'in kendi USDT/TRY piyasası ya
+            da Google'ın gösterdiği piyasa ortalaması FARKLI bir referans —
+            "yanlış" değil, ölçtüğü şey farklı (bkz. docs/batuhan.md #46).
+
+            ⚠️ KIND'A GÖRE DALLANMADI — bilerek. Kripto/döviz/maden'in
+            üçü de aynı TCMB kuruna bağlı; ayrı metin yazmak `kind` alanını
+            App.tsx → MarketScreen/PortfolioScreen → bu ekrana kadar
+            taşımayı gerektirirdi (PortfolioScreen'in `Position` tipinde
+            `kind` hiç yok — eklemek sunucu tarafını da değiştirirdi).
+            Tek, genel bir cümle üç durumu da doğru şekilde kapsıyor.
+          */}
+          <Text style={styles.disclosure}>
+            TL fiyatı TCMB'nin resmi kuruyla hesaplanır — borsalardaki
+            anlık fiyattan küçük farklar (~%0,3-0,5) olması normaldir.
+          </Text>
         </View>
 
         {/* Grafik */}
@@ -590,6 +611,12 @@ const styles = StyleSheet.create({
   change: { fontSize: 16, fontFamily: fonts.semibold, marginTop: 2 },
   changeLabel: { color: colors.inkFaint, fontFamily: fonts.regular, fontSize: 14 },
   asOf: { color: colors.inkFaint, fontSize: 12, marginTop: 2 },
+  disclosure: {
+    color: colors.inkFaint,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 6,
+  },
 
   chartBox: { marginVertical: 8 },
   chartPlaceholder: {

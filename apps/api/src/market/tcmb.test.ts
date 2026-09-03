@@ -1,15 +1,22 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { TcmbAdapter } from "./tcmb.js";
+import { TcmbAdapter, clearTcmbCache } from "./tcmb.js";
 import { toPrice } from "../lib/money.js";
 
 type FakeCurrency = {
   code: string;
   unit: number;
-  /** null -> `<ForexBuying/>`, yani o gün o kur boş yayımlanmış. */
-  buying: string | null;
+  /** null -> `<ForexSelling/>`, yani o gün o kur boş yayımlanmış. */
+  sell: string | null;
 };
 
-/** Çok para birimli TCMB yanıtı üretir. */
+/**
+ * Çok para birimli TCMB yanıtı üretir.
+ *
+ * ⚠️ `ForexBuying` de yazılıyor ama SAHTE bir sayıyla (`1.2345`) — tcmb.ts
+ * artık `ForexSelling`'i okuyor, `ForexBuying` alanının varlığı/yokluğu
+ * ayrıştırıcıyı etkilememeli. Testte tutulmasının tek sebebi gerçek TCMB
+ * belgesini taklit etmek: gerçek yanıt her zaman ikisini birden içeriyor.
+ */
 function xmlOf(currencies: FakeCurrency[]): string {
   const body = currencies
     .map(
@@ -17,8 +24,8 @@ function xmlOf(currencies: FakeCurrency[]): string {
   <Currency CrossOrder="0" Kod="${c.code}" CurrencyCode="${c.code}">
     <Unit>${c.unit}</Unit>
     <Isim>TEST</Isim>
-    ${c.buying === null ? "<ForexBuying/>" : `<ForexBuying>${c.buying}</ForexBuying>`}
-    <ForexSelling>9.9999</ForexSelling>
+    <ForexBuying>1.2345</ForexBuying>
+    ${c.sell === null ? "<ForexSelling/>" : `<ForexSelling>${c.sell}</ForexSelling>`}
   </Currency>`,
     )
     .join("");
@@ -30,7 +37,7 @@ function xmlOf(currencies: FakeCurrency[]): string {
 
 /** Tek USD'li kısayol — eski testler bunu kullanıyor. */
 function xmlWith(rate: string): string {
-  return xmlOf([{ code: "USD", unit: 1, buying: rate }]);
+  return xmlOf([{ code: "USD", unit: 1, sell: rate }]);
 }
 
 /**
@@ -51,8 +58,16 @@ function mockFetch(rates: Record<string, string>) {
 }
 
 // Her testten sonra gerçek fetch'i geri koy, yoksa testler birbirini etkiler.
+//
+// ⚠️ `clearTcmbCache()` DE ŞART — önbellek artık modül seviyesinde (tcmb.ts),
+// `new TcmbAdapter()` yazmak artık boş bir önbellek getirmiyor. Bu satır
+// olmadan örneğin "hiç kur bulunamazsa hata fırlatır" testi, kendisinden
+// önce aynı tarihi sorgulayan bir testin önbelleğini görüp fetch'i hiç
+// çağırmaz — "10 istek atıldı" gibi sayıma dayalı testler sessizce yanlış
+// (ya da yanlışlıkla doğru) sonuç verir.
 afterEach(() => {
   vi.unstubAllGlobals();
+  clearTcmbCache();
 });
 
 describe("TcmbAdapter", () => {
@@ -156,9 +171,9 @@ describe("TcmbAdapter", () => {
 
 describe("TcmbAdapter — çok para birimi", () => {
   const DOC = xmlOf([
-    { code: "USD", unit: 1, buying: "29.4382" },
-    { code: "EUR", unit: 1, buying: "32.5739" },
-    { code: "JPY", unit: 100, buying: "20.7467" },
+    { code: "USD", unit: 1, sell: "29.4382" },
+    { code: "EUR", unit: 1, sell: "32.5739" },
+    { code: "JPY", unit: 100, sell: "20.7467" },
   ]);
 
   function serve(xml: string) {
@@ -202,7 +217,7 @@ describe("TcmbAdapter — çok para birimi", () => {
   it("belgedeki birim tablomuzla uyuşmazsa hata fırlatır", async () => {
     vi.stubGlobal(
       "fetch",
-      serve(xmlOf([{ code: "JPY", unit: 1, buying: "0.2074" }])),
+      serve(xmlOf([{ code: "JPY", unit: 1, sell: "0.2074" }])),
     );
 
     await expect(
@@ -212,7 +227,7 @@ describe("TcmbAdapter — çok para birimi", () => {
 
   /**
    * ⚠️ ESKİ AYRIŞTIRICININ GERÇEK HATASI.
-   * `CurrencyCode="USD"[\s\S]*?<ForexBuying>` deseni belge sonuna kadar
+   * `CurrencyCode="USD"[\s\S]*?<ForexSelling>` deseni belge sonuna kadar
    * gidebiliyordu. USD'nin kuru o gün boşsa desen SONRAKİ para biriminin
    * kurunu yakalar, hata vermez, yanlış sayı döndürürdü.
    */
@@ -221,15 +236,15 @@ describe("TcmbAdapter — çok para birimi", () => {
       "fetch",
       serve(
         xmlOf([
-          { code: "USD", unit: 1, buying: null }, // boş
-          { code: "EUR", unit: 1, buying: "32.5739" },
+          { code: "USD", unit: 1, sell: null }, // boş
+          { code: "EUR", unit: 1, sell: "32.5739" },
         ]),
       ),
     );
 
     await expect(
       new TcmbAdapter().getRate("USD", "2024-01-02"),
-    ).rejects.toThrow(/alış kuru boş/);
+    ).rejects.toThrow(/satış kuru boş/);
   });
 
   /**
