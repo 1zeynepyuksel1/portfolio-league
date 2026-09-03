@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, Alert, SafeAreaView, KeyboardAvoidingView, Platform, ScrollView, DeviceEventEmitter } from 'react-native';
-import { X, Share2, Globe, Users } from 'lucide-react-native';
+import { X, Share2, Globe, Users , CheckCircle} from 'lucide-react-native';
 import { apiFetch } from '../api/client';
 import { colors, fonts } from '../theme';
 import { getPreference } from '../lib/storage';
@@ -11,7 +11,8 @@ export type ShareScope =
   | { type: 'portfolio', period: 'week' | 'month' | 'custom' | 'all' }
   | { type: 'horoscope', content: string, assetName: string }
   | { type: 'wheel', prizeText: string }
-  | { type: 'market_asset', assetKey: string, assetName: string, changePercent: number };
+  | { type: 'market_asset', assetKey: string, assetName: string, changePercent: number }
+  | { type: 'what_if', assetName: string, startDate: string, nominalMultiple: number, realMultiple: number, initialTry: string, finalTry: string };
 
 type PreviewData = any;
 
@@ -28,6 +29,7 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
   useEffect(() => { apiFetch('/users/me').then((res: any) => setUser(res.profile)).catch(() => {}); }, []);
   const [loading, setLoading] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [caption, setCaption] = useState('');
     const [errorText, setErrorText] = useState('');
@@ -68,6 +70,18 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
   }, [visible, scope]);
 
   async function loadPreview() {
+    if (scope?.type === 'what_if') {
+      setPreview({
+        assetName: scope.assetName,
+        startDate: scope.startDate,
+        nominalMultiple: scope.nominalMultiple,
+        realMultiple: scope.realMultiple,
+        initialTry: scope.initialTry,
+        finalTry: scope.finalTry
+      });
+      setLoading(false);
+      return;
+    }
     if (scope?.type === 'horoscope') {
       setPreview({
         fortune_content: scope.content,
@@ -123,6 +137,7 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
       let targetKey = null;
       let periodParams = null;
       let clientPayload = null;
+        
 
       if (scope.type === 'single_asset') {
         type = 'pnl_share';
@@ -131,12 +146,21 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
         type = 'pnl_share';
         periodParams = { period: scope.period };
       } else if (scope.type === 'market_asset') {
-        type = 'pnl_share';
-        targetKey = scope.assetKey;
-        clientPayload = preview;
-      } else {
-        type = 'pnl_share';
-      }
+          type = 'pnl_share';
+          targetKey = scope.assetKey;
+          clientPayload = preview;
+        } else if (scope.type === 'what_if') {
+          type = 'what_if_share';
+          clientPayload = preview;
+        } else if (scope.type === 'wheel') {
+          type = 'wheel_share';
+          clientPayload = preview;
+        } else if (scope.type === 'horoscope') {
+          type = 'horoscope_share';
+          clientPayload = preview;
+        } else {
+          type = 'pnl_share';
+        }
 
       await apiFetch('/posts', {
         method: 'POST',
@@ -151,9 +175,8 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
         })
       });
 
-      Alert.alert('Başarılı', 'Gönderin paylaşıldı!');
       DeviceEventEmitter.emit('refreshProfile');
-      onSuccess();
+      setShowSuccessPopup(true);
     } catch (err: any) {
       setErrorText(err.message || 'Gönderi paylaşılamadı.');
       if (Platform.OS === 'web') alert(err.message || 'Gönderi paylaşılamadı.'); else Alert.alert('Paylaşım Hatası', err.message || 'Gönderi paylaşılamadı.');
@@ -163,7 +186,7 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
   }
 
   const postObj = {
-    type: scope?.type === 'horoscope' ? 'horoscope_share' : scope?.type === 'wheel' ? 'wheel_share' : 'pnl_share',
+    type: scope?.type === 'what_if' ? 'what_if_share' : scope?.type === 'horoscope' ? 'horoscope_share' : scope?.type === 'wheel' ? 'wheel_share' : 'pnl_share',
     scope: scope?.type === 'single_asset' || scope?.type === 'portfolio' ? scope.type : scope?.type === 'market_asset' ? 'single_asset' : null,
     payload: preview,
     caption,
@@ -173,10 +196,30 @@ export function SharePostModal({ visible, scope, onClose, onSuccess, setScope }:
     <View style={[{position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, elevation: 999, backgroundColor: colors.surface}, !visible && {display: 'none'}]}>
       <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <SafeAreaView style={styles.container}>
+
+        {showSuccessPopup ? (
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', padding: 24, zIndex: 999 }]}> 
+            <CheckCircle size={80} color={colors.gain} style={{ marginBottom: 24 }} />
+            <Text style={{ fontFamily: fonts.bold, fontSize: 24, color: colors.ink, marginBottom: 12 }}>Gönderin Paylaşıldı!</Text>
+            <Text style={{ fontFamily: fonts.regular, fontSize: 16, color: colors.inkMuted, textAlign: 'center', marginBottom: 32 }}>Tüm arkadaşların ve ligdeki rakiplerin artık bunu görebilir.</Text>
+            
+            <TouchableOpacity 
+              style={[styles.shareBtn, { width: '100%' }]} 
+              onPress={() => {
+                setShowSuccessPopup(false);
+                onSuccess();
+                DeviceEventEmitter.emit('switchTab', 'profile');
+              }}
+            >
+              <Text style={styles.shareBtnText}>Gönderini Gör</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} hitSlop={12}><X size={24} color={colors.ink} /></TouchableOpacity>
             <Text style={styles.title}>
-              {scope?.type === 'horoscope' ? 'Falı Paylaş' : scope?.type === 'wheel' ? 'Ödülü Paylaş' : 'Kâr/Zarar Paylaş'}
+              {scope?.type === 'what_if' ? 'Zaman Yolculuğu' : scope?.type === 'horoscope' ? 'Falı Paylaş' : scope?.type === 'wheel' ? 'Ödülü Paylaş' : 'Kâr/Zarar Paylaş'}
             </Text>
             <View style={{ width: 24 }} />
           </View>

@@ -126,9 +126,9 @@ export function useGoogleSignIn({ onSuccess, onError }: Options) {
     pakete gömülüyor ve paketi açan herkes okuyabiliyor.
   */
   const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'missing',
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || 'missing',
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || 'missing',
 
     /*
       ⚠️ WEB'DE BU SATIR OLMADAN `id_token` HİÇ GELMİYOR — VE HATA
@@ -238,7 +238,7 @@ export function useGoogleSignIn({ onSuccess, onError }: Options) {
      * ⚠️ `request === null` = hiçbir istemci kimliği yapılandırılmamış.
      * Ekran buna bakıp düğmeye ne yaptıracağına karar veriyor.
      */
-    available: request !== null,
+    available: !!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID && request !== null,
     busy,
     signIn,
   };

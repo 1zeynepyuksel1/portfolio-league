@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,
+  DeviceEventEmitter,
   FlatList,
   RefreshControl,
   ScrollView,
@@ -115,6 +116,16 @@ export function MarketScreen({ onSelectAsset }: Props = {}) {
   */
   const [view, setView] = useState<'market' | 'whatif'>('market');
   const [error, setError] = useState<string | null>(null);
+
+  /*
+    Paylaş menüsündeki "Ya Alsaydın" Keşfet alt sekmesine gidiyordu.
+    Alsaydın Piyasa'ya taşınınca o olay dinleyicisiz kaldı; menü
+    Piyasa'ya geçip bu olayı basıyor.
+  */
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('openWhatIf', () => setView('whatif'));
+    return () => sub.remove();
+  }, []);
 
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState<KindKey>('all');

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, SafeAreaView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, SafeAreaView, DeviceEventEmitter } from 'react-native';
 import { SharePostModal, ShareScope } from './SharePostModal';
 import { AssetLogo } from './AssetLogo';
 import { TrendingUp, TrendingDown, Coins, Sparkles, X, ChevronRight, Calendar } from 'lucide-react-native';
@@ -110,6 +110,26 @@ export function GlobalShareMenu({ visible, onClose, } : { visible: boolean, onCl
                     ) : (
                       <Text style={styles.optionSub}>Herhangi bir varlığın anlık değişimini paylaş</Text>
                     )}
+                  </View>
+                  <ChevronRight size={20} color={colors.inkMuted} />
+                </TouchableOpacity>
+                {/* WHAT IF BUTTON */}
+                <TouchableOpacity 
+                  style={styles.optionCard}
+                  onPress={() => {
+                    onClose();
+                    DeviceEventEmitter.emit('switchTab', 'market');
+                    setTimeout(() => {
+                      DeviceEventEmitter.emit('openWhatIf');
+                    }, 100);
+                  }}
+                >
+                  <View style={[styles.iconBox, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
+                    <Text style={{ fontSize: 24 }}>🕰️</Text>
+                  </View>
+                  <View style={styles.optionTexts}>
+                    <Text style={styles.optionTitle}>Zaman Yolculuğu (Ya Alsaydın)</Text>
+                    <Text style={styles.optionSub}>Geçmişteki kaçırdığın fırsatları hesapla ve paylaş</Text>
                   </View>
                   <ChevronRight size={20} color={colors.inkMuted} />
                 </TouchableOpacity>
