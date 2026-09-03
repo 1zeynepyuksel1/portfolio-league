@@ -42,12 +42,22 @@ export interface PositionInput {
    */
   price: Price | null;
   asOf: Date | null;
+  /**
+   * Varlık türü — 'crypto' | 'fx' | 'metal' | 'stock'.
+   *
+   * ⚠️ HESAPLAMADA KULLANILMIYOR, TAŞINIYOR. Değer hesabı türe
+   * bakmıyor; ama uç noktanın "bu varlık şu an işlem görür mü"
+   * diyebilmesi için türün buraya kadar gelmesi gerekiyor. Aksi
+   * hâlde router ikinci bir sorgu atmak zorunda kalırdı.
+   */
+  kind: string;
 }
 
 /** Değeri hesaplanmış pozisyon. */
 export interface PositionValue {
   symbol: string;
   name: string;
+  kind: string;
   quantity: Amount;
   price: Price | null;
   /** miktar × fiyat. Fiyat yoksa null. */
@@ -135,6 +145,7 @@ export function calculatePortfolio(
   const positions: PositionValue[] = valued.map(({ input, valueCents }) => ({
     symbol: input.symbol,
     name: input.name,
+    kind: input.kind,
     quantity: input.quantity,
     price: input.price,
     valueCents,

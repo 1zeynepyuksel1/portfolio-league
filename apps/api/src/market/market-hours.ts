@@ -194,3 +194,25 @@ export function describeNextSessionOpen(at: Date = new Date()): string {
 
   return `Piyasa kapalı. Açılış: ${formatted}`;
 }
+
+/**
+ * Bu varlık ŞU AN işlem görebilir mi?
+ *
+ * ⚠️ KURAL ÜÇÜNCÜ KEZ YAZILMASIN DİYE BURAYA ALINDI.
+ *
+ * `market/router.ts` şunu yazıyordu:
+ *
+ *     tradable: asset.kind === "stock" ? isRegularSessionOpen() : true
+ *
+ * Aynı satırı portföy ucuna da yazmak gerekiyordu. İki kopya, bir gün
+ * ayrışır: BIST eklendiğinde ya da kripto bakım moduna alındığında
+ * biri güncellenir, öteki kalır — ve fark hiçbir yerde hata vermez,
+ * yalnızca bir ekran "piyasa kapalı" derken öteki "15 sa" der.
+ *
+ * ⚠️ KRİPTO/DÖVİZ/MADEN NEDEN HEP `true`: kripto 7/24 açık; döviz ve
+ * madende fiyat hafta sonu yayımlanmasa da son kur geçerli sayılıyor
+ * (forward-fill, bkz. CLAUDE.md). Yalnızca borsanın SEANSI var.
+ */
+export function isTradableNow(kind: string, at: Date = new Date()): boolean {
+  return kind === 'stock' ? isRegularSessionOpen(at) : true;
+}

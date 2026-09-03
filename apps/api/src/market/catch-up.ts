@@ -82,7 +82,29 @@ const MIN_GAP_MS = 60 * 60 * 1000;
 const MAX_GAP_MS = 30 * 24 * 60 * 60 * 1000; // 30 gün
 
 /** Delik taraması bu kadar geriye bakıyor. */
+/**
+ * Delik taraması varsayılan olarak bu kadar geriye bakar.
+ *
+ * ⚠️ AÇILIŞ İÇİN GENİŞ OLMAK ZORUNDA: sunucu üç gün mü iki hafta mı
+ * kapalı kaldı bilmiyoruz, o yüzden geniş bakmak gerekiyor.
+ *
+ * ⚠️ AMA PERİYODİK ÇAĞRI İÇİN İSRAF. Açılışta 30 gün zaten tarandı ve
+ * dolduruldu; geçmiş bir daha değişmiyor. Saatlik çağrının cevaplaması
+ * gereken tek soru "son bir saatte delik açıldı mı?".
+ *
+ * Ölçüldü (602 bin satırlık tabloda):
+ *   30 gün ->  ~1.700.000 satır okur  ->  322 ms
+ *    6 saat ->     ~14.000 satır okur ->  2,3 ms
+ *
+ * Aynı iş, 140 kat ucuz. O yüzden pencere artık PARAMETRE.
+ */
 const LOOKBACK_DAYS = 30;
+
+/** Periyodik yakalama penceresi — saatlik çağrı için fazlasıyla yeterli. */
+const PERIODIC_LOOKBACK_DAYS = 0.25; // 6 saat
+
+/** Periyodik yakalama ne sıklıkla çalışıyor. */
+const PERIODIC_INTERVAL_MS = 60 * 60 * 1000; // 1 saat
 
 /**
  * Boşluğun büyüklüğüne göre mum aralığı.
@@ -213,14 +235,18 @@ interface Gap {
  * aramak hem yavaş hem anlamsız; eski veri zaten günlük çözünürlükte
  * ve `price-backfill.ts`'in işi.
  */
-async function findGaps(assetId: string, now: number): Promise<Gap[]> {
+async function findGaps(
+  assetId: string,
+  now: number,
+  lookbackDays: number = LOOKBACK_DAYS,
+): Promise<Gap[]> {
   const rows = await db.execute<{ onceki: string; sonraki: string }>(sql`
     SELECT onceki::text AS onceki, ts::text AS sonraki
     FROM (
       SELECT ts, LAG(ts) OVER (ORDER BY ts) AS onceki
       FROM price_history
       WHERE asset_id = ${assetId}
-        AND ts > now() - make_interval(days => ${LOOKBACK_DAYS})
+        AND ts > now() - make_interval(secs => ${Math.round(lookbackDays * 86400)})
     ) t
     WHERE onceki IS NOT NULL
       AND ts - onceki > make_interval(secs => ${MIN_GAP_MS / 1000})
@@ -267,6 +293,7 @@ function toUtcDate(text: string): Date {
  */
 export async function catchUpPrices(
   market: MarketDataProvider = new BinanceAdapter(),
+  lookbackDays: number = LOOKBACK_DAYS,
 ): Promise<CatchUpResult> {
   const assets = await listActiveAssets();
   const result: CatchUpResult = {
@@ -287,7 +314,7 @@ export async function catchUpPrices(
       Aynı desen `price-cron.ts`'te de var ve aynı sebeple.
     */
     try {
-      const gaps = await findGaps(asset.id, now);
+      const gaps = await findGaps(asset.id, now, lookbackDays);
 
       if (gaps.length === 0) {
         result.skipped.push(`${asset.symbol} (delik yok)`);
@@ -388,4 +415,81 @@ export async function catchUpPrices(
   }
 
   return result;
+}
+
+/**
+ * Periyodik yakalama — saatte bir, dar pencereyle.
+ *
+ * ⚠️ NEDEN VAR: 15 saniyelik cron yalnızca sunucu ayaktayken yazıyor.
+ * Ağ birkaç saat koparsa delik açılıyor ve `catchUpPrices` yalnızca
+ * AÇILIŞTA çalıştığı için o delik, sunucu yeniden başlatılana kadar
+ * duruyordu.
+ *
+ * Ölçülen sonuç: 1 günlük grafikte 288 nokta yerine 49 nokta, aralarında
+ * 60 dakikalık boşluklar. Grafik iki nokta arasına düz çizgi çekiyor —
+ * yani "fiyat bu bir saatte düz gitti" diyor. Bilmediğimiz bir şeyi
+ * iddia ediyor.
+ *
+ * ⚠️ ASIL KAZANÇ ÇÖZÜNÜRLÜKTE, DOLDURMADA DEĞİL. `candleFor()` delik
+ * 12 saati aşarsa saatlik mum kullanıyor. Delik hiç 12 saati aşmazsa
+ * her zaman 5 dakikalık mum kullanılıyor — yani 12 kat yoğun veri.
+ *
+ *   şimdi:  delik 23 saat -> 1h mum -> saatte 1 nokta
+ *   sonra:  delik  1 saat -> 5m mum -> 5 dakikada 1 nokta
+ *
+ * ⚠️ DELİK YOKSA AĞA ÇIKMIYOR. Cron düzgün çalışırken 1 saatlik eşiği
+ * aşan boşluk olmuyor; tarama 0 delik buluyor ve Binance'e hiç istek
+ * gitmiyor. Maliyet yalnızca 2,3 ms'lik veritabanı taraması.
+ *
+ * ⚠️ ÖNCEKİ TUR BİTMEDEN YENİSİ BAŞLAMIYOR. Bir tur uzun sürerse
+ * (çok delik, yavaş ağ) iki tur aynı deliği aynı anda doldurmaya
+ * kalkar; ikisi de aynı `ts` değerini yazar ve PK çakışır. Boşuna
+ * istek. Aynı bayrak deseni `scheduler.ts`'te de var.
+ */
+let periyodikCalisiyor = false;
+
+export function startCatchUpCron(): NodeJS.Timeout {
+  const timer = setInterval(() => {
+    void (async () => {
+      if (periyodikCalisiyor) {
+        console.warn('[catch-up] önceki tur sürüyor, bu tur atlandı');
+        return;
+      }
+
+      periyodikCalisiyor = true;
+      try {
+        const r = await catchUpPrices(new BinanceAdapter(), PERIODIC_LOOKBACK_DAYS);
+
+        /*
+          ⚠️ YALNIZCA İŞ YAPILDIYSA LOG. Her saat "0 satır yazıldı"
+          basmak, log'u gerçekten önemli satırların görünmediği bir
+          gürültüye çevirir.
+        */
+        if (r.written > 0) {
+          console.log(
+            `[catch-up] periyodik: ${r.written} satır yazıldı, ` +
+              `${r.filled.length} delik dolduruldu`,
+          );
+        }
+        if (r.failed.length > 0) {
+          console.warn(`[catch-up] periyodik başarısız: ${r.failed.join(', ')}`);
+        }
+      } catch (error) {
+        /*
+          ⚠️ EN DIŞ KATMAN. Buradan kaçan hata yakalanmamış promise
+          reddi olur ve Node sürecini düşürebilir — cron API sunucusuyla
+          aynı süreçte çalışıyor, yani tüm uygulama çöker.
+        */
+        console.error(
+          '[catch-up] periyodik tur tamamen başarısız:',
+          error instanceof Error ? error.message : error,
+        );
+      } finally {
+        periyodikCalisiyor = false;
+      }
+    })();
+  }, PERIODIC_INTERVAL_MS);
+
+  console.log('[catch-up] periyodik yakalama başladı, aralık: 1 saat');
+  return timer;
 }

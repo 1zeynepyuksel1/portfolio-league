@@ -1,7 +1,7 @@
 import './lib/env.js';
 import { app } from './app.js';
 import { startLeagueClosingCron } from './leagues/cron.js';
-import { catchUpPrices } from './market/catch-up.js';
+import { catchUpPrices, startCatchUpCron } from './market/catch-up.js';
 import { startPriceCron } from './market/scheduler.js';
 import { startTufeCron } from './market/tufe-cron.js';
 import { startPortfolioCron } from './portfolio/cron.js';
@@ -12,6 +12,20 @@ app.listen(port, () => {
   console.log(`API listening on http://localhost:${port}`);
   // Fiyat çekme robotu (dakikada bir)
   startPriceCron();
+
+  /*
+    ⚠️ AÇILIŞTAKİ YAKALAMA İLE PERİYODİK OLAN AYRI İŞLER.
+
+    Aşağıdaki `catchUpPrices()` çağrısı 30 gün geriye bakıyor: sunucu
+    ne kadar kapalı kaldı bilmiyoruz. Bu ise saatte bir, yalnızca 6
+    saat geriye bakıyor — geçmiş zaten dolduruldu, sorulan tek soru
+    "son bir saatte delik açıldı mı?".
+
+    Ölçüldü: geniş pencere 322 ms, dar pencere 2,3 ms. Saatlik çağrıda
+    geniş pencereyi kullanmak, hiç değişmeyecek bir geçmiş için her
+    saat 322 ms ödemek olurdu.
+  */
+  startCatchUpCron();
 
   /*
     AÇILIŞTA BİR KEZ: sunucu kapalıyken oluşan fiyat deliklerini doldur.

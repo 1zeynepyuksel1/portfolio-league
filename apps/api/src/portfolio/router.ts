@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import { isTradableNow } from '../market/market-hours.js';
 import { requireAccessToken } from '../auth/middleware.js';
 import { AMOUNT_SCALE, PRICE_SCALE, formatScaled } from '../lib/money.js';
 import { PortfolioNotFoundError, getPortfolio } from './service.js';
-import { calculateTwrForUser } from '../leagues/twr-engine.js';
+import { calculateTwrForUser, calculateTwrForPeriod } from '../leagues/twr-engine.js';
+import { divRound } from '../lib/money.js';
 import { centsTryToUsd, parseCurrency, tryToUsd } from '../lib/fx.js';
 import { latestUsdTryRate, findAssetIdBySymbol } from '../market/repository.js';
 import { toPrice } from '../lib/money.js';
@@ -46,6 +48,23 @@ portfolioRouter.get('/history', requireAccessToken, async (request, response) =>
     const since = startOf(range as any, new Date());
     const history = await getPortfolioHistory(userId, since, usd?.id ?? null);
 
+    /*
+      ARALIĞA GÖRE GETİRİ — ekrandaki büyük yüzde bunu kullanıyor.
+
+      ⚠️ NEDEN BURADA, `/portfolio`'DA DEĞİL. Aralığı bilen tek uç bu:
+      `since` zaten hesaplanmış durumda. `/portfolio`'ya `range`
+      parametresi eklemek, aynı tarihi iki ayrı yerde hesaplamak
+      demekti — ve ikisi bir gün ayrışırdı.
+
+      ⚠️ `since === null` YALNIZCA 'max' İÇİN OLUR. Ekrandaki beş
+      düğmenin hiçbiri 'max' değil, ama uç kabul ediyor; tarih yoksa
+      hesabı hiç yapmıyoruz (aşağıda `null` dönüyor). Uydurma bir
+      başlangıç tarihi seçmek, uydurma bir getiri üretirdi.
+    */
+    const twr = since === null
+      ? null
+      : await calculateTwrForPeriod(userId, since, new Date());
+
     const currentPortfolio = await getPortfolio(userId);
     const fxRate = currency === 'usd' ? await latestUsdTryRate() : null;
 
@@ -77,6 +96,35 @@ portfolioRouter.get('/history', requireAccessToken, async (request, response) =>
       range,
       currency,
       points: mapped,
+
+      /*
+        ARALIĞA GÖRE GETİRİ — yüzde VE tutar.
+
+        ⚠️ TUTAR NEDEN `bitiş - başlangıç` DEĞİL.
+
+        Naif fark, araya giren PARA GİRİŞLERİNİ kazanç sayar: günlük
+        1.000 ₺ bonusu alan kullanıcı, hiç işlem yapmasa bile "+1.000 ₺
+        kazandın" görürdü. CLAUDE.md'deki 3 numaralı tuzak tam olarak
+        bu ve TWR bu yüzden var.
+
+        Doğrusu: yüzdeyi TWR veriyor (girişleri zaten dışlıyor), tutarı
+        da o yüzdeden türetiyoruz. Böylece iki sayı AYNI hikâyeyi
+        anlatıyor — yan yana duran ama farklı yöntemle hesaplanmış iki
+        sayı, kullanıcıya hangisine inanacağını sordurur.
+
+        ⚠️ FLOAT YOK. `twrFloat`'ı doğrudan çarpmıyoruz; 10.000'e
+        ölçeklenmiş bir tam sayıya çevirip `divRound` ile bölüyoruz.
+        Para hesabında `bigint` kuralı burada da geçerli ve bölme
+        kırpmasın diye ROUND_HALF_UP şart.
+      */
+      twrPercent: twr === null ? null : (twr.twrFloat * 100).toFixed(2),
+      changeCents:
+        twr === null
+          ? null
+          : divRound(
+              twr.startValueCents * BigInt(Math.round(twr.twrFloat * 10_000)),
+              10_000n,
+            ).toString(),
     });
   } catch (error) {
     console.error('[GET /portfolio/history] başarısız:', error);
@@ -189,6 +237,17 @@ portfolioRouter.get('/', requireAccessToken, async (request, response) => {
       positions: portfolio.positions.map((p) => ({
         symbol: p.symbol,
         name: p.name,
+        /*
+          ⚠️ EKRAN "15 sa" DİYORDU, "piyasa kapalı" DEMESİ GEREKİRDİ.
+
+          Piyasa ekranı bu ayrımı yapıyordu (`market/router.ts`), cüzdan
+          yapmıyordu — çünkü alan yalnızca oraya eklenmişti. ABD borsası
+          kapalıyken pozisyon satırı "AAPL · 15 sa" görünüyor ve ARIZA
+          gibi okunuyordu. Oysa hiçbir şey bozuk değil.
+
+          ⚠️ Kural `isTradableNow`'a taşındı — üçüncü kez yazılmasın diye.
+        */
+        tradable: isTradableNow(p.kind),
         // Ölçekli bigint -> ondalık metin. numeric(28,10) ile aynı biçim.
         quantity: formatScaled(p.quantity, AMOUNT_SCALE),
         priceTry: p.price === null ? null : formatScaled(p.price, PRICE_SCALE),

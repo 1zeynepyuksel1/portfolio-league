@@ -120,6 +120,7 @@ export async function getPortfolio(userId: string): Promise<PortfolioResult> {
     return {
       symbol: row.symbol,
       name: row.name,
+      kind: row.kind,
       quantity,
       price,
       asOf: priceRow?.asOf ?? null,

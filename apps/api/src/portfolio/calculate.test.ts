@@ -15,6 +15,8 @@ const position = (
 ) => ({
   symbol,
   name: symbol,
+  // Tür değer hesabını etkilemiyor; testler için sabit bir değer yeterli.
+  kind: 'crypto',
   quantity: toAmount(quantity),
   price: price === null ? null : toPrice(price),
   asOf: price === null ? null : new Date("2026-08-19T12:00:00Z"),

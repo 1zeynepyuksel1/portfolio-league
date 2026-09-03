@@ -35,6 +35,8 @@ export async function getCashCents(userId: string): Promise<bigint | null> {
 export interface HoldingRow {
   symbol: string;
   name: string;
+  /** 'crypto' | 'fx' | 'metal' | 'stock' — "şu an işlem görür mü" için. */
+  kind: string;
   /** numeric(28,10) -> string. Zincir korunuyor, float'a düşmüyor. */
   quantity: string;
 }
@@ -51,6 +53,8 @@ export async function getHoldings(userId: string): Promise<HoldingRow[]> {
     .select({
       symbol: assets.symbol,
       name: assets.name,
+      // ⚠️ Ekranın "piyasa kapalı" diyebilmesi için tür gerekiyor.
+      kind: assets.kind,
       quantity: holdings.quantity,
     })
     .from(holdings)

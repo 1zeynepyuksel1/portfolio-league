@@ -7,7 +7,7 @@ import {
   listAssetsWithLatestPrice,
 } from "./repository.js";
 import { parseCurrency, tryToUsd } from "../lib/fx.js";
-import { isRegularSessionOpen } from "./market-hours.js";
+import { isTradableNow } from "./market-hours.js";
 import { PRICE_SCALE, formatScaled, toPrice } from "../lib/money.js";
 import {
   isRange,
@@ -136,7 +136,7 @@ marketRouter.get("/", async (request, response) => {
          * işlem görmeye devam ediyor (forward-fill kuralı). Yani bu alan
          * "seansı olan varlık sınıfı" için anlamlı, diğerleri için sabit.
          */
-        tradable: asset.kind === "stock" ? isRegularSessionOpen() : true,
+        tradable: isTradableNow(asset.kind),
         /**
          * Son 24 saatteki yüzde değişim, iki ondalıklı metin.
          *
@@ -260,6 +260,20 @@ marketRouter.get("/:symbol/stats", async (request, response) => {
     return response.json({
       symbol: symbol.toUpperCase(),
       currency,
+      /*
+        ⚠️ `tradable` BU UCA DA EKLENDİ — VE SEBEBİ TEKRAR EDEN BİR ŞEKİL.
+
+        Ayrım `/assets` listesinde vardı, detay ekranında yoktu; o
+        yüzden varlık detayı borsa kapalıyken "16 sa" yazıyordu ve
+        arıza gibi görünüyordu. Aynı düzeltmeyi bugün cüzdanda da
+        yapmak gerekti.
+
+        Kural tek yerde (`isTradableNow`), ama onu ÇAĞIRMAYI her uçta
+        ayrı ayrı hatırlamak gerekiyor. Bir sonraki yeni uçta da
+        unutulacak — çözümü uçları azaltmak ya da ortak bir
+        serileştirici yazmak, ama o ayrı bir iş.
+      */
+      tradable: isTradableNow(asset.kind),
       // Veri yoksa null — sıfır göndermek "fiyat sıfırdı" demek olurdu.
       high: conv(stats?.high),
       low: conv(stats?.low),

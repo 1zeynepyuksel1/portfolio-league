@@ -390,9 +390,11 @@ export async function getPriceSeries(
 /** Sembolden varlık kimliği. Grafik ucu sembolle çağrılıyor. */
 export async function findAssetIdBySymbol(
   symbol: string,
-): Promise<{ id: string; name: string } | null> {
+  // ⚠️ `kind` eklendi: uçların "bu varlık şu an işlem görür mü"
+  // diyebilmesi için tür gerekiyor. İkinci bir sorgu atmaktan ucuz.
+): Promise<{ id: string; name: string; kind: string } | null> {
   const rows = await db
-    .select({ id: assets.id, name: assets.name })
+    .select({ id: assets.id, name: assets.name, kind: assets.kind })
     .from(assets)
     .where(eq(assets.symbol, symbol.toUpperCase()))
     .limit(1);
