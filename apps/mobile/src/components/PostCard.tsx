@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, ActivityIndicat
 import { useState } from 'react';
 import { Platform, DeviceEventEmitter } from 'react-native';
 import { apiFetch } from '../api/client';
-import { colors, fonts } from '../theme';
+import { colors, fonts, radius } from '../theme';
 import { formatCents } from '../lib/format';
 import { Globe, Users, TrendingUp, TrendingDown, Heart, MessageSquare, MoreVertical, Trash2, Edit2, Pin, AlertTriangle, EyeOff, ShieldCheck, Ban, Crown, Trophy } from 'lucide-react-native';
 import { createAvatar } from '@dicebear/core';
@@ -340,54 +340,53 @@ export function PostCard({ post, user, isPreview, onPressUser, currentUserId, is
           const nominalStr = typeof payload.nominalMultiple === 'number' ? payload.nominalMultiple.toFixed(1) : parseFloat(payload.nominalMultiple || 0).toFixed(1);
           const realStr = typeof payload.realMultiple === 'number' ? payload.realMultiple.toFixed(1) : parseFloat(payload.realMultiple || 0).toFixed(1);
           
+          /*
+            ⚠️ YAN YANA DEĞİL, ÜST ÜSTE.
+
+            Eski düzen solda başlık+cümle, sağda 12.5x kutusu idi.
+            Kutu ~100pt çalınca "UnitedHealth" hece ortasından kırılıyor,
+            yeşil tutardaki ₺ ayrı satıra düşüyordu. Çarpan zaten alt
+            şeritte duruyor; üstte tekrar etmek hem yer hem simetri
+            bozuyordu.
+          */
           return (
-            <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.05)', padding: 16, borderRadius: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.2)' }}>
-              
-              {/* TOP BADGE */}
-              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(34, 197, 94, 0.1)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
-                  <Text style={{ fontSize: 16, marginRight: 6 }}>🕰️</Text>
-                  <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: colors.gain }}>Zaman Yolculuğu</Text>
-                </View>
+            <View style={styles.whatIfCard}>
+              <View style={styles.whatIfBadge}>
+                <Text style={styles.whatIfBadgeEmoji}>🕰️</Text>
+                <Text style={styles.whatIfBadgeText}>Zaman Yolculuğu</Text>
               </View>
 
-              {/* MAIN CONTENT ROW */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                
-                <View style={{ flex: 1, paddingRight: 16 }}>
-                  <Text style={{ fontFamily: fonts.bold, fontSize: 28, color: colors.ink }}>
-                    {payload.assetName}
-                  </Text>
-                  <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.inkMuted, marginBottom: 8, marginTop: 2 }}>
-                    {payload.startDate} ➔ {todayStr}
-                  </Text>
-                  <Text style={{ fontFamily: fonts.medium, fontSize: 15, color: colors.inkMuted, lineHeight: 22 }}>
-                    O gün <Text style={{ color: colors.ink }}>{payload.initialTry}</Text> değerinde alsaydım,{'\n'}bugün tam <Text style={{ color: colors.gain, fontFamily: fonts.bold, fontSize: 18 }}>{payload.finalTry}</Text> olurdu.
-                  </Text>
-                </View>
+              <Text
+                style={styles.whatIfTitle}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                {payload.assetName}
+              </Text>
+              <Text style={styles.whatIfDates}>
+                {payload.startDate} → {todayStr}
+              </Text>
+              <Text style={styles.whatIfBody}>
+                {'O gün '}
+                <Text style={styles.whatIfAmount}>{payload.initialTry}</Text>
+                {' değerinde alsaydım,'}
+              </Text>
+              <Text style={[styles.whatIfBody, styles.whatIfBodyLast]}>
+                {'bugün '}
+                <Text style={styles.whatIfAmountGain}>{payload.finalTry}</Text>
+                {' olurdu.'}
+              </Text>
 
-                {/* STYLISH MULTIPLIER BADGE */}
-                <View style={{ backgroundColor: 'rgba(34, 197, 94, 0.12)', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.3)' }}>
-                  <Text style={{ fontFamily: fonts.bold, fontSize: 26, color: colors.gain }}>
-                    {nominalStr}x
-                  </Text>
-                  <Text style={{ fontFamily: fonts.bold, fontSize: 10, color: colors.gain, marginTop: 4, letterSpacing: 1 }}>
-                    KAZANÇ
-                  </Text>
+              <View style={styles.whatIfStats}>
+                <View style={styles.whatIfStat}>
+                  <Text style={styles.whatIfStatLabel}>KÂĞIT ÜZERİNDE</Text>
+                  <Text style={styles.whatIfStatValue}>{nominalStr}×</Text>
                 </View>
-                
-              </View>
-
-              {/* BOTTOM BREAKDOWN */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: colors.surfaceRaised, padding: 12, borderRadius: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>KÂĞIT ÜZERİNDE</Text>
-                  <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.gain }}>{nominalStr}x</Text>
-                </View>
-                <View style={{ width: 1, backgroundColor: colors.border, marginHorizontal: 12 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: fonts.medium, fontSize: 11, color: colors.inkMuted, marginBottom: 4 }}>ENFLASYONDAN SONRA</Text>
-                  <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: colors.gain }}>{realStr}x</Text>
+                <View style={styles.whatIfStatDivider} />
+                <View style={styles.whatIfStat}>
+                  <Text style={styles.whatIfStatLabel}>ENFLASYONDAN SONRA</Text>
+                  <Text style={styles.whatIfStatValue}>{realStr}×</Text>
                 </View>
               </View>
             </View>
@@ -815,6 +814,73 @@ const styles = StyleSheet.create({
   menuText: { fontFamily: fonts.medium, fontSize: 16, color: colors.ink },
   badge: { backgroundColor: colors.gainSoft, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 14, borderWidth: 1, borderColor: colors.gainSoft },
   badgeText: { fontFamily: fonts.medium, fontSize: 12, color: colors.gain },
+
+  whatIfCard: {
+    backgroundColor: 'rgba(34, 197, 94, 0.05)',
+    padding: 16,
+    borderRadius: radius.md,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.2)',
+  },
+  whatIfBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.xs,
+    marginBottom: 12,
+  },
+  whatIfBadgeEmoji: { fontSize: 16, marginRight: 6 },
+  whatIfBadgeText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.gain },
+  whatIfTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 22,
+    lineHeight: 28,
+    color: colors.ink,
+  },
+  whatIfDates: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: colors.inkMuted,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  whatIfBody: {
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.inkMuted,
+    marginBottom: 0,
+  },
+  whatIfBodyLast: { marginBottom: 16 },
+  whatIfAmount: { color: colors.ink, fontFamily: fonts.semibold },
+  /*
+    ⚠️ Tutar ile gövde AYNI punto. İç içe 18px yazı satır yüksekliğini
+    bozuyor; ₺ ayrı bir Text düğümü olunca kelime sınırında yalnız
+    kalıyordu. Renk yeter, büyüklük değil.
+  */
+  whatIfAmountGain: { color: colors.gain, fontFamily: fonts.bold },
+  whatIfStats: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    backgroundColor: colors.surfaceRaised,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  whatIfStat: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
+  whatIfStatDivider: { width: 1, backgroundColor: colors.border },
+  whatIfStatLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 10,
+    letterSpacing: 0.4,
+    color: colors.inkMuted,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  whatIfStatValue: { fontFamily: fonts.bold, fontSize: 18, color: colors.gain },
 
   // Modern Pnl Box
   modernPnlBox: { backgroundColor: colors.surfaceRaised, borderRadius: 14, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

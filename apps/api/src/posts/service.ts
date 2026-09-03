@@ -162,12 +162,19 @@ export async function createPost(userId: string, type: 'pnl_share' | 'wheel_shar
     throw new Error("Geçersiz paylaşım tipi.");
   }
 
+  /*
+    ⚠️ `what_if_share` KAPSAMI YOK. Kolon enum: yalnızca
+    `single_asset` | `portfolio`. İstemci `null` göndermeyi kastederken
+    boş string de gelebilir; Postgres enum boş string kabul etmez.
+  */
+  const kayitKapsami = scope === 'single_asset' || scope === 'portfolio' ? scope : null;
+
   const [newPost] = await db.insert(posts).values({
     userId,
     type,
-    scope,
+    scope: kayitKapsami,
     payload,
-    caption: caption.substring(0, 280),
+    caption: (caption ?? '').substring(0, 280),
     visibility
   }).returning();
 
