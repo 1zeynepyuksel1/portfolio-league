@@ -13,6 +13,98 @@ Bu şerit projenin "backend gerçekten bir şey hesaplıyor" tarafı. Emir motor
 CLAUDE.md'nin en önemli kuralı: *yazılan her satırın **neden** öyle olduğunu anlatabilmelisin.*
 Aşağıdakiler yazıldı ve çalışıyor ama sen okumadın. Tasarım işi bitince buraya dön.
 
+### 49. Yüzde değişim ölçütü, kayıp notlar, kayıt akışı — 8 Eyl 2026
+
+Beş ayrı düzeltme, hepsi bildirilen bir belirtiden çıktı.
+
+**a) "Çoğunun yüzdeliği görünmüyor" — 41/50 varlıkta boş.**
+Sebep kod değil veriydi: yüzde `[şimdi−48s, şimdi−24s]` penceresinden
+hesaplanıyor, sunucu kapalıyken o pencereye tek satır yazılmamış.
+`catch-up.ts:329` → `if (asset.kind !== 'crypto') continue;` — boşluk
+doldurma yalnızca kriptoyu kapsıyor. Döviz/maden/hisse elle
+`price-backfill --kind=…` ile dolduruldu. ⚠️ **Bu kalıcı değil**: catch-up
+hâlâ kripto-only, bilgisayar bir gün kapalı kalırsa tekrarlanacak.
+
+**b) Hisse yüzdesi artık "önceki kapanış".**
+24-48 saatlik pencere hafta sonuna denk geldiğinde 30 hissenin hepsinde
+boş dönüyordu — o saatlerde borsa kapalı, tek satır yok. Kavram
+uyuşmazlığıydı: "son 24 saatte ne değişti" sorusunun hafta sonu cevabı
+yok. Borsalar da kapalıyken önceki kapanışa göre gösterir. Ayrım UTC
+takvim günüyle yapılıyor (`ts < date_trunc('day', p.ts)`); sabit saat
+farkı yaz saati geçişlerinde sessizce kayardı.
+
+**c) Liste ile grafik aynı "günlük" için farklı sayı veriyordu.**
+Ölçüldü: liste −%1,58, grafik −%1,25. İkisi 24 saat sınırının iki
+yanındaki satırı alıyordu — liste öncekini, grafik sonrakini. O bölgede
+veri saatlik olduğu için aralarında tam 60 dakika vardı. Liste grafikle
+aynı tarafa hizalandı. Ayrıca referans satırın güncel satırdan FARKLI
+olması şartı kondu: tek gözlemle "%0 değişti" demek, kıyas yokken
+"fiyat kıpırdamadı" iddiası olurdu.
+
+**d) Dolar modunda yüzde TL'den hesaplanıyordu.**
+Ekranda dolar fiyatı, yanında TL değişimi duruyordu. Ölçüldü: BTC için
+TL bazlı −%1,57, dolar bazlı −%1,98 — aradaki 0,41 puan tam olarak
+kurun o günkü hareketi. ⚠️ **Eski fiyat ESKİ kurla çevrilmeli**
+(`usdTryRateAt`); bugünkü kurla ikisini de bölmek kuru sadeleştirir ve
+TL yüzdesini geri verir, yani hata düzelmez sadece görünmez olur.
+⚠️ Sürücü tuzağı: ham SQL'e `Date` nesnesi bağlamak 500 üretiyor, ISO
+metne çevirip `::timestamptz` cast etmek gerekti.
+
+**e) "Tüm işlemleri gör" deyince notlar kayboluyordu.**
+`PortfolioScreen`'de özet ve modal AYNI JSX'in iki kopyasıydı; karar
+notu bloğu eklenirken modal kopyası güncellenmemişti. Veri hep oradaydı,
+basılmıyordu. İki kopya tek `OrderRow` bileşenine indirildi — tek fark
+(`padded`) prop'a çevrildi. Bu hata sınıfı artık yapısal olarak kapalı.
+
+**f) Kullanıcı adı çakışması 2. adımda bildiriliyordu.**
+Sunucu doğru reddediyor (`409 USERNAME_ALREADY_IN_USE`, `users_username_unique`
+kısıtı var) ama hata e-posta/şifre adımında gösteriliyordu — kullanıcı
+adı kutusunun görünmediği ekranda. Artık o kodda ekran 1. adıma dönüyor.
+E-posta çakışmasında dönmüyor; o alan zaten 2. adımda.
+
+**g) Onboarding'den "Profilini kimler görebilsin?" kaldırıldı.**
+Çelişkili kombinasyon seçtirebiliyordu: profil "yalnızca arkadaşlarım" +
+portföy "herkes" → yabancı profili hiç açamadığı için ikinci ayarın
+hiçbir etkisi yok. Yetenek kaybolmadı, ProfileScreen'de duruyor.
+
+---
+
+### 48. Gece boşluğu — catch-up eşiği 12 → 24 saat — 4 Eyl 2026
+
+**Belirti:** "grafik çok boş gözüküyor · 21.49'dan 11.29'a atlıyor."
+
+**Teşhis (ölçüldü):** 1 günlük BTC serisinde 288 nokta beklenirken 105 vardı.
+Ardışık noktalar taranınca gerçek delik çıktı: `2026-09-03T18:49 → 2026-09-04T08:29
+UTC`, yani **821 dakika (13,7 saat)** — TSİ ile tam 21:49 → 11:29. Sebep kod değil:
+15 saniyelik cron yalnızca sunucu ayaktayken yazıyor, gece bilgisayar kapalıydı.
+
+**Bu iş için zaten bir çözüm vardı:** [catch-up.ts](../apps/api/src/market/catch-up.ts)
+(31 Ağu'daki benzer kayıptan doğmuş). Sunucu açılışında `catchUpPrices()` çağrılıyor
+ama bu sabahki açılışta **Binance'e ulaşılamadığı için** başarısız olmuş — saatlik
+periyodik tur da göremez, çünkü penceresi 6 saat, deliğin başlangıcı 14 saat geride.
+Elle bir kez çalıştırınca 10 kripto varlığın hepsi doldu.
+
+**Değişiklik:** `candleFor()` eşiği 12 → 24 saat. Gerekçe: yerelde her gece 13-15
+saatlik delik oluşuyor ve eski eşik bunları saatlik muma düşürüyordu (gece saatte 1
+nokta, gündüz 5 dakikada 1 — grafikte gözle görülür seyreklik). 24 saat 5 dakikalık
+mumla 288 mum eder, Binance'in 1000 mum sınırının çok altında; 12'nin teknik gerekçesi
+yoktu, temkinli bir tahmindi.
+
+⚠️ **Eşiği değiştirmek eski deliği kendiliğinden düzeltmez** — ve sebebi öğretici:
+saatlik satırlar yazıldıktan sonra kayıtlar tam 60 dakika arayla duruyor, `findGaps()`
+ise "1 saatten **fazla**" arıyor. `60 > 60` yanlış olduğu için orası artık delik
+sayılmıyor. Düzeltmek için o 140 satır silinip yeniden dolduruldu.
+
+⚠️ **SİLMEDEN ÖNCE SELECT ŞART OLDUĞU BURADA KANITLANDI.** Sadece
+`granularity='1h'` ile silseydim 26 Ağustos'a kadar giden ~1.450 satırlık gerçek
+geçmiş yok olacaktı. Zaman penceresiyle sınırlanınca hedef tam 140 satır (10 varlık
+× 14 saat) çıktı — birebir az önce yazılanlar.
+
+**Sonuç:** 1G grafiğinde 105 → **270 nokta** (288 üst sınırın %94'ü), en büyük boşluk
+821 dk → 27 dk. `tsc` temiz, 331/331 test geçiyor.
+
+---
+
 ### 47. Kaynak değişmedi, açıklama eklendi — AssetDetailScreen — 3 Eyl 2026
 
 **Karar:** #46'daki tartışmanın sonucu — TCMB (kripto/döviz) ve LBMA fixing
