@@ -5,10 +5,11 @@ import {
   getPriceSeries,
   latestUsdTryRate,
   listAssetsWithLatestPrice,
+  usdTryRateAt,
 } from "./repository.js";
 import { parseCurrency, tryToUsd } from "../lib/fx.js";
 import { isTradableNow } from "./market-hours.js";
-import { PRICE_SCALE, formatScaled, toPrice } from "../lib/money.js";
+import { PRICE_SCALE, formatScaled, toPrice, type Price } from "../lib/money.js";
 import {
   isRange,
   parseWindow,
@@ -47,6 +48,22 @@ function changePercent(
   }
 
   return (((now - before) / before) * 100).toFixed(2);
+}
+
+/**
+ * TL fiyatı verilen kurla dolara çevirir. Kur ya da fiyat yoksa `null`.
+ *
+ * ⚠️ YÜZDE HESABI İÇİN İNCE BİR YARDIMCI — tutar üretmiyor.
+ * Çevrim `tryToUsd` ile bigint üzerinden yapılıyor; sonuç yine metin
+ * olarak dönüyor ki `changePercent` ikisini aynı biçimde okusun.
+ *
+ * ⚠️ İKİSİNDEN BİRİ NULL İSE NULL: eksik kurla yarım bir çevrim yapıp
+ * yüzdeyi "hesaplanmış" göstermek, bilmediğimizi bildiğimiz sanmak olur.
+ */
+function usdCevir(priceTry: string | null, rate: Price | null): string | null {
+  if (priceTry === null || rate === null) return null;
+
+  return formatScaled(tryToUsd(toPrice(priceTry), rate), PRICE_SCALE);
 }
 
 /**
@@ -107,6 +124,26 @@ marketRouter.get("/", async (request, response) => {
 
     const rate = fx === null ? null : toPrice(fx.rate);
 
+    /**
+     * 24 saat önceki kur — YALNIZCA dolar görünümünde okunuyor.
+     *
+     * ⚠️ NEDEN AYRI BİR KUR: yüzde değişimi dolar bazında hesaplarken
+     * eski fiyatı O GÜNÜN kuruyla çevirmek gerekiyor. Bugünkü kurla
+     * ikisini de bölmek kuru sadeleştirir ve TL yüzdesini geri verir.
+     *
+     * ⚠️ TEK KUR, VARLIK BAŞINA DEĞİL. Kripto/döviz/madenin kıyas anı
+     * zaten hepsinde ~24 saat önce. Hisselerin kıyas anı "önceki
+     * kapanış" olduğu için birkaç saat sapabilir — ama TCMB kuru günde
+     * bir kez değiştiğinden ikisi de aynı günlük değere düşüyor.
+     * Varlık başına ayrı kur okumak 50 ek sorgu demekti; kazanç yok.
+     */
+    const refRateRaw =
+      currency === "usd"
+        ? await usdTryRateAt(new Date(Date.now() - 24 * 60 * 60 * 1000))
+        : null;
+
+    const refRate = refRateRaw === null ? null : toPrice(refRateRaw);
+
     return response.json({
       currency,
       // Hangi kurla çevrildiği ve kurun ne kadar taze olduğu görünür olmalı.
@@ -148,7 +185,25 @@ marketRouter.get("/", async (request, response) => {
          * "fiyat hiç kıpırdamadı" iddiası olurdu; oysa 24 saat önceki
          * kaydımız yok.
          */
-        changePercent24h: changePercent(asset.priceTry, asset.priceTry24hAgo),
+        /**
+         * ⚠️ YÜZDE ARTIK SEÇİLİ PARA BİRİMİNDE (8 Eyl 2026).
+         *
+         * Eskiden her zaman TL fiyatlarından hesaplanıyordu; dolar
+         * görünümünde ekranda dolar fiyatı, yanında TL değişimi
+         * duruyordu. ÖLÇÜLDÜ: BTC için TL bazlı −%1,57, dolar bazlı
+         * −%1,98 — aradaki 0,41 puan tam olarak kurun o günkü hareketi.
+         * Kullanıcı ekrandaki iki dolar rakamını bölse tutmuyordu.
+         *
+         * ⚠️ ESKİ FİYAT ESKİ KURLA ÇEVRİLİYOR (`refRate`), bugünkü
+         * kurla değil. Sebebi `usdTryRateAt`'in başında yazılı.
+         */
+        changePercent24h:
+          currency === "usd"
+            ? changePercent(
+                usdCevir(asset.priceTry, rate),
+                usdCevir(asset.priceTry24hAgo, refRate),
+              )
+            : changePercent(asset.priceTry, asset.priceTry24hAgo),
         // Fiyatı hiç çekilmemiş varlık olabilir — null geçilir, uydurulmaz.
         priceTry: asset.priceTry,
         /**

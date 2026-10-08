@@ -121,7 +121,26 @@ const PERIODIC_INTERVAL_MS = 60 * 60 * 1000; // 1 saat
 function candleFor(gapMs: number): Candle {
   const saat = gapMs / 3_600_000;
 
-  if (saat <= 12) return '5m'; // ~144 mum
+  /*
+    ⚠️ EŞİK 12 SAATTEN 24 SAATE ÇIKARILDI (4 Eyl 2026) — VE SEBEBİ
+    ÖLÇÜLDÜ, TAHMİN DEĞİL.
+
+    Yerel geliştirmede bilgisayar her gece kapanıyor; oluşan delik tipik
+    olarak 13-15 saat oluyor (ölçülen: 3 Eyl 21:49 -> 4 Eyl 11:29, 13,7
+    saat). Eski eşik bunu "12 saatten büyük" sayıp SAATLİK muma düşürüyordu:
+    gece boyunca saatte 1 nokta, gündüzün 5 dakikalık yoğunluğunun 12'de
+    biri. Grafikte gece dilimi belirgin şekilde seyrek görünüyordu.
+
+    ⚠️ NEDEN 24 GÜVENLİ: 24 saat 5 dakikalık mumla 288 mum eder, Binance'in
+    istek başına 1000 mum sınırının çok altında — tek sayfada geliyor,
+    ek istek maliyeti yok. 12'nin bir teknik gerekçesi yoktu, temkinli
+    bir tahmindi.
+
+    ⚠️ 24'ÜN ÜSTÜ HÂLÂ SAATLİK: bir haftalık kesinti 5 dakikalık mumla
+    2.016 mum demek — sayfalama gerekir ve o kadar ince veri o kadar
+    eski bir boşluk için anlamsız.
+  */
+  if (saat <= 24) return '5m'; // ~288 mum
   if (saat <= 24 * 7) return '1h'; // en fazla ~168 mum
   return '1d'; // 30 güne kadar ~30 mum
 }

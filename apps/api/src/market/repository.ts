@@ -144,13 +144,37 @@ export type AssetWithPrice = {
   kind: AssetKind;
 
   /**
-   * 24 saat önceki fiyat. Yüzde değişim ekranda bundan hesaplanıyor.
+   * Yüzde değişimin KIYAS fiyatı. Ekrandaki oran bundan hesaplanıyor.
+   *
+   * ⚠️ ADI "24hAgo" AMA ARTIK İKİ ANLAMI VAR — ve bu bilinçli:
+   *
+   *     kripto / döviz / maden -> 24 saat önceki fiyat
+   *     hisse                  -> ÖNCEKİ KAPANIŞ
+   *
+   * Sebebi sorgunun içinde yazılı: hisse hafta sonu işlem görmediği
+   * için "24 saat önce" diye bir fiyatı yok. Ayrımı burada tutmak,
+   * her çağıranın varlık türüne bakıp kendi kuralını yazmasından iyi.
+   *
+   * ⚠️ ALAN ADI NEDEN DEĞİŞTİRİLMEDİ: dışarıya açılan sözleşme alanı
+   * `changePercent24h` (market/router.ts) ve mobilde üç yerde okunuyor.
+   * Adı düzeltmenin bedeli dört dosyalık bir sözleşme değişikliği;
+   * kazancı yalnızca isim doğruluğu. Şimdilik gerçeği burada
+   * belgelemek tercih edildi — ama isim borç olarak duruyor.
    *
    * ⚠️ `null` OLABİLİR ve bu "değişim yok" DEĞİL, "bilinmiyor" demek.
-   * Varlık dünden yeniyse ya da o aralıkta hiç kayıt yoksa boş döner.
+   * Varlık dünden yeniyse ya da kıyas kaydı hiç yoksa boş döner.
    * Sıfır göndermek "fiyat hiç kıpırdamadı" iddiası olurdu.
    */
   priceTry24hAgo: string | null;
+  /**
+   * Kıyas fiyatının ZAMANI.
+   *
+   * ⚠️ NEDEN GEREKLİ: dolar görünümünde yüzdeyi doğru hesaplamak için
+   * eski fiyatı O ANIN kuruyla çevirmek gerekiyor. Bugünkü kurla iki
+   * fiyatı da bölersek kur sadeleşir ve sonuç yine TL yüzdesi olur —
+   * yani hata hiç düzelmez, sadece görünmez olur.
+   */
+  changeRefAt: Date | null;
 };
 
 /**
@@ -177,9 +201,11 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
     ts: string | Date | null;
     first_ts: string | Date | null;
     price_24h: string | null;
+    ref_ts: string | Date | null;
   }>(sql`
     SELECT a.symbol, a.name, a.kind, p.price_try, p.ts, f.first_ts,
-           d.price_24h
+           COALESCE(d.price_24h, s.price_prev) AS price_24h,
+           COALESCE(d.ref_ts, s.ref_ts) AS ref_ts
     FROM assets a
     LEFT JOIN LATERAL (
       SELECT price_try, ts
@@ -207,14 +233,43 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
        * iki günlük değişim olur ve rakam sessizce yanlışlaşır. O
        * durumda boş dönmek doğru — bilmediğimizi söylemek.
        */
-      SELECT price_try AS price_24h
+      SELECT price_try AS price_24h, ts AS ref_ts
       FROM price_history
       WHERE asset_id = a.id
-        AND ts <= now() - interval '24 hours'
-        AND ts >= now() - interval '48 hours'
+        AND ts >= now() - interval '24 hours'
+        AND ts < p.ts
+      ORDER BY ts ASC
+      LIMIT 1
+    ) d ON a.kind <> 'stock'
+    LEFT JOIN LATERAL (
+      /*
+       * HİSSE İÇİN ÖLÇÜT FARKLI: "24 saat önce" değil, ÖNCEKİ KAPANIŞ.
+       *
+       * ⚠️ NEDEN AYRI BİR KURAL GEREKTİ — ÖLÇÜLDÜ (8 Eyl 2026).
+       * 24-48 saatlik pencere cumartesi gecesi ile pazartesi açılışı
+       * arasına denk geldiğinde 30 hissenin HEPSİNDE boş dönüyordu:
+       * o saatlerde borsa kapalı, dolayısıyla tek bir satır bile yok.
+       * Kripto 7/24 işlem gördüğü için o tarafta sorun çıkmıyor.
+       *
+       * ⚠️ VERİ EKSİKLİĞİ DEĞİL, KAVRAM UYUŞMAZLIĞIYDI. "Son 24 saatte
+       * ne değişti" sorusunun hafta sonu bir cevabı yok. Borsaların
+       * kendisi de bunu böyle göstermiyor: kapalıyken "günlük değişim"
+       * son seansın ÖNCEKİ KAPANIŞA göre farkıdır.
+       *
+       * ⚠️ TAKVİM GÜNÜ (UTC) İLE AYIRIYORUZ, saat farkıyla değil.
+       * ABD seansı 13:30-20:00 UTC arasında, yani bir seans UTC gün
+       * sınırını hiç aşmıyor — "en son fiyatın gününden ÖNCEKİ son
+       * kayıt" tam olarak önceki kapanış demek. Sabit bir saat farkı
+       * (mesela 20 saat) yaz saati geçişlerinde ve uzun tatillerde
+       * sessizce kayardı.
+       */
+      SELECT price_try AS price_prev, ts AS ref_ts
+      FROM price_history
+      WHERE asset_id = a.id
+        AND ts < date_trunc('day', p.ts)
       ORDER BY ts DESC
       LIMIT 1
-    ) d ON true
+    ) s ON a.kind = 'stock'
     LEFT JOIN LATERAL (
       -- ⚠️ MIN(ts) yerine ORDER BY ts ASC LIMIT 1.
       -- İkisi de aynı sonucu verir ama planları farklı: MIN() toplama
@@ -239,6 +294,7 @@ export async function listAssetsWithLatestPrice(): Promise<AssetWithPrice[]> {
     asOf: toUtcDate(row.ts),
     firstAvailable: toUtcDate(row.first_ts),
     priceTry24hAgo: row.price_24h,
+    changeRefAt: row.ref_ts === null ? null : new Date(row.ref_ts),
   }));
 }
 
@@ -459,6 +515,42 @@ export async function latestUsdTryRate(): Promise<{
   if (asOf === null) return null;
 
   return { rate: row.priceTry, asOf };
+}
+
+/**
+ * Belirli bir ANDAKİ USD/TRY kuru — "o tarihte ya da hemen öncesinde
+ * yayımlanmış son kur".
+ *
+ * ⚠️ NEDEN GÜNCEL KUR YETMİYOR. Dolar görünümünde yüzde değişimi
+ * hesaplarken hem bugünkü hem 24 saat önceki fiyatı dolara çevirmek
+ * gerekiyor. İkisini de BUGÜNKÜ kurla bölersek kur pay ve paydada
+ * sadeleşir; sonuç TL yüzdesinin aynısı çıkar. Yani hata düzelmez,
+ * yalnızca düzeldi sanılır.
+ *
+ * ⚠️ TARİH ISO METİN OLARAK BAĞLANIYOR, `Date` NESNESİ OLARAK DEĞİL.
+ * Sürücü ham SQL'de `Date` parametresini kabul etmiyor; doğrudan
+ * geçmek 500 üretiyor (ölçüldü). `::timestamptz` cast'i de şart,
+ * yoksa Postgres metni hangi tipe çevireceğini bilemiyor.
+ *
+ * ⚠️ `<=` VE `ORDER BY ts DESC`: TCMB hafta sonu kur yayımlamıyor.
+ * Tam eşleşme arasaydık cumartesi çevrim yapılamazdı; son yayımlanan
+ * kura düşmek forward-fill kuralının aynısı (bkz. tcmb.ts).
+ */
+export async function usdTryRateAt(at: Date): Promise<string | null> {
+  const usd = await findAssetIdBySymbol("USD");
+
+  if (usd === null) return null;
+
+  const rows = await db.execute<{ price_try: string }>(sql`
+    SELECT price_try
+    FROM price_history
+    WHERE asset_id = ${usd.id}
+      AND ts <= ${at.toISOString()}::timestamptz
+    ORDER BY ts DESC
+    LIMIT 1
+  `);
+
+  return rows[0]?.price_try ?? null;
 }
 
 /**
