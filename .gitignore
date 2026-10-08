@@ -10,3 +10,6 @@ dist/
 # Ekibin ortak calismasi icin gerekli degil.
 .claude/
 skills-lock.json
+
+# PowerPoint gecici kilit dosyalari
+~$*
