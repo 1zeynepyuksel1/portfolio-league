@@ -247,6 +247,30 @@ export function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props) {
             ? err.message
             : 'Kayıt oluşturulamadı.',
       );
+
+      /**
+       * ⚠️ HATA HANGİ ADIMDAYSA ORAYA GÖTÜRÜLÜYOR (4 Eyl 2026).
+       *
+       * Bildirilen sorun: kullanıcı adı alınmışsa hata 2. ADIMDA
+       * gösteriliyordu — yani e-posta ve şifre kutularının başında,
+       * kullanıcı adı alanının GÖRÜNMEDİĞİ ekranda. Kullanıcı
+       * "Bu kullanıcı adı zaten alınmış" yazısını okuyup önündeki üç
+       * kutuya bakıyor ve hangisini düzelteceğini bilemiyordu; geri
+       * dönmesi gerektiğini kendi çıkarması gerekiyordu.
+       *
+       * Sunucu hangi alanın çakıştığını zaten ayrı kodlarla söylüyor
+       * (`USERNAME_ALREADY_IN_USE` / `EMAIL_ALREADY_IN_USE`). Ad ve
+       * kullanıcı adı 1. adımda olduğu için o kodda ekranı geri
+       * alıyoruz; hata mesajı zaten yukarıda kuruldu, kullanıcı onu
+       * ilgili kutunun yanında görüyor.
+       *
+       * ⚠️ E-POSTA ÇAKIŞMASINDA GERİ GİTMİYORUZ — o alan zaten 2.
+       * adımda. Tek kural yazsaydık ("hata varsa başa dön") kullanıcı
+       * doğru doldurduğu adıma geri atılırdı.
+       */
+      if (err instanceof ApiError && err.code === 'USERNAME_ALREADY_IN_USE') {
+        setStep(0);
+      }
     } finally {
       setLoading(false);
     }
@@ -278,8 +302,21 @@ export function RegisterScreen({ onRegisterSuccess, onGoToLogin }: Props) {
             */}
             <Text style={styles.stepBadge}>ADIM {step + 1} / 2</Text>
 
+            {/*
+              ⚠️ "SENİ NASIL ÇAĞIRALIM?" İNGİLİZCEDEN BİREBİR ÇEVİRİYDİ.
+
+              "What should we call you?" cümlesinin karşılığı sanılmıştı,
+              ama Türkçede "çağırmak" birini YANINA ÇAĞIRMAK demek —
+              birine seslenme biçimi değil. Kullanıcıya doğal gelmiyordu.
+
+              Yerine "Seni tanıyalım." kondu: hem doğal, hem bu adımdaki
+              İKİ alanı da (ad soyad + kullanıcı adı) kapsıyor. Yalnızca
+              "Adın ne?" deseydik kullanıcı adını dışarıda bırakırdı.
+
+              İkinci adımla aynı ritimde: kısa cümle, nokta ile biten.
+            */}
             <Text style={styles.title}>
-              {step === 0 ? 'Seni nasıl\nçağıralım?' : 'Giriş\nbilgilerin.'}
+              {step === 0 ? 'Seni\ntanıyalım.' : 'Giriş\nbilgilerin.'}
             </Text>
 
             {/*

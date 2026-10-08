@@ -41,8 +41,27 @@ type Level = 'new' | 'some' | 'experienced';
 type AllocationVisibility = 'public' | 'friends' | 'private';
 type PostVisibility = 'public' | 'friends_only';
 
+/**
+ * ⚠️ `isPublic` BURADAN KALDIRILDI (4 Eyl 2026) — VE SEBEBİ ÇELİŞKİYDİ.
+ *
+ * "Profilini kimler görebilsin?" sorusu buradaydı ve kullanıcıya
+ * ANLAMSIZ bir kombinasyon seçtirebiliyordu:
+ *
+ *     profil  = yalnızca arkadaşlarım
+ *     portföy = herkes            <- yabancı için hiçbir etkisi yok
+ *
+ * Çünkü sunucudaki kural `canSee = kendisi || arkadaşı || profil açık`
+ * (profile/service.ts). Profil yabancıya kapalıysa yabancı profili hiç
+ * açamıyor; içerideki "portföyüm herkese açık" ayarı onlara ulaşmıyor.
+ * Kullanıcı bir tercih yaptığını sanıyor, yapmıyor.
+ *
+ * ⚠️ YETENEK KAYBOLMADI, YERİ DEĞİŞTİ. `is_public` kolonu duruyor
+ * (varsayılanı `true`), `PATCH /users/me/visibility` hâlâ kabul ediyor
+ * ve ProfileScreen'de ayar olarak sunuluyor. Kaba bir anahtarın
+ * (profili tamamen kapat) yeri ilk açılış değil, ayarlar ekranı —
+ * ince ayarların yanında eşit ağırlıkta durunca kafa karıştırıyordu.
+ */
 export type OnboardingResult = {
-  isPublic: boolean;
   allocationVisibility: AllocationVisibility;
   postVisibility: PostVisibility;
   level: Level;
@@ -90,7 +109,6 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
   const [step, setStep] = useState(0);
 
   const [level, setLevel] = useState<Level | null>(null);
-  const [isPublic, setIsPublic] = useState(true);
   const [visibility, setVisibility] = useState<AllocationVisibility>('friends');
   const [postVisibility, setPostVisibility] = useState<PostVisibility>('public');
 
@@ -113,7 +131,6 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
     }
 
     onFinishOnboarding({
-      isPublic,
       allocationVisibility: visibility,
       postVisibility,
       // `level` bu noktada asla null olamaz — 1. adım geçilmedi demektir.
@@ -214,44 +231,15 @@ export function OnboardingScreen({ userName, onFinishOnboarding }: Props) {
               konu olduğunu düşündürürdü.
             */}
             {/*
-              ⚠️ BU SORUNUN ETİKETİ YANLIŞTI — VE HATA BENDEYDİ.
+              ⚠️ ÜÇÜNCÜ BİR SORU DAHA VARDI: "Profilini kimler
+              görebilsin?" — 4 Eyl 2026'da kaldırıldı.
 
-              "Adımla / Takma adla" yazmıştım, ama `isPublic` adın
-              nasıl görüneceğini BELİRLEMİYOR. Sunucuda tek işi var
-              (`profile/service.ts` → `canSee`): profilini
-              arkadaşın olmayan biri görebilsin mi?
-
-              Yanlış etiket, yanlış zihinsel model üretir: kullanıcı
-              "takma adla" seçer, adının gizlendiğini sanır, oysa
-              profilini kapatmış olur. İkisi tamamen farklı sonuçlar.
-
-              ⚠️ AD ZATEN HİÇ GÖSTERİLMİYOR. Lig tablosu ve arkadaş
-              listesi artık kullanıcı adını gösteriyor; gerçek ad
-              yabancılara hiç gitmiyor. Yani o seçim ortadan kalktı,
-              geriye gerçek soru kaldı.
+              Gerekçesi `OnboardingResult` tipinin üstünde yazılı:
+              kaba bir anahtar (profili tamamen kapat) ince ayarların
+              yanında durunca çelişkili kombinasyon seçtiriyordu.
+              Ayar kaybolmadı, ProfileScreen'e taşındı.
             */}
-            <Text style={styles.groupLabel}>Profilini kimler görebilsin?</Text>
-            <View style={styles.segRow} accessibilityRole="radiogroup">
-              {[
-                { v: true,  l: 'Herkes' },
-                { v: false, l: 'Arkadaşlarım' },
-              ].map((o) => (
-                <TouchableOpacity
-                  key={o.l}
-                  style={[styles.seg, isPublic === o.v && styles.segOn]}
-                  onPress={() => setIsPublic(o.v)}
-                  activeOpacity={0.85}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: isPublic === o.v }}
-                >
-                  <Text style={[styles.segText, isPublic === o.v && styles.segTextOn]}>
-                    {o.l}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={[styles.groupLabel, styles.groupLabelSpaced]}>
+            <Text style={styles.groupLabel}>
               Portföyünü kimler görebilir?
             </Text>
             <View style={styles.segRow} accessibilityRole="radiogroup">

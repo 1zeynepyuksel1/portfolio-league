@@ -559,14 +559,22 @@ function AppShell() {
 
     try {
       /*
-        ⚠️ İKİ AYAR TEK İSTEKTE. Ayrı ayrı gönderseydik biri geçip
-        öteki düşebilir ve kullanıcı yarısı uygulanmış bir gizlilik
-        ayarıyla kalırdı — gizlilikte en kötü sonuç bu.
+        ⚠️ ARTIK TEK AYAR GİDİYOR — `isPublic` onboarding'den kalktı.
+
+        Eskiden ikisi birlikte gönderiliyordu ("biri geçip öteki
+        düşmesin" diye). Profil görünürlüğü sorusu kaldırılınca
+        (gerekçe: OnboardingScreen'deki `OnboardingResult` notu)
+        geriye yalnızca dağılım görünürlüğü kaldı.
+
+        ⚠️ `isPublic` GÖNDERİLMEMESİ BİLİNÇLİ, EKSİK DEĞİL. Kolonun
+        varsayılanı `true`; uç nokta da alanı opsiyonel alıyor
+        (profile/router.ts: ikisinden biri yeterli). Yani hesap
+        "profili açık" olarak başlıyor ve kullanıcı dilerse
+        ProfileScreen'den kapatıyor.
       */
       await apiFetch('/users/me/visibility', {
         method: 'PATCH',
         body: JSON.stringify({
-          isPublic: result.isPublic,
           allocationVisibility: result.allocationVisibility,
         }),
       });

@@ -1020,73 +1020,7 @@ export function PortfolioScreen({
               </View>
 
               {visibleOrders.map((order) => (
-                <View key={order.id} style={styles.orderRow}>
-                  <View style={styles.orderTopRow}>
-                    <View
-                      style={[
-                        styles.orderSideBadge,
-                        {
-                          backgroundColor:
-                            /*
-                              ⚠️ ELLE YAZILMIŞ RENKLER TOKEN'A ÇEKİLDİ.
-                              rgba(52,194,138) ve rgba(229,72,77) temanın
-                              yeşil/kırmızısı DEĞİLDİ — yakın ama farklı
-                              tonlar. Aynı ekranda iki ayrı yeşil vardı ve
-                              tema değişse bunlar değişmezdi.
-                            */
-                            order.side === 'buy'
-                              ? colors.gainSoft
-                              : colors.lossSoft,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.orderSideText,
-                          {
-                            color:
-                              order.side === 'buy'
-                                ? colors.gain
-                                : colors.loss,
-                          },
-                        ]}
-                      >
-                        {order.side === 'buy' ? 'AL' : 'SAT'}
-                      </Text>
-                    </View>
-
-                    <Text style={styles.orderName} numberOfLines={1}>
-                      {order.name}
-                    </Text>
-
-                    <Text style={styles.orderTime}>
-                      {formatRelativeTime(order.executedAt)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.orderBottomRow}>
-                    <Text style={styles.orderDetailsText}>
-                      {formatQuantity(order.quantity)} {order.symbol}  ·  {formatCentsString(order.netCents)}  ·  komisyon: {formatCentsString(order.feeCents)}
-                    </Text>
-                  </View>
-
-                  {/*
-                    KARAR NOTU — varsa.
-
-                    ⚠️ TIRNAK İÇİNDE VE İTALİK: bu metin sunucunun
-                    hesabı değil, KULLANICININ kendi cümlesi. Diğer
-                    satırlarla aynı biçimde yazsaydık ölçülmüş bir veri
-                    gibi okunurdu.
-
-                    ⚠️ Sol şerit, kartın kendi kararını taşıdığını
-                    gösteriyor — alıntı bloğu geleneği.
-                  */}
-                  {order.note ? (
-                    <View style={styles.noteBox}>
-                      <Text style={styles.noteText}>"{order.note}"</Text>
-                    </View>
-                  ) : null}
-                </View>
+                <OrderRow key={order.id} order={order} />
               ))}
 
               {orders.length > 3 && (
@@ -1133,56 +1067,89 @@ export function PortfolioScreen({
           data={orders}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item: order }) => (
-            <View style={[styles.orderRow, { paddingHorizontal: 16 }]}>
-              <View style={styles.orderTopRow}>
-                <View
-                  style={[
-                    styles.orderSideBadge,
-                    {
-                      backgroundColor:
-                        // Yukarıdaki ile aynı gerekçe: tema rengine bağlandı.
-                        order.side === 'buy'
-                          ? colors.gainSoft
-                          : colors.lossSoft,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.orderSideText,
-                      {
-                        color:
-                          order.side === 'buy'
-                            ? colors.gain
-                            : colors.loss,
-                      },
-                    ]}
-                  >
-                    {order.side === 'buy' ? 'AL' : 'SAT'}
-                  </Text>
-                </View>
-
-                <Text style={styles.orderName} numberOfLines={1}>
-                  {order.name}
-                </Text>
-
-                <Text style={styles.orderTime}>
-                  {formatRelativeTime(order.executedAt)}
-                </Text>
-              </View>
-
-              <View style={styles.orderBottomRow}>
-                <Text style={styles.orderDetailsText}>
-                  {formatQuantity(order.quantity)} {order.symbol}  ·  {formatCentsString(order.netCents)}  ·  komisyon: {formatCentsString(order.feeCents)}
-                </Text>
-              </View>
-            </View>
-          )}
+          renderItem={({ item: order }) => <OrderRow order={order} padded />}
         />
       </View>
     </Modal>
   </View>
+  );
+}
+
+/**
+ * Tek bir işlem satırı — hem "Son İşlemler" özetinde hem "Tüm İşlemler"
+ * modalında kullanılıyor.
+ *
+ * ⚠️ ORTAK BİLEŞEN OLMASININ SEBEBİ ÖLÇÜLMÜŞ BİR HATA (4 Eyl 2026).
+ *
+ * Bu iki liste eskiden AYNI JSX'in iki KOPYASIYDI. Kopyalardan biri
+ * (modal) karar notu bloğu eklendiğinde güncellenmemişti: kullanıcı
+ * "Tüm işlemleri gör" dediğinde notlar sessizce kayboluyordu. Hata
+ * vermiyordu, sadece ürünün en ayırt edici verisi görünmüyordu.
+ *
+ * Tek fark `padded`: modal kendi yatay boşluğunu taşımak zorunda,
+ * özet ise zaten dolgulu bir kartın içinde. Bunun için ayrı bir kopya
+ * tutmak, aynı bilgiyi iki yerde tutmanın klasik bedeliydi.
+ */
+function OrderRow({ order, padded = false }: { order: Order; padded?: boolean }) {
+  return (
+    <View style={[styles.orderRow, padded ? { paddingHorizontal: 16 } : null]}>
+      <View style={styles.orderTopRow}>
+        <View
+          style={[
+            styles.orderSideBadge,
+            {
+              /*
+                ⚠️ ELLE YAZILMIŞ RENKLER TOKEN'A ÇEKİLDİ.
+                rgba(52,194,138) ve rgba(229,72,77) temanın yeşil/kırmızısı
+                DEĞİLDİ — yakın ama farklı tonlar. Aynı ekranda iki ayrı
+                yeşil vardı ve tema değişse bunlar değişmezdi.
+              */
+              backgroundColor:
+                order.side === 'buy' ? colors.gainSoft : colors.lossSoft,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.orderSideText,
+              { color: order.side === 'buy' ? colors.gain : colors.loss },
+            ]}
+          >
+            {order.side === 'buy' ? 'AL' : 'SAT'}
+          </Text>
+        </View>
+
+        <Text style={styles.orderName} numberOfLines={1}>
+          {order.name}
+        </Text>
+
+        <Text style={styles.orderTime}>
+          {formatRelativeTime(order.executedAt)}
+        </Text>
+      </View>
+
+      <View style={styles.orderBottomRow}>
+        <Text style={styles.orderDetailsText}>
+          {formatQuantity(order.quantity)} {order.symbol}  ·  {formatCentsString(order.netCents)}  ·  komisyon: {formatCentsString(order.feeCents)}
+        </Text>
+      </View>
+
+      {/*
+        KARAR NOTU — varsa.
+
+        ⚠️ TIRNAK İÇİNDE VE İTALİK: bu metin sunucunun hesabı değil,
+        KULLANICININ kendi cümlesi. Diğer satırlarla aynı biçimde
+        yazsaydık ölçülmüş bir veri gibi okunurdu.
+
+        ⚠️ Sol şerit, kartın kendi kararını taşıdığını gösteriyor —
+        alıntı bloğu geleneği.
+      */}
+      {order.note ? (
+        <View style={styles.noteBox}>
+          <Text style={styles.noteText}>"{order.note}"</Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
